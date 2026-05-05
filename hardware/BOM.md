@@ -23,14 +23,14 @@ See [hardware/3d-models/](3d-models/) for STL files :
 
 | File | Purpose | Recommended material | Notes |
 |---|---|---|---|
-| `caixa.stl` | Main enclosure (case) | PLA / PETG | The body of the scale |
-| `base.stl` | Bottom plate | PLA | Holds the electronics tray |
-| `prato.stl` | Weighing platform | PLA / PETG | Top plate where you place the spool |
-| `roda_dentada.stl` | Servo gear | PETG / PLA+ | Mounted on the servo, drives the spool |
-| `ant_rfid.stl` | RFID antenna mount | PLA | Holds the RC522 module |
-| `base_ant.stl` | RFID antenna base | PLA | Mounting bracket |
+| `case.stl` | Main enclosure (case) | PLA or PETG | The body of the scale |
+| `bottom-plate.stl` | Bottom plate | PLA or PETG | Holds the electronics tray |
+| `weighing-platform.stl` | Weighing platform | PLA or PETG | Top plate where you place the spool |
+| `servo-gear.stl` | Servo gear | PLA or PETG | Mounted on the servo, drives the spool |
+| `rfid-antenna-mount.stl` | RFID antenna mount | PLA or PETG | Holds the RC522 module |
+| `rfid-antenna-base.stl` | RFID antenna base | PLA or PETG | Mounting bracket |
 
-Recommended print settings (PLA) :
+Recommended print settings (PLA or PETG) :
 
 - Layer height : 0.2 mm
 - Infill : 30 %

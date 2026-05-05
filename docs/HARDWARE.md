@@ -34,11 +34,11 @@ Pinout, wiring, electrical specs, and assembly instructions for TigerScale.
 
 See [hardware/3d-models/](../hardware/3d-models/) for STL files:
 
-- `caixa.stl` — main enclosure (case)
-- `base.stl` — bottom plate / electronics tray
-- `prato.stl` — weighing platform
-- `roda_dentada.stl` — gear (mounted on servo)
-- `ant_rfid.stl` + `base_ant.stl` — RFID antenna mount
+- `case.stl` — main enclosure (case)
+- `bottom-plate.stl` — bottom plate / electronics tray
+- `weighing-platform.stl` — weighing platform
+- `servo-gear.stl` — gear (mounted on servo)
+- `rfid-antenna-mount.stl` + `rfid-antenna-base.stl` — RFID antenna mount
 
 ### Optional
 
@@ -252,7 +252,7 @@ The 2 readers should be:
 
 ### Step 5 — Mount servo
 
-The servo's gear meshes with the spool to rotate it. Use the included `roda_dentada.stl` printed in PETG or PLA+ for durability.
+The servo's gear meshes with the spool to rotate it. Use the included `servo-gear.stl` printed in PLA or PETG for durability.
 
 ### Step 6 — Wire harness
 
