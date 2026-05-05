@@ -58,17 +58,17 @@ const translations = {
         // Calibration wizard
         step1Title: 'Step 1',
         step1Instruction: 'Laissez la balance vide puis appuyez sur le bouton',
-        step1Button: 'GO →',
+        step1Button: 'Next',
         step2Title: 'Step 2',
         step2Instruction: 'Sélectionnez votre Masterspool vide et placez-la sur la balance',
         selectMasterspool: 'Sélectionnez votre Masterspool',
-        step2Button: 'Calibrer ✓',
+        step2Button: 'Calibrer',
         step3Title: 'Calibré !',
         step3Instruction: 'La balance est maintenant calibrée',
         currentReading: 'Lecture actuelle',
         calibKnownWeight: 'Poids réel (g)',
         newFactor: 'Nouveau facteur',
-        back: '← Retour',
+        back: 'Retour',
         calibAgain: 'Restart',
         manualCalib: 'Calibration manuelle',
         // Status
@@ -85,23 +85,23 @@ const translations = {
         alertDeleteConfirm: 'Supprimer la clé API ?',
         alertDeleteError: 'Erreur lors de la suppression',
         alertInvalidFactor: 'Facteur invalide',
-        alertNegativeFactor: '⚠️ Le coefficient doit être positif',
+        alertNegativeFactor: 'Le coefficient doit être positif',
         alertError: 'Erreur',
         alertInvalidWeight: 'Poids connu invalide',
         alertDataUnavailable: 'Données non disponibles',
-        alertWeightTooLight: '⚠️ Poids trop léger (min. 200g)\nVérifiez que le filament est bien sur la balance.',
-        errorWeightRequired: '⚠️ Veuillez entrer un poids valide (min. 200g)',
+        alertWeightTooLight: 'Poids trop léger (min. 200g)\nVérifiez que le filament est bien sur la balance.',
+        errorWeightRequired: 'Veuillez entrer un poids valide (min. 200g)',
         modalWeightTooLightTitle: 'Poids insuffisant',
         modalWeightTooLightMessage: 'Le poids est trop léger pour une calibration. Utilisez une Masterspool ou un filament d\'au moins 200g.',
         modalWeightInvalidTitle: 'Poids invalide',
         modalWeightInvalidMessage: 'Veuillez entrer un poids valide',
         modalOk: 'OK',
         alertReconfigConfirm: 'Reconfigurer le Wi‑Fi ? L\'appareil redémarrera.',
-        alertResetConfirm: '⚠️ ATTENTION : Cette action effacera toutes les données. Continuer ?',
+        alertResetConfirm: 'ATTENTION : Cette action effacera toutes les données. Continuer ?',
         // Send status
-        sending: '⏳ Envoi...',
-        sent: '✓ Envoyé',
-        sendError: '✗ Erreur',
+        sending: 'Envoi...',
+        sent: 'Envoyé',
+        sendError: 'Erreur',
         sendIn: 'Envoi dans'
     },
     en: {
@@ -129,17 +129,17 @@ const translations = {
         // Calibration wizard
         step1Title: 'Step 1',
         step1Instruction: 'Leave the scale empty then press the button',
-        step1Button: 'GO →',
+        step1Button: 'Next',
         step2Title: 'Step 2',
         step2Instruction: 'Select your empty Masterspool and place it on the scale',
         selectMasterspool: 'Select your Masterspool',
-        step2Button: 'Calibrate ✓',
+        step2Button: 'Calibrate',
         step3Title: 'Calibrated!',
         step3Instruction: 'The scale is now calibrated',
         currentReading: 'Current reading',
         calibKnownWeight: 'Real weight (g)',
         newFactor: 'New factor',
-        back: '← Back',
+        back: 'Back',
         calibAgain: 'Restart',
         manualCalib: 'Manual calibration',
         // Status
@@ -156,23 +156,23 @@ const translations = {
         alertDeleteConfirm: 'Delete API key?',
         alertDeleteError: 'Delete error',
         alertInvalidFactor: 'Invalid factor',
-        alertNegativeFactor: '⚠️ Coefficient must be positive',
+        alertNegativeFactor: 'Coefficient must be positive',
         alertError: 'Error',
         alertInvalidWeight: 'Invalid known weight',
         alertDataUnavailable: 'Data unavailable',
-        alertWeightTooLight: '⚠️ Weight too light (min. 200g)\nCheck that the filament is on the scale.',
-        errorWeightRequired: '⚠️ Please enter a valid weight (min. 200g)',
+        alertWeightTooLight: 'Weight too light (min. 200g)\nCheck that the filament is on the scale.',
+        errorWeightRequired: 'Please enter a valid weight (min. 200g)',
         modalWeightTooLightTitle: 'Insufficient weight',
         modalWeightTooLightMessage: 'The weight is too light for calibration. Use a Masterspool or filament of at least 200g.',
         modalWeightInvalidTitle: 'Invalid weight',
         modalWeightInvalidMessage: 'Please enter a valid weight',
         modalOk: 'OK',
         alertReconfigConfirm: 'Reconfigure Wi‑Fi? Device will restart.',
-        alertResetConfirm: '⚠️ WARNING: This will erase all data. Continue?',
+        alertResetConfirm: 'WARNING: This will erase all data. Continue?',
         // Send status
-        sending: '⏳ Sending...',
-        sent: '✓ Sent',
-        sendError: '✗ Error',
+        sending: 'Sending...',
+        sent: 'Sent',
+        sendError: 'Error',
         sendIn: 'Sending in'
     }
 };
@@ -318,7 +318,7 @@ function setFirebaseConfigured(flag) {
     // Toggle the Account card (visible only when authenticated)
     const accountCard = document.getElementById('accountCard');
     if (accountCard) accountCard.style.display = firebaseConfigured ? '' : 'none';
-    // Auto-show/hide login modal — only after we know the actual status (not on init)
+    // Auto-show/hide login modal - only after we know the actual status (not on init)
     if (typeof firebaseStatusKnown !== 'undefined' && firebaseStatusKnown) {
         if (firebaseConfigured) hideAuthModal(); else showAuthModal();
     }
@@ -791,7 +791,7 @@ function applyStatusSnapshot(s) {
     
     // API UI removed in Firebase-only mode
     // Modal trigger uses firebaseAuth ("am I signed in right now?") rather than
-    // firebaseConfigured ("are creds stored?") — this catches the stale-creds case
+    // firebaseConfigured ("are creds stored?") - this catches the stale-creds case
     // (e.g. password changed on Firebase side) where stored creds exist but sign-in
     // fails on boot, in which case we want the user to re-authenticate via the modal.
     if (typeof s.firebaseAuth !== 'undefined') {
@@ -812,7 +812,7 @@ function applyStatusSnapshot(s) {
     // Calibration factor
     if (typeof s.calibrationFactor !== 'undefined') {
         const n = Number(s.calibrationFactor);
-        const shown = isFinite(n) ? n.toFixed(2) : '—';
+        const shown = isFinite(n) ? n.toFixed(2) : '-';
         setTextIfChanged(calFactorEl, shown);
         calFactor = n;
     }
@@ -855,7 +855,7 @@ function pollStatus() {
 // Prevents the modal from flashing on first load (before we know the actual state)
 let firebaseStatusKnown = false;
 
-// Bridge page URL (Firebase Hosting target "cdn" → site "tigertag-cdn")
+// Bridge page URL (Firebase Hosting target "cdn" -> site "tigertag-cdn")
 const AUTH_BRIDGE_URL = 'https://tigertag-cdn.web.app/scale-auth.html';
 const AUTH_BRIDGE_ORIGIN = 'https://tigertag-cdn.web.app';
 
@@ -909,7 +909,7 @@ function signInWithEmail() {
     .catch(() => setAuthError(t('authNetworkError')));
 }
 
-// ── Google sign-in via OAuth bridge (popup → postMessage) ──
+// ── Google sign-in via OAuth bridge (popup -> postMessage) ──
 function signInWithGoogleBridge() {
     setAuthError('');
 
@@ -943,7 +943,7 @@ function signInWithGoogleBridge() {
     }, 500);
 }
 
-// ── Sign out — clears tokens on the device and re-opens the login modal ──
+// ── Sign out - clears tokens on the device and re-opens the login modal ──
 function signOut() {
     if (!confirm(t('confirmSignOut'))) return;
     fetch('/api/firebase/auth', { method: 'DELETE' })
@@ -967,7 +967,7 @@ function signOut() {
     .catch(() => alert(t('alertFirebaseError')));
 }
 
-// ── postMessage listener — receives tokens from the bridge ──
+// ── postMessage listener - receives tokens from the bridge ──
 window.addEventListener('message', (event) => {
     // SECURITY: only accept messages from the bridge origin
     if (event.origin !== AUTH_BRIDGE_ORIGIN) return;

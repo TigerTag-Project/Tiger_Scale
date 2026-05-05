@@ -686,7 +686,7 @@ void setupWiFi() {
     wm.setMenu(menu);
     wm.setCustomMenuHTML(
         "<div class='wm-foot'>"
-        "<a href='/i' class='wm-foot-link'>&#9432; Device info</a>"
+        "<a href='/i' class='wm-foot-link'>Device info</a>"
         "</div>"
     );
     wm.setBreakAfterConfig(true);    // close portal as soon as creds are saved
@@ -1099,7 +1099,7 @@ float readInventoryContainerWeight(const String& uid, float* outMeasureGr) {
         char hexBuf[32];
         snprintf(hexBuf, sizeof(hexBuf), "%llX", uidDec);
         uidForLookup = String(hexBuf);
-        Serial.printf("[CONTAINER] Converted decimal %s → hex %s\n", uid.c_str(), uidForLookup.c_str());
+        Serial.printf("[CONTAINER] Converted decimal %s -> hex %s\n", uid.c_str(), uidForLookup.c_str());
     }
 
     // Canonical path policy:
@@ -1151,21 +1151,21 @@ float readInventoryContainerWeight(const String& uid, float* outMeasureGr) {
         JsonObject cw = fields["container_weight"];
         if (cw.containsKey("doubleValue")) {
             container = cw["doubleValue"].as<float>();
-            Serial.printf("[CONTAINER] ✅ Found in fields.container_weight.doubleValue: %.2f g\n", container);
+            Serial.printf("[CONTAINER] OK Found in fields.container_weight.doubleValue: %.2f g\n", container);
         } else if (cw.containsKey("integerValue")) {
             // integerValue comes as a string from Firestore REST API
             String ivStr = cw["integerValue"].as<String>();
             container = (float)ivStr.toInt();
-            Serial.printf("[CONTAINER] ✅ Found in fields.container_weight.integerValue: %.2f g\n", container);
+            Serial.printf("[CONTAINER] OK Found in fields.container_weight.integerValue: %.2f g\n", container);
         }
     }
     // Also check for container_weight at root level (direct format)
     else if (doc.containsKey("container_weight")) {
         container = doc["container_weight"].as<float>();
-        Serial.printf("[CONTAINER] ✅ Found at root level: %.2f g\n", container);
+        Serial.printf("[CONTAINER] OK Found at root level: %.2f g\n", container);
     }
     else {
-        Serial.printf("[CONTAINER] ❌ 'container_weight' not found anywhere in document\n");
+        Serial.printf("[CONTAINER] ERROR 'container_weight' not found anywhere in document\n");
     }
 
     // Optional: extract measure_gr if caller wants it
@@ -1360,10 +1360,10 @@ float readInventoryContainerWeight(const String& uid, float* outMeasureGr) {
     if (positionLabelRaw.length() > 0) {
         gLastRackPosition = positionLabelRaw;
         if (gLastRackName.length() > 0) {
-            Serial.printf("[RACK] ✅ %s position %s (from position_label)\n",
+            Serial.printf("[RACK] OK %s position %s (from position_label)\n",
                           gLastRackName.c_str(), gLastRackPosition.c_str());
         } else {
-            Serial.printf("[RACK] ✅ Position %s (from position_label)\n",
+            Serial.printf("[RACK] OK Position %s (from position_label)\n",
                           gLastRackPosition.c_str());
         }
     }
@@ -1383,14 +1383,14 @@ float readInventoryContainerWeight(const String& uid, float* outMeasureGr) {
         gLastRackPosition = String(buf);
 
         if (gLastRackName.length() > 0) {
-            Serial.printf("[RACK] ✅ %s position %s (from level/position)\n",
+            Serial.printf("[RACK] OK %s position %s (from level/position)\n",
                           gLastRackName.c_str(), gLastRackPosition.c_str());
         } else {
-            Serial.printf("[RACK] ✅ Position %s (from level/position)\n",
+            Serial.printf("[RACK] OK Position %s (from level/position)\n",
                           gLastRackPosition.c_str());
         }
     } else {
-        Serial.printf("[RACK] ❌ Missing level (%d) or position (%d)\n", gLastLevel, gLastPosition);
+        Serial.printf("[RACK] ERROR Missing level (%d) or position (%d)\n", gLastLevel, gLastPosition);
         gLastRackPosition = "";
     }
 
@@ -1727,13 +1727,13 @@ bool updateScaleLastSpool(const String& uid_a, const String& uid_b = "", float w
                       uidBHex.c_str(), twin_b.length() > 0 ? twin_b.c_str() : "none");
 
         // Decision matrix (§6.1):
-        // [A=B, B=A] ✅ Paired correctly → update both
-        // [A=B, B=null] ⚠️ Asymmetric → update both, fix B.twin_tag_uid=A
-        // [A=null, B=A] ⚠️ Asymmetric → update both, fix A.twin_tag_uid=B
-        // [A=null, B=null] 🆕 New pair → update both, set A.twin_tag_uid=B, B.twin_tag_uid=A
-        // [A=C, B=*] 🚨 Conflict → only update A, log warning
-        // [A=*, B=C] 🚨 Conflict → only update B, log warning
-        // [A≠B AND A∉{B,null} AND B∉{A,null}] → different spools → skip
+        // [A=B, B=A] OK Paired correctly -> update both
+        // [A=B, B=null] WARNING Asymmetric -> update both, fix B.twin_tag_uid=A
+        // [A=null, B=A] WARNING Asymmetric -> update both, fix A.twin_tag_uid=B
+        // [A=null, B=null] NEW New pair -> update both, set A.twin_tag_uid=B, B.twin_tag_uid=A
+        // [A=C, B=*] CONFLICT Conflict -> only update A, log warning
+        // [A=*, B=C] CONFLICT Conflict -> only update B, log warning
+        // [A!=B AND A not in {B,null} AND B not in {A,null}] -> different spools -> skip
 
         bool twin_a_is_b = (twin_a == uidBHex);
         bool twin_b_is_a = (twin_b == uidAHex);
@@ -2274,7 +2274,7 @@ void setupWebServer() {
     // for ensureFirebaseToken() to keep the session alive across reboots.
     //
     // Body chunking: AsyncWebServer delivers in TCP-sized chunks (~1452 bytes),
-    // and a real Firebase ID token JSON is ~2 KB → arrives in 2 chunks. We accumulate
+    // and a real Firebase ID token JSON is ~2 KB -> arrives in 2 chunks. We accumulate
     // via a String attached to the request (auto-freed after response).
     server.on("/api/firebase/token", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL,
         [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
@@ -2997,7 +2997,7 @@ bool processAutoTare(float weight) {
             prefs.begin("config", false);
             prefs.putFloat("tareFactor", offset);
             prefs.end();
-            Serial.printf("[AUTOTARE] ✅ Auto tare complete, scale ready for next measurement\n");
+            Serial.printf("[AUTOTARE] OK Auto tare complete, scale ready for next measurement\n");
             return true;
         }
     } else {
@@ -3243,7 +3243,7 @@ static bool isLikelyTigerTagUidHex(const String& uidHex) {
 // integrity rather than CA validation. This is acceptable because:
 //   • The expected hash comes from Firestore (already auth'd to the user)
 //     or from /api/ota/check (which fetches signed JSON over HTTPS).
-//   • A MITM swapping the binary would fail SHA verification → no install.
+//   • A MITM swapping the binary would fail SHA verification -> no install.
 
 // State exposed for the local /api/ota/* endpoints — forward-declared as
 // extern up near the other globals so /api/status (in setupWebServer) can read.
@@ -3379,7 +3379,7 @@ static bool otaApply(const String& url,
             Update.abort();
             return false;
         }
-        Serial.println("[OTA] SHA-256 verified ✓");
+        Serial.println("[OTA] SHA-256 verified OK");
     } else {
         Serial.printf("[OTA] No expected SHA provided (got %s) — skipping verification\n",
                       shaHex.c_str());
@@ -3390,7 +3390,7 @@ static bool otaApply(const String& url,
         return false;
     }
 
-    Serial.printf("[OTA] %s partition flashed (%d bytes) ✓\n",
+    Serial.printf("[OTA] %s partition flashed (%d bytes) OK\n",
                   updateType == U_FLASH ? "FIRMWARE" : "FILESYSTEM", written);
     return true;
 }
@@ -3567,7 +3567,7 @@ void pollOtaCommands() {
     int code = http.GET();
     String resp = http.getString();
     http.end();
-    if (code != 200) return; // no commands collection yet → 404 is fine
+    if (code != 200) return; // no commands collection yet -> 404 is fine
 
     DynamicJsonDocument doc(8192);
     if (deserializeJson(doc, resp)) return;
@@ -3678,7 +3678,7 @@ void loop() {
         String currentSSID = WiFi.SSID();
         if (lastConnectedSSID.length() > 0 && currentSSID != lastConnectedSSID) {
             // WiFi changed! Clear Firebase credentials to force relogin
-            Serial.printf("[WIFI] Network changed: %s → %s. Clearing Firebase credentials.\n",
+            Serial.printf("[WIFI] Network changed: %s -> %s. Clearing Firebase credentials.\n",
                           lastConnectedSSID.c_str(), currentSSID.c_str());
             firebaseAuth = false;
             firebaseIdToken = "";
