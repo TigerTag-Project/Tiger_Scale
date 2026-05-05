@@ -30,9 +30,9 @@
   "whatNote":     "您现有的设置（Wi-Fi、Firebase 登录、校准）在固件更新时<strong>会被保留</strong>。",
 
   "trustTitle":   "不信任浏览器来刷写设备？",
-  "trustIntro":   "TigerScale 固件完全 <a href=\"https://github.com/TigerTag-Project/TigerScale\" style=\"color: var(--orange);\">开源</a>。您可以：",
+  "trustIntro":   "TigerScale 固件完全 <a href=\"https://github.com/TigerTag-Project/Tiger_Scale\" style=\"color: var(--orange);\">开源</a>。您可以：",
   "trustItem1":   "在 GitHub 上阅读每一行代码",
-  "trustItem2":   "使用 <a href=\"https://github.com/TigerTag-Project/TigerScale/blob/main/docs/INSTALLATION.md#option-b--platformio\" style=\"color: var(--orange);\">PlatformIO</a> 或 <a href=\"https://github.com/TigerTag-Project/TigerScale/blob/main/docs/INSTALLATION.md#option-c--arduino-ide\" style=\"color: var(--orange);\">Arduino IDE</a> 自行编译并刷写",
+  "trustItem2":   "使用 <a href=\"https://github.com/TigerTag-Project/Tiger_Scale/blob/main/docs/INSTALLATION.md#option-b--platformio\" style=\"color: var(--orange);\">PlatformIO</a> 或 <a href=\"https://github.com/TigerTag-Project/Tiger_Scale/blob/main/docs/INSTALLATION.md#option-c--arduino-ide\" style=\"color: var(--orange);\">Arduino IDE</a> 自行编译并刷写",
   "trustItem3":   "用您自己的构建对发布的二进制文件进行 SHA256 校验",
   "trustOutro":   "网页安装器只是一个便捷层 — 它使用浏览器沙箱化的 <a href=\"https://web.dev/serial/\" style=\"color: var(--orange);\">Web Serial API</a>。只有在您通过浏览器弹窗明确授权时，页面才能看到您的 USB 设备。",
 

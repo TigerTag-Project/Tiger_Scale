@@ -43,8 +43,8 @@ There's a contribution path for every skill level:
 ### Clone and build
 
 ```bash
-git clone https://github.com/TigerTag-Project/TigerScale.git
-cd TigerScale
+git clone https://github.com/TigerTag-Project/Tiger_Scale.git
+cd Tiger_Scale
 pio run                    # compile firmware
 pio run -t buildfs         # build the LittleFS image (web UI)
 ```
@@ -119,7 +119,7 @@ The CI will compile your firmware automatically. PRs that don't compile won't be
 
 ## Reporting bugs
 
-Open a [GitHub issue](https://github.com/TigerTag-Project/TigerScale/issues/new/choose) using the **Bug Report** template. Include:
+Open a [GitHub issue](https://github.com/TigerTag-Project/Tiger_Scale/issues/new/choose) using the **Bug Report** template. Include:
 
 - **What you expected** vs **what happened**
 - Steps to reproduce
@@ -136,7 +136,7 @@ For UI bugs, also include:
 ## Asking for help
 
 - 💬 [Discord](https://discord.gg/3Qv5TSqnJH) — fastest way for real-time help
-- 🐛 [GitHub Issues](https://github.com/TigerTag-Project/TigerScale/issues) — bugs and feature requests
+- 🐛 [GitHub Issues](https://github.com/TigerTag-Project/Tiger_Scale/issues) — bugs and feature requests
 - 📚 [Documentation](docs/) — start here for setup / hardware questions
 
 ---

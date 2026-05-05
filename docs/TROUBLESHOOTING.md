@@ -99,7 +99,7 @@ The web UI received the tokens from the OAuth bridge but failed to POST them to 
 For email/password login : password is wrong, OR account doesn't exist on the TigerTag Firebase project.
 
 - Try **Google sign-in** instead (no password required)
-- Or create a TigerTag account first at <https://tigertag.io/signup> (TODO: create this page)
+- Or create/sign in to your TigerTag account from <https://tigertag.io>
 
 ### Stays signed in after logout
 
@@ -213,6 +213,6 @@ Edit `display.setRotation(...)` in the firmware (defaults to 0 — try 2 for 180
 ## Still stuck?
 
 - Check the Serial monitor logs (`pio device monitor`) for `[ERROR]`, `[FIREBASE]`, `[BOOT]` lines
-- Search [GitHub issues](https://github.com/TigerTag-Project/TigerScale/issues) for similar reports
+- Search [GitHub issues](https://github.com/TigerTag-Project/Tiger_Scale/issues) for similar reports
 - Ask on [Discord](https://discord.gg/3Qv5TSqnJH) — fastest community help
-- [Open a new issue](https://github.com/TigerTag-Project/TigerScale/issues/new) using the bug report template
+- [Open a new issue](https://github.com/TigerTag-Project/Tiger_Scale/issues/new) using the bug report template

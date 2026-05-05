@@ -51,7 +51,7 @@ At ~20 €/kg PLA, that's about **3-4 € of filament total**.
 The STL files are exported from a parametric CAD model (Fusion 360 / FreeCAD — we'll publish the source files in a future release). If you need to modify dimensions :
 
 - Use [TinkerCAD](https://www.tinkercad.com/) for simple modifications
-- Use [Meshmixer](https://www.meshmixer.com/) or [Blender](https://www.blender.org/) for mesh editing
+- Use [Blender](https://www.blender.org/) for mesh editing
 - Or fork and request the source CAD on [Discord](https://discord.gg/3Qv5TSqnJH)
 
 ## Variants and forks

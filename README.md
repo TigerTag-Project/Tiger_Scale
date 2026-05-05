@@ -9,14 +9,14 @@
 [![Discord](https://img.shields.io/badge/Discord-Join-5865F2.svg)](https://discord.gg/3Qv5TSqnJH)
 
 <p align="center">
-  <i>(Hero photo of an assembled TigerScale on a 3D printer — replace docs/images/hero.jpg)</i>
+  <img src="web-installer/img/tigertag-logo.svg" alt="TigerTag logo" width="140">
 </p>
 
 ---
 
 ## ✨ What is it?
 
-TigerScale is a **DIY smart scale** that knows which spool sits on it. Drop a spool with a TigerTag (NFC sticker) on the platform — the scale reads the tag, weighs the spool, computes the **net filament weight** (substracting the empty cardboard/plastic spool), and syncs the result to your TigerTag account in real time.
+TigerScale is a **DIY smart scale** that knows which spool sits on it. Drop a spool with a TigerTag (NFC sticker) on the platform — the scale reads the tag, weighs the spool, computes the **net filament weight** (subtracting the empty cardboard/plastic spool), and syncs the result to your TigerTag account in real time.
 
 It is designed to be **3D-printable, hackable, and cheap** (~30 € BoM). The cloud service that synchronises your inventory across devices is provided by **TigerTag** — an account is free.
 
@@ -29,7 +29,7 @@ It is designed to be **3D-printable, hackable, and cheap** (~30 € BoM). The cl
 - ☁️ **Real-time cloud sync** (Firestore) — see your inventory from any device
 - 🔐 **Google Sign-In** via OAuth bridge (no passwords stored on device)
 - 📱 **Modern web UI** served by the ESP32 itself, mobile-friendly
-- 🌍 **Multilingual** (English / French)
+- 🌍 **Multilingual Web Installer** (English, French, German, Spanish, Italian, Polish, Portuguese, Brazilian Portuguese, Chinese)
 - 🔄 **Auto-tare**, **EMA + median filtering**, **twin-tag pairing** (§6.1 spec)
 - 🛠️ **No closed binary blobs** — everything compiles from source
 
@@ -39,15 +39,15 @@ It is designed to be **3D-printable, hackable, and cheap** (~30 € BoM). The cl
 
 ### Option A — Web Installer (easiest, no toolchain)
 
-👉 **[Open the Web Installer](https://tigertag-project.github.io/TigerScale/)** in **Chrome or Edge**.
+👉 **[Open the Web Installer](https://tigertag-project.github.io/Tiger_Scale/)** in **Chrome or Edge**.
 
 Plug your ESP32 in via USB and click **Install**. The browser flashes the firmware and the filesystem in 60 seconds. No Arduino IDE, no PlatformIO, no command line.
 
 ### Option B — PlatformIO (recommended for developers)
 
 ```bash
-git clone https://github.com/TigerTag-Project/TigerScale.git
-cd TigerScale
+git clone https://github.com/TigerTag-Project/Tiger_Scale.git
+cd Tiger_Scale
 pio run -t upload     # firmware
 pio run -t uploadfs   # web UI (LittleFS)
 pio device monitor    # serial console

@@ -30,9 +30,9 @@
   "whatNote":     "Tus ajustes actuales (Wi-Fi, login Firebase, calibración) se <strong>conservan</strong> al actualizar el firmware.",
 
   "trustTitle":   "¿No confías en flashear desde el navegador?",
-  "trustIntro":   "El firmware de TigerScale es totalmente <a href=\"https://github.com/TigerTag-Project/TigerScale\" style=\"color: var(--orange);\">de código abierto</a>. Puedes:",
+  "trustIntro":   "El firmware de TigerScale es totalmente <a href=\"https://github.com/TigerTag-Project/Tiger_Scale\" style=\"color: var(--orange);\">de código abierto</a>. Puedes:",
   "trustItem1":   "Leer cada línea de código en GitHub",
-  "trustItem2":   "Compilar y flashear tú mismo con <a href=\"https://github.com/TigerTag-Project/TigerScale/blob/main/docs/INSTALLATION.md#option-b--platformio\" style=\"color: var(--orange);\">PlatformIO</a> o <a href=\"https://github.com/TigerTag-Project/TigerScale/blob/main/docs/INSTALLATION.md#option-c--arduino-ide\" style=\"color: var(--orange);\">Arduino IDE</a>",
+  "trustItem2":   "Compilar y flashear tú mismo con <a href=\"https://github.com/TigerTag-Project/Tiger_Scale/blob/main/docs/INSTALLATION.md#option-b--platformio\" style=\"color: var(--orange);\">PlatformIO</a> o <a href=\"https://github.com/TigerTag-Project/Tiger_Scale/blob/main/docs/INSTALLATION.md#option-c--arduino-ide\" style=\"color: var(--orange);\">Arduino IDE</a>",
   "trustItem3":   "Verificar el SHA256 de los binarios publicados contra tu propia build",
   "trustOutro":   "El Instalador Web es solo una capa de comodidad — usa la <a href=\"https://web.dev/serial/\" style=\"color: var(--orange);\">Web Serial API</a> aislada por tu navegador. La página solo ve tu dispositivo USB cuando lo autorizas explícitamente.",
 
