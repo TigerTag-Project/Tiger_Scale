@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>TigerScale — Web Installer</title>
+    <meta name="description" content="Flash your TigerScale firmware directly from the browser. No Arduino IDE, no command line.">
+    <meta name="theme-color" content="#e67e22">
+
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='52' font-size='52'%3E%F0%9F%90%AF%3C/text%3E%3C/svg%3E">
+
+    <!-- ESP Web Tools — browser-based ESP32 flasher -->
+    <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+
+    <style>
+        * { box-sizing: border-box; }
+        :root {
+            --orange: #e67e22;
+            --orange-dark: #d35400;
+            --bg: #fff8f1;
+            --card: #ffffff;
+            --text: #2c3e50;
+            --muted: #7f8c8d;
+            --border: #ecf0f1;
+            --success: #27ae60;
+            --warning: #f39c12;
+        }
+        html, body {
+            margin: 0; padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, var(--bg) 0%, #fff 100%);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        .wrap { max-width: 720px; margin: 0 auto; padding: 40px 24px; }
+        header { text-align: center; margin-bottom: 32px; }
+        h1 {
+            font-size: 36px; font-weight: 700; margin: 8px 0;
+            background: linear-gradient(135deg, var(--orange), var(--orange-dark));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .logo { font-size: 64px; line-height: 1; }
+        .tagline { color: var(--muted); font-size: 17px; max-width: 480px; margin: 8px auto; line-height: 1.5; }
+        .card {
+            background: var(--card); border-radius: 16px;
+            padding: 32px 28px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+            margin-bottom: 24px;
+        }
+        h2 { font-size: 22px; margin: 0 0 16px; }
+        p { line-height: 1.6; color: var(--text); }
+        .step {
+            display: flex; align-items: flex-start; gap: 16px;
+            padding: 14px 0; border-top: 1px solid var(--border);
+        }
+        .step:first-child { border-top: none; padding-top: 0; }
+        .step-num {
+            flex: 0 0 32px; height: 32px; border-radius: 50%;
+            background: var(--orange); color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 600; font-size: 14px;
+        }
+        .step-body { flex: 1; }
+        .step-body strong { display: block; margin-bottom: 4px; }
+        .step-body code {
+            background: var(--border); padding: 2px 6px;
+            border-radius: 4px; font-size: 13px;
+        }
+        esp-web-install-button {
+            display: block; margin: 24px auto;
+            text-align: center;
+        }
+        esp-web-install-button::part(button) {
+            background: var(--orange); color: #fff;
+            border: none; border-radius: 12px;
+            padding: 16px 36px; font-size: 17px; font-weight: 600;
+            cursor: pointer; transition: transform .05s, background .15s;
+            font-family: inherit;
+        }
+        esp-web-install-button::part(button):hover {
+            background: var(--orange-dark);
+        }
+        esp-web-install-button::part(button):active {
+            transform: scale(0.98);
+        }
+        .browser-warning {
+            background: #fff3cd; border: 1px solid #ffd966;
+            border-radius: 8px; padding: 14px 16px;
+            color: #7c5800; margin: 16px 0;
+            display: none;
+        }
+        .browser-warning.show { display: block; }
+        .browser-warning strong { display: block; margin-bottom: 4px; }
+        footer {
+            text-align: center; color: var(--muted); font-size: 13px;
+            margin-top: 32px; padding: 20px 0;
+        }
+        footer a { color: var(--orange); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+        ul { padding-left: 24px; }
+        ul li { margin: 6px 0; line-height: 1.5; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+
+    <header>
+        <div class="logo">🐯</div>
+        <h1>TigerScale Web Installer</h1>
+        <p class="tagline">
+            Flash your TigerScale firmware directly from the browser. No Arduino IDE, no PlatformIO, no command line.
+        </p>
+    </header>
+
+    <div class="browser-warning" id="warning">
+        <strong>⚠️ Browser not supported</strong>
+        ESP Web Tools requires the <strong>Web Serial API</strong>, which only works in <strong>Chrome, Edge, Brave, or Opera</strong>. Please open this page in one of those.
+    </div>
+
+    <div class="card">
+        <h2>Install in 60 seconds</h2>
+
+        <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+                <strong>Plug in your ESP32 via USB</strong>
+                Use a <em>data</em> cable (not charge-only). The ESP32 should be visible to your computer.
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+                <strong>Click "Install TigerScale"</strong> below
+                A popup will ask which serial port to use — pick your ESP32 (typically <code>cu.usbserial-XXXX</code> on macOS, <code>COMx</code> on Windows, <code>ttyUSB0</code> on Linux).
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-body">
+                <strong>Wait ~60 seconds</strong>
+                The browser flashes the firmware and the web UI. Don't unplug while it runs.
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-body">
+                <strong>Configure Wi-Fi</strong>
+                After install, the scale boots into setup mode. Connect your phone to the <code>Setup-TigerScale-XXXX</code> Wi-Fi network and follow the captive portal.
+            </div>
+        </div>
+
+        <esp-web-install-button manifest="manifest.json"></esp-web-install-button>
+
+        <p style="text-align: center; color: var(--muted); font-size: 13px;">
+            Having trouble? See <a href="https://github.com/TigerTag-Project/TigerScale/blob/main/docs/TROUBLESHOOTING.md" style="color: var(--orange)">TROUBLESHOOTING.md</a>
+        </p>
+    </div>
+
+    <div class="card">
+        <h2>What gets installed?</h2>
+        <ul>
+            <li><strong>Firmware</strong> (~1.3 MB) — the C++ code that runs on the ESP32</li>
+            <li><strong>Web interface</strong> (~900 KB) — the page you'll see at <code>tigerscale-XXXX.local</code></li>
+            <li><strong>Bootloader</strong> + partition table</li>
+        </ul>
+        <p>Your existing settings (Wi-Fi, Firebase login, calibration) will be <strong>preserved</strong>.</p>
+    </div>
+
+    <div class="card">
+        <h2>Don't trust the browser to flash your device?</h2>
+        <p>The TigerScale firmware is fully <a href="https://github.com/TigerTag-Project/TigerScale" style="color: var(--orange)">open-source</a>. You can :</p>
+        <ul>
+            <li>Read every line of code on GitHub</li>
+            <li>Compile and flash it yourself with <a href="https://github.com/TigerTag-Project/TigerScale/blob/main/docs/INSTALLATION.md#option-b--platformio" style="color: var(--orange)">PlatformIO</a> or <a href="https://github.com/TigerTag-Project/TigerScale/blob/main/docs/INSTALLATION.md#option-c--arduino-ide" style="color: var(--orange)">Arduino IDE</a></li>
+            <li>Verify the SHA256 of the published binary against your own build</li>
+        </ul>
+        <p>The Web Installer is just a convenience — it uses the <a href="https://web.dev/serial/" style="color: var(--orange)">Web Serial API</a> which is sandboxed by your browser : the page only sees the device when you explicitly grant access via the popup.</p>
+    </div>
+
+    <footer>
+        <p>
+            🐯 <a href="https://github.com/TigerTag-Project/TigerScale">TigerScale on GitHub</a> ·
+            <a href="https://discord.gg/3Qv5TSqnJH">Discord</a> ·
+            <a href="https://tigertag.io">TigerTag.io</a>
+        </p>
+        <p>Built with <a href="https://esphome.github.io/esp-web-tools/">ESP Web Tools</a> · MIT License</p>
+    </footer>
+
+</div>
+
+<script>
+    // Detect browser support
+    if (!navigator.serial) {
+        document.getElementById('warning').classList.add('show');
+    }
+</script>
+
+</body>
+</html>

@@ -1,12 +1,69 @@
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE & Editor
+.vscode/
+.idea/
+.claude/
+*.swp
+*.swo
+*~
+.project
+.classpath
+
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Arduino IDE
+build/
+
 # Build artifacts
 *.bin
 *.elf
+*.hex
 *.map
-
-# Arduino / IDE temp
+*.o
+*.a
+*.zip
 *.tmp
 *.bak
 
-# OS
-Thumbs.db
-.DS_Store
+# but keep firmware binaries published with web-installer
+!web-installer/firmware/*.bin
+
+# Secrets & local config
+.env
+.env.local
+secrets.h
+config_secret.h
+firebase_config.h
+google-services.json
+serviceAccountKey.json
+
+# Node (for web-installer build)
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.next/
+dist/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Logs
+*.log
+
+# Local dev notes (never commit personal scratchpads)
+local_*.md
+NOTES.md
+TODO.local.md

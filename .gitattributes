@@ -1,0 +1,37 @@
+# Normalize all text files to LF on checkout (Unix line endings).
+# This avoids the CRLF/LF noise that happens between Windows and Mac/Linux contributors.
+
+* text=auto eol=lf
+
+# Source code
+*.cpp   text eol=lf
+*.h     text eol=lf
+*.ino   text eol=lf
+*.py    text eol=lf
+*.sh    text eol=lf
+*.js    text eol=lf
+*.css   text eol=lf
+*.html  text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.ini   text eol=lf
+*.csv   text eol=lf
+
+# Windows batch / PowerShell expect CRLF
+*.bat   text eol=crlf
+*.ps1   text eol=crlf
+
+# Binary assets
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.bin   binary
+*.elf   binary
+*.stl   binary
+*.zip   binary
+*.pdf   binary
+*.gz    binary

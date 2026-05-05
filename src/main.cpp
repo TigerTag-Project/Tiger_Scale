@@ -501,7 +501,11 @@ void setupFileSystem() {
 // ============================================================================
 
 bool isFirebaseConfigured() {
-    return firebaseEmail.length() > 0 && firebasePassword.length() > 0;
+    // Considered "configured" if either:
+    //   - email + password (legacy email/password sign-in flow), OR
+    //   - a refresh token is stored (Google Auth or any provider via the OAuth bridge)
+    return (firebaseEmail.length() > 0 && firebasePassword.length() > 0)
+        || firebaseRefreshToken.length() > 0;
 }
 
 bool firebaseSignIn() {
@@ -1903,12 +1907,89 @@ void setupWebServer() {
     server.on("/api/firebase/auth", HTTP_DELETE, [](AsyncWebServerRequest *request){
         firebaseEmail = ""; firebasePassword = "";
         firebaseIdToken = ""; firebaseRefreshToken = "";
-        firebaseTokenMs = 0; firebaseAuth = false;
+        firebaseUid = ""; firebaseTokenMs = 0; firebaseAuth = false;
         prefs.begin("config", false);
         prefs.remove("fbEmail"); prefs.remove("fbPass");
+        prefs.remove("fbRefresh"); prefs.remove("fbUid");
         prefs.end();
         request->send(200, "application/json", "{\"success\":true,\"configured\":false,\"auth\":false}");
     });
+
+    // Direct token storage — accepts pre-obtained Firebase tokens (e.g. from the
+    // OAuth bridge after Google sign-in). Body: {idToken, refreshToken, uid, email,
+    // displayName, provider}. No password is ever stored — refreshToken is sufficient
+    // for ensureFirebaseToken() to keep the session alive across reboots.
+    //
+    // Body chunking: AsyncWebServer delivers in TCP-sized chunks (~1452 bytes),
+    // and a real Firebase ID token JSON is ~2 KB → arrives in 2 chunks. We accumulate
+    // via a String attached to the request (auto-freed after response).
+    server.on("/api/firebase/token", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL,
+        [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
+            String* body = (String*)request->_tempObject;
+            if (index == 0) {
+                if (body) { delete body; }
+                body = new String();
+                body->reserve(total);
+                request->_tempObject = body;
+            }
+            if (!body) {
+                request->send(500, "application/json", "{\"success\":false,\"error\":\"alloc\"}");
+                return;
+            }
+            body->concat((const char*)data, len);
+            if (index + len < total) return;  // wait for more chunks
+
+            DynamicJsonDocument doc(4096);
+            DeserializationError jerr = deserializeJson(doc, *body);
+            delete body;
+            request->_tempObject = nullptr;
+            if (jerr) {
+                Serial.printf("[FIREBASE TOKEN] JSON parse error: %s (body=%u bytes)\n",
+                              jerr.c_str(), (unsigned)total);
+                request->send(400, "application/json", "{\"success\":false,\"error\":\"bad json\"}");
+                return;
+            }
+
+            String idToken      = String(doc["idToken"]      | "");
+            String refreshToken = String(doc["refreshToken"] | "");
+            String uid          = String(doc["uid"]          | "");
+            String email        = String(doc["email"]        | "");
+
+            if (idToken.length() == 0 || refreshToken.length() == 0 || uid.length() == 0) {
+                request->send(400, "application/json", "{\"success\":false,\"error\":\"missing tokens\"}");
+                return;
+            }
+
+            firebaseIdToken      = idToken;
+            firebaseRefreshToken = refreshToken;
+            firebaseUid          = uid;
+            firebaseEmail        = email;
+            firebasePassword     = "";   // critical: never persist password for token-based auth
+            firebaseTokenMs      = millis();
+            firebaseAuth         = true;
+
+            prefs.begin("config", false);
+            prefs.putString("fbEmail",   firebaseEmail);
+            prefs.remove("fbPass");                            // wipe any stale password
+            prefs.putString("fbRefresh", firebaseRefreshToken);
+            prefs.putString("fbUid",     firebaseUid);
+            prefs.end();
+
+            initScaleFirestoreSync();
+
+            Serial.printf("[FIREBASE] Token stored uid=%s email=%s\n",
+                          firebaseUid.c_str(), firebaseEmail.c_str());
+
+            StaticJsonDocument<192> rsp;
+            rsp["success"]    = true;
+            rsp["configured"] = true;
+            rsp["auth"]       = true;
+            rsp["uid"]        = firebaseUid;
+            rsp["email"]      = firebaseEmail;
+            String s; serializeJson(rsp, s);
+            request->send(200, "application/json", s);
+        }
+    );
 
     #if ENABLE_LEGACY_API_BRIDGE
     // Set TigerTag API key (legacy bridge mode)
@@ -2808,22 +2889,30 @@ void setup() {
     delay(2000);
 
     prefs.begin("config", true);
-    firebaseEmail     = prefs.getString("fbEmail",  "");
-    firebasePassword  = prefs.getString("fbPass",   "");
-    calibrationFactor = prefs.getFloat("calFactor", calibrationFactor);
+    firebaseEmail        = prefs.getString("fbEmail",   "");
+    firebasePassword     = prefs.getString("fbPass",    "");
+    firebaseRefreshToken = prefs.getString("fbRefresh", "");
+    firebaseUid          = prefs.getString("fbUid",     "");
+    calibrationFactor    = prefs.getFloat("calFactor", calibrationFactor);
     prefs.end();
 
-    Serial.printf("[BOOT] Firebase configured: %s\n",
-                  isFirebaseConfigured() ? "yes" : "no");
+    Serial.printf("[BOOT] Firebase configured: %s (mode=%s)\n",
+                  isFirebaseConfigured() ? "yes" : "no",
+                  firebaseRefreshToken.length() ? "token" :
+                    (firebasePassword.length() ? "password" : "none"));
 
     WiFi.onEvent(onWiFiEvent);
     setupWiFi();
     if (WiFi.isConnected()) startMDNS();
 
-    // Sign in to Firebase on boot if credentials are stored
+    // Sign in to Firebase on boot if credentials are stored.
+    // ensureFirebaseToken() handles both paths:
+    //   - if a refreshToken is present, refresh via securetoken.googleapis.com
+    //     (Google Auth users — no password ever needed)
+    //   - else if email+password is present, fall back to firebaseSignIn()
     if (isFirebaseConfigured() && WiFi.isConnected()) {
         displayMessage("Firebase", "Signing in...");
-        firebaseSignIn();
+        ensureFirebaseToken();
         displayMessage("Firebase", firebaseAuth ? "Auth OK" : "Auth FAIL");
         delay(1500);
         if (firebaseAuth) {
