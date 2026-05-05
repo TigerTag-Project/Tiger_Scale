@@ -67,3 +67,9 @@ __pycache__/
 local_*.md
 NOTES.md
 TODO.local.md
+
+# Web installer firmware binaries — auto-built by CI on each push to main
+# (.github/workflows/deploy-installer.yml) and deployed to GitHub Pages.
+# DO NOT commit these — local copies stay for testing only.
+web-installer/firmware/*.bin
+web-installer/version.json

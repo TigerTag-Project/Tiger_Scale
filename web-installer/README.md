@@ -20,49 +20,77 @@ This folder is published on GitHub Pages at :
 3. The user clicks "Install"
 4. ESP Web Tools uses the [Web Serial API](https://web.dev/serial/) to flash all 5 binaries in sequence
 
-## Updating the binaries
+## Updating the binaries — fully automatic
 
-Whenever you release a new firmware version :
+⭐ Binaries are **never committed** to this repo. They are rebuilt fresh on every
+push to `main` by `.github/workflows/deploy-installer.yml`, which then deploys
+the entire `web-installer/` folder (HTML + JS + freshly-built `.bin`s) to
+GitHub Pages.
 
-1. Build with PlatformIO :
-   ```bash
-   pio run         # → .pio/build/esp32dev/firmware.bin
-                   # → .pio/build/esp32dev/bootloader.bin
-                   # → .pio/build/esp32dev/partitions.bin
-   pio run -t buildfs   # → .pio/build/esp32dev/littlefs.bin
-   ```
+```
+git push (any code change in src/ or data/)
+        │
+        ▼
+  CI builds firmware + LittleFS
+        │
+        ▼
+  Binaries staged into web-installer/firmware/
+        │
+        ▼
+  https://<owner>.github.io/<repo>/  ← updated in ~3-4 min
+```
 
-2. Copy the binaries here :
-   ```bash
-   mkdir -p web-installer/firmware
-   cp .pio/build/esp32dev/{firmware,bootloader,partitions,littlefs}.bin web-installer/firmware/
-   ```
+The published page **always serves the latest commit**, no manual action.
 
-3. Get `boot_app0.bin` (one-time, doesn't change) :
-   ```bash
-   # macOS / Linux PlatformIO install
-   cp ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
-      web-installer/firmware/
-   ```
+## One-time GitHub Pages setup
 
-4. Update `manifest.json` if the version changed
+After your first push to `main` :
 
-5. Commit and push — GitHub Pages auto-deploys
+1. Repo → **Settings → Pages**
+2. **Source** : `GitHub Actions` (NOT "Deploy from branch")
+3. Save
 
-## Hosting on GitHub Pages
+The next push will trigger the deploy. Subsequent pushes update the site automatically.
 
-Enable GitHub Pages on this repo :
+## Local testing
 
-- **Settings → Pages**
-- **Source** : Deploy from branch
-- **Branch** : `main` / **folder** : `/web-installer`
-- Save
+If you want to test the Web Installer locally before pushing :
 
-After ~1 minute, the page is live at `https://<owner>.github.io/<repo>/`.
+```bash
+# Build the binaries once
+pio run
+pio run -t buildfs
 
-## Why not auto-build with CI?
+# Copy them where the installer expects
+mkdir -p web-installer/firmware
+cp .pio/build/esp32dev/{firmware,bootloader,partitions,littlefs}.bin web-installer/firmware/
+cp ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin web-installer/firmware/
 
-We could automate the binary copy via GitHub Actions (after the build step in `.github/workflows/build.yml`). For v2.0.0 we keep it manual — automation is on the roadmap.
+# Serve the folder
+cd web-installer && python3 -m http.server 8765
+# → http://localhost:8765
+```
+
+These local binaries are git-ignored, so you can rebuild without polluting the repo.
+
+## Version manifest (for OTA)
+
+The CI also generates `web-installer/version.json` containing :
+
+```json
+{
+  "version":      "2.0.0",
+  "git_sha":      "abc1234",
+  "git_date":     "2026-05-05T22:30:00Z",
+  "firmware_sha": "<sha256>",
+  "littlefs_sha": "<sha256>",
+  "firmware_url": "https://tigertag-project.github.io/TigerScale/firmware/firmware.bin",
+  "littlefs_url": "https://tigertag-project.github.io/TigerScale/firmware/littlefs.bin"
+}
+```
+
+Devices fetch this file to detect new versions and trigger OTA updates (see
+`docs/FIRMWARE.md` § OTA).
 
 ## Browser support
 
