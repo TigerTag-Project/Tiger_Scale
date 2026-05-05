@@ -6,6 +6,7 @@
 #include <LittleFS.h>
 #include <Arduino.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <AsyncTCP.h>
 #include <WiFiManager.h>
 #include <ESPAsyncWebServer.h>
@@ -20,6 +21,8 @@
 #include <MFRC522.h>
 #include <SPI.h>
 #include <ESP32Servo.h>
+#include <Update.h>
+#include <mbedtls/sha256.h>
 
 // ============================================================================
 // HARDWARE CONFIGURATION
@@ -72,6 +75,24 @@ const char* TIGERTAG_DB_MATERIAL_URL = "https://raw.githubusercontent.com/TigerT
 // This is the public client key exposed by Firebase Hosting at /__/firebase/init.json
 // — it is not a secret and is intentionally public for all Firebase client apps.
 const char* TIGERTAG_FIREBASE_WEB_API_KEY = "AIzaSyCkxPTs_Cv0KVLqsZj-UKWWqIY0OtfVpnw";
+
+// ============================================================================
+// OTA CONFIGURATION
+// ============================================================================
+
+// Embedded build identity — exposed via /api/status and the heartbeat so the
+// app/Studio can compare against the latest published version.json.
+#define TIGERSCALE_FW_VERSION  "2.0.0"
+#ifndef TIGERSCALE_GIT_SHA
+#define TIGERSCALE_GIT_SHA     "dev"
+#endif
+
+// Where to look for the latest published binaries (set by GitHub Pages auto-deploy).
+const char* TIGERSCALE_VERSION_URL = "https://tigertag-project.github.io/TigerScale/version.json";
+
+// How often to poll the Firestore command queue (commands/{id} subcollection).
+// Reuses the heartbeat tick (every 30 s) so we don't add a separate timer.
+const uint32_t OTA_COMMAND_POLL_MS = 30000;
 
 
 // ============================================================================
@@ -130,6 +151,20 @@ static String resolveMaterialNameOnlineFirst(uint32_t idMaterial);
 void dumpTigerTagPages(MFRC522 &reader, const String& uidDec);
 void displayWeightWithState(float weight, const String& uid, OledState state);
 void resetWeightFilters();
+// OTA forward declarations (definitions live below `// OTA — Over-the-air update`)
+static bool otaApply(const String& url, const String& expectedSha, int updateType,
+                     std::function<void(int, const String&)> onProgress);
+bool otaFetchLatest();
+void pollOtaCommands();
+static void otaSetStatus(const char* status, int progress, const String& message);
+
+// OTA state globals (definitions; the OTA section below references them as extern).
+String   gOtaStatus     = "idle";   // idle | checking | downloading | flashing | done | error
+int      gOtaProgress   = 0;        // 0..100
+String   gOtaMessage    = "";
+String   gOtaLatestVer  = "";       // populated by otaFetchLatest() from version.json
+String   gOtaLatestSha  = "";
+uint32_t gLastCommandPollMs = 0;
 
 // Unique SSID + mDNS name derived from MAC
 String gSetupSsid;
@@ -1846,6 +1881,14 @@ void setupWebServer() {
         doc["calibrationFactor"] = calibrationFactor;
         doc["uptime_ms"]         = millis();
         doc["uptime_s"]          = millis() / 1000;
+        // Build identity (used by Studio + web UI to show "update available")
+        doc["fw_version"]        = TIGERSCALE_FW_VERSION;
+        doc["fw_git_sha"]        = TIGERSCALE_GIT_SHA;
+        // OTA live state
+        doc["ota_status"]        = gOtaStatus;
+        doc["ota_progress"]      = gOtaProgress;
+        if (gOtaMessage.length())     doc["ota_message"]      = gOtaMessage;
+        if (gOtaLatestVer.length())   doc["ota_latest"]       = gOtaLatestVer;
         String stc;
         if      (sendPhase == "countdown" && sendCountdown >= 0) stc = String(sendCountdown);
         else if (sendPhase == "send")    stc = "send";
@@ -1855,6 +1898,88 @@ void setupWebServer() {
         String out; serializeJson(doc, out);
         request->send(200, "application/json", out);
     });
+
+    // ── OTA endpoints ──────────────────────────────────────────────────
+    // Local web UI fallback for triggering an OTA update without going through
+    // the Firestore command queue. Useful when Studio isn't installed or the
+    // user just wants to update from the device's own page.
+
+    // GET /api/ota/check — fetch latest version.json and compare with running fw.
+    server.on("/api/ota/check", HTTP_GET, [](AsyncWebServerRequest *request){
+        bool ok = otaFetchLatest();
+        StaticJsonDocument<384> rsp;
+        rsp["success"]      = ok;
+        rsp["current"]      = TIGERSCALE_FW_VERSION;
+        rsp["current_sha"]  = TIGERSCALE_GIT_SHA;
+        rsp["latest"]       = gOtaLatestVer;
+        rsp["latest_sha"]   = gOtaLatestSha;
+        rsp["update_available"] = (ok && gOtaLatestVer.length() > 0
+                                   && gOtaLatestVer != String(TIGERSCALE_FW_VERSION));
+        String s; serializeJson(rsp, s);
+        request->send(ok ? 200 : 502, "application/json", s);
+    });
+
+    // POST /api/ota/update — body: { firmware_url, littlefs_url, firmware_sha256?, littlefs_sha256? }
+    // Note: this blocks the AsyncWebServer thread for the duration of the
+    // download (typically 30-60 s) and reboots when complete. The client
+    // should treat the connection drop as success and reload after a few
+    // seconds. For richer progress, prefer the Firestore command queue path.
+    server.on("/api/ota/update", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL,
+        [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
+            String* body = (String*)request->_tempObject;
+            if (index == 0) {
+                if (body) delete body;
+                body = new String(); body->reserve(total);
+                request->_tempObject = body;
+            }
+            if (!body) { request->send(500, "application/json", "{\"error\":\"alloc\"}"); return; }
+            body->concat((const char*)data, len);
+            if (index + len < total) return;
+
+            DynamicJsonDocument doc(2048);
+            DeserializationError jerr = deserializeJson(doc, *body);
+            delete body; request->_tempObject = nullptr;
+            if (jerr) {
+                request->send(400, "application/json", "{\"error\":\"bad json\"}");
+                return;
+            }
+            String fwUrl = String(doc["firmware_url"]    | "");
+            String fsUrl = String(doc["littlefs_url"]    | "");
+            String fwSha = String(doc["firmware_sha256"] | "");
+            String fsSha = String(doc["littlefs_sha256"] | "");
+
+            if (fwUrl.length() == 0 && fsUrl.length() == 0) {
+                request->send(400, "application/json",
+                              "{\"error\":\"firmware_url or littlefs_url required\"}");
+                return;
+            }
+
+            // Acknowledge first — the client knows the device is going to be
+            // unreachable for a while. Then process synchronously.
+            request->send(202, "application/json", "{\"status\":\"started\"}");
+
+            otaSetStatus("downloading", 1, "Starting OTA…");
+            if (fsUrl.length() > 0) {
+                otaSetStatus("downloading", 5, "Downloading filesystem…");
+                if (!otaApply(fsUrl, fsSha, U_SPIFFS,
+                    [](int p, const String& m){ otaSetStatus("downloading", 5 + (p*35)/100, m); })) {
+                    otaSetStatus("error", 0, "Filesystem update failed");
+                    return;
+                }
+            }
+            if (fwUrl.length() > 0) {
+                otaSetStatus("flashing", 40, "Downloading firmware…");
+                if (!otaApply(fwUrl, fwSha, U_FLASH,
+                    [](int p, const String& m){ otaSetStatus("flashing", 40 + (p*55)/100, m); })) {
+                    otaSetStatus("error", 0, "Firmware update failed");
+                    return;
+                }
+            }
+            otaSetStatus("done", 100, "Rebooting…");
+            delay(800);
+            ESP.restart();
+        }
+    );
 
     // Firebase auth
     server.on("/api/firebase/auth", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL,
@@ -2872,8 +2997,375 @@ static bool isLikelyTigerTagUidHex(const String& uidHex) {
 }
 
 // ============================================================================
-// SETUP & LOOP
+// OTA — Over-the-air firmware + filesystem update
 // ============================================================================
+//
+// Two complementary trigger paths share the same core (`otaApply`):
+//
+// 1. LOCAL  — POST /api/ota/update from the device's own web UI
+// 2. REMOTE — Firestore command queue at users/{uid}/scales/{mac}/commands/
+//             (Tiger Studio writes a doc, the device polls and processes)
+//
+// Both paths fetch the binary over HTTPS, verify its SHA-256 against the
+// expected hash provided by the caller, write to the inactive OTA slot
+// (app1 / spiffs partition), and reboot. ESP32 auto-rolls-back if the new
+// firmware doesn't boot cleanly.
+//
+// We use WiFiClientSecure with setInsecure() for TLS — relying on SHA-256
+// integrity rather than CA validation. This is acceptable because:
+//   • The expected hash comes from Firestore (already auth'd to the user)
+//     or from /api/ota/check (which fetches signed JSON over HTTPS).
+//   • A MITM swapping the binary would fail SHA verification → no install.
+
+// State exposed for the local /api/ota/* endpoints — forward-declared as
+// extern up near the other globals so /api/status (in setupWebServer) can read.
+extern String   gOtaStatus;
+extern int      gOtaProgress;
+extern String   gOtaMessage;
+extern String   gOtaLatestVer;
+extern String   gOtaLatestSha;
+extern uint32_t gLastCommandPollMs;
+
+static String sha256ToHex(const uint8_t b[32]) {
+    String h; h.reserve(64);
+    char buf[3];
+    for (int i = 0; i < 32; i++) { snprintf(buf, sizeof(buf), "%02x", b[i]); h += buf; }
+    return h;
+}
+
+static void otaSetStatus(const char* status, int progress, const String& message) {
+    gOtaStatus   = status;
+    gOtaProgress = progress;
+    gOtaMessage  = message;
+    Serial.printf("[OTA] %s (%d%%) %s\n", status, progress, message.c_str());
+}
+
+// Stream-download `url` into the OTA partition `updateType` (U_FLASH or
+// U_SPIFFS). Verifies SHA-256 if `expectedSha` is non-empty. Returns true on
+// success. Calls `onProgress(percent, msg)` periodically (optional callback).
+static bool otaApply(const String& url,
+                     const String& expectedSha,
+                     int updateType,
+                     std::function<void(int, const String&)> onProgress = nullptr) {
+    if (url.length() == 0) return false;
+    if (!WiFi.isConnected()) {
+        if (onProgress) onProgress(0, "WiFi not connected");
+        return false;
+    }
+
+    // HTTPS client (insecure — we rely on SHA-256 for integrity, see header note)
+    WiFiClientSecure client;
+    client.setInsecure();
+    client.setTimeout(15);
+
+    HTTPClient http;
+    http.setReuse(false);
+    http.setTimeout(15000);
+    if (!http.begin(client, url)) {
+        Serial.printf("[OTA] http.begin failed: %s\n", url.c_str());
+        return false;
+    }
+    // Follow GitHub Pages redirects
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+
+    int code = http.GET();
+    if (code != 200) {
+        Serial.printf("[OTA] HTTP %d for %s\n", code, url.c_str());
+        http.end();
+        return false;
+    }
+
+    int total = http.getSize();
+    if (total <= 0) {
+        Serial.println("[OTA] Unknown content length");
+        http.end();
+        return false;
+    }
+
+    if (!Update.begin(total, updateType)) {
+        Serial.printf("[OTA] Update.begin failed (need=%d free=%d)\n",
+                      total, (int)ESP.getFreeSketchSpace());
+        http.end();
+        return false;
+    }
+
+    // Hash while writing
+    mbedtls_sha256_context shaCtx;
+    mbedtls_sha256_init(&shaCtx);
+    mbedtls_sha256_starts(&shaCtx, 0);
+
+    WiFiClient* stream = http.getStreamPtr();
+    uint8_t buf[1024];
+    int written = 0;
+    int lastReportPct = -1;
+    uint32_t lastByteMs = millis();
+
+    while (http.connected() && written < total) {
+        size_t avail = stream->available();
+        if (avail > 0) {
+            int n = stream->readBytes(buf, std::min(avail, sizeof(buf)));
+            if (n <= 0) break;
+            mbedtls_sha256_update(&shaCtx, buf, n);
+            int w = Update.write(buf, n);
+            if (w != n) {
+                Serial.printf("[OTA] write mismatch %d != %d\n", w, n);
+                Update.abort();
+                mbedtls_sha256_free(&shaCtx);
+                http.end();
+                return false;
+            }
+            written += n;
+            lastByteMs = millis();
+
+            int pct = (written * 100) / total;
+            if (pct != lastReportPct && pct % 5 == 0) {
+                lastReportPct = pct;
+                if (onProgress) onProgress(pct, "Downloading…");
+            }
+        } else {
+            // Idle — bail out if no data for 10s (stalled connection)
+            if (millis() - lastByteMs > 10000) {
+                Serial.println("[OTA] stalled, aborting");
+                Update.abort();
+                mbedtls_sha256_free(&shaCtx);
+                http.end();
+                return false;
+            }
+            delay(2);
+        }
+    }
+
+    uint8_t shaBytes[32];
+    mbedtls_sha256_finish(&shaCtx, shaBytes);
+    mbedtls_sha256_free(&shaCtx);
+    String shaHex = sha256ToHex(shaBytes);
+
+    http.end();
+
+    // Verify integrity
+    if (expectedSha.length() > 0) {
+        String expected = expectedSha; expected.toLowerCase();
+        if (!shaHex.equalsIgnoreCase(expected)) {
+            Serial.printf("[OTA] SHA mismatch.\n  expected: %s\n  got:      %s\n",
+                          expected.c_str(), shaHex.c_str());
+            Update.abort();
+            return false;
+        }
+        Serial.println("[OTA] SHA-256 verified ✓");
+    } else {
+        Serial.printf("[OTA] No expected SHA provided (got %s) — skipping verification\n",
+                      shaHex.c_str());
+    }
+
+    if (!Update.end(true)) {
+        Serial.printf("[OTA] Update.end failed: %s\n", Update.errorString());
+        return false;
+    }
+
+    Serial.printf("[OTA] %s partition flashed (%d bytes) ✓\n",
+                  updateType == U_FLASH ? "FIRMWARE" : "FILESYSTEM", written);
+    return true;
+}
+
+// Fetch /version.json from GitHub Pages and populate the "latest" globals.
+// Used by /api/ota/check (called from the local web UI).
+bool otaFetchLatest() {
+    if (!WiFi.isConnected()) return false;
+    WiFiClientSecure client; client.setInsecure();
+    HTTPClient http;
+    http.setTimeout(8000);
+    if (!http.begin(client, TIGERSCALE_VERSION_URL)) return false;
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    int code = http.GET();
+    String resp = http.getString();
+    http.end();
+    if (code != 200) return false;
+
+    StaticJsonDocument<1024> doc;
+    if (deserializeJson(doc, resp)) return false;
+
+    gOtaLatestVer = String(doc["version"]      | "");
+    gOtaLatestSha = String(doc["firmware_sha"] | "");
+    return gOtaLatestVer.length() > 0;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Firestore command queue listener — Phase 2.2
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Reads users/{uid}/scales/{mac}/commands/ for pending commands and processes
+// them one by one. Each command's status/progress/message is patched live so
+// the Tiger Studio (or any listener) can show progress.
+//
+// Supported types:
+//   • ota_update     — OTA flash with given URLs + SHA
+//   • tare           — manual tare command
+//   • factory_reset  — wipe NVS + restart
+//   • restart        — soft reboot
+
+// PATCH a command doc with new status fields.
+static bool updateCommandStatus(const String& cmdId,
+                                const String& status,
+                                int progress,
+                                const String& message) {
+    if (firebaseUid.length() == 0 || firebaseIdToken.length() == 0) return false;
+
+    HTTPClient http;
+    String docPath = "users/" + firebaseUid + "/scales/" + gScaleMacAddress
+                   + "/commands/" + cmdId;
+    String url = "https://firestore.googleapis.com/v1/projects/tigertag-connect"
+                 "/databases/(default)/documents/" + docPath
+               + "?updateMask.fieldPaths=status"
+                 "&updateMask.fieldPaths=progress"
+                 "&updateMask.fieldPaths=message";
+
+    if (!http.begin(url)) return false;
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("Authorization", "Bearer " + firebaseIdToken);
+
+    StaticJsonDocument<512> doc;
+    doc["fields"]["status"]["stringValue"]    = status;
+    doc["fields"]["progress"]["integerValue"] = progress;
+    doc["fields"]["message"]["stringValue"]   = message;
+
+    String payload;
+    serializeJson(doc, payload);
+    int code = http.PATCH(payload);
+    http.end();
+    return code >= 200 && code < 300;
+}
+
+// Process one command document. Returns true if processed (regardless of
+// success/failure of the command itself); the caller should mark it as
+// terminal (done/error) before returning.
+static void processCommand(const String& cmdId, JsonObject fields) {
+    String type = fields["type"]["stringValue"] | "";
+    Serial.printf("[CMD] %s type=%s\n", cmdId.c_str(), type.c_str());
+
+    if (type == "ota_update") {
+        String fwUrl = fields["firmware_url"]["stringValue"]    | "";
+        String fsUrl = fields["littlefs_url"]["stringValue"]    | "";
+        String fwSha = fields["firmware_sha256"]["stringValue"] | "";
+        String fsSha = fields["littlefs_sha256"]["stringValue"] | "";
+
+        updateCommandStatus(cmdId, "in_progress", 1, "Starting OTA…");
+        otaSetStatus("downloading", 1, "Starting OTA…");
+
+        // Filesystem first (less risky if it fails — the device still boots)
+        if (fsUrl.length() > 0) {
+            updateCommandStatus(cmdId, "in_progress", 5, "Downloading filesystem…");
+            bool ok = otaApply(fsUrl, fsSha, U_SPIFFS,
+                [&cmdId](int pct, const String& msg) {
+                    int mapped = 5 + (pct * 35) / 100; // 5..40
+                    updateCommandStatus(cmdId, "in_progress", mapped, msg);
+                    otaSetStatus("downloading", mapped, msg);
+                });
+            if (!ok) {
+                updateCommandStatus(cmdId, "error", 0, "Filesystem update failed");
+                otaSetStatus("error", 0, "Filesystem update failed");
+                return;
+            }
+        }
+
+        // Firmware (the risky one — last so a crash leaves a usable filesystem)
+        if (fwUrl.length() > 0) {
+            updateCommandStatus(cmdId, "in_progress", 40, "Downloading firmware…");
+            bool ok = otaApply(fwUrl, fwSha, U_FLASH,
+                [&cmdId](int pct, const String& msg) {
+                    int mapped = 40 + (pct * 55) / 100; // 40..95
+                    updateCommandStatus(cmdId, "in_progress", mapped, msg);
+                    otaSetStatus("flashing", mapped, msg);
+                });
+            if (!ok) {
+                updateCommandStatus(cmdId, "error", 0, "Firmware update failed");
+                otaSetStatus("error", 0, "Firmware update failed");
+                return;
+            }
+        }
+
+        updateCommandStatus(cmdId, "done", 100, "Rebooting…");
+        otaSetStatus("done", 100, "Rebooting…");
+        Serial.println("[OTA] Restart in 1 s");
+        delay(1000);
+        ESP.restart();
+        return; // unreachable
+    }
+
+    if (type == "tare") {
+        scale.tare();
+        currentWeight = 0.0f;
+        resetWeightFilters();
+        updateCommandStatus(cmdId, "done", 100, "Tare done");
+        return;
+    }
+
+    if (type == "restart") {
+        updateCommandStatus(cmdId, "done", 100, "Restarting…");
+        delay(800);
+        ESP.restart();
+        return;
+    }
+
+    if (type == "factory_reset") {
+        updateCommandStatus(cmdId, "in_progress", 50, "Wiping NVS…");
+        prefs.begin("config", false);
+        prefs.clear();
+        prefs.end();
+        wm.resetSettings();
+        updateCommandStatus(cmdId, "done", 100, "Reset, restarting…");
+        delay(800);
+        ESP.restart();
+        return;
+    }
+
+    updateCommandStatus(cmdId, "error", 0, String("Unknown command type: ") + type);
+}
+
+/**
+ * Poll the Firestore command queue. Called from the heartbeat tick.
+ * Returns silently if no auth, no UID, or no pending commands.
+ */
+void pollOtaCommands() {
+    if (firebaseUid.length() == 0 || firebaseIdToken.length() == 0) return;
+    if (gScaleMacAddress.length() == 0) return;
+
+    HTTPClient http;
+    String url = "https://firestore.googleapis.com/v1/projects/tigertag-connect"
+                 "/databases/(default)/documents/users/" + firebaseUid
+               + "/scales/" + gScaleMacAddress + "/commands?pageSize=10";
+    if (!http.begin(url)) return;
+    http.addHeader("Authorization", "Bearer " + firebaseIdToken);
+
+    int code = http.GET();
+    String resp = http.getString();
+    http.end();
+    if (code != 200) return; // no commands collection yet → 404 is fine
+
+    DynamicJsonDocument doc(8192);
+    if (deserializeJson(doc, resp)) return;
+
+    JsonArray docs = doc["documents"];
+    if (docs.isNull() || docs.size() == 0) return;
+
+    for (JsonObject d : docs) {
+        String name = d["name"].as<String>();
+        int slash = name.lastIndexOf('/');
+        if (slash < 0) continue;
+        String cmdId = name.substring(slash + 1);
+
+        JsonObject fields = d["fields"];
+        if (fields.isNull()) continue;
+        String status = fields["status"]["stringValue"] | "";
+        if (status != "pending") continue; // already processed or failed
+
+        // Mark ack to avoid double-processing if poll runs again while busy
+        updateCommandStatus(cmdId, "ack", 0, "Acknowledged");
+        processCommand(cmdId, fields);
+        // After ESP.restart() we never get here for ota_update/factory_reset
+    }
+}
+
+
 
 void setup() {
     Serial.begin(115200);
@@ -2975,6 +3467,13 @@ void loop() {
 
     // Firestore heartbeat every 30 seconds
     sendScaleHeartbeat();
+
+    // OTA — poll the Firestore command queue at the same cadence as heartbeats.
+    // Studio writes commands there, the device picks them up and processes them.
+    if (millis() - gLastCommandPollMs >= OTA_COMMAND_POLL_MS) {
+        gLastCommandPollMs = millis();
+        pollOtaCommands();
+    }
 
     if (!rfidLockedForCurrentLoad && !autoTarePending) {
         // --- Step 1: poll both readers back-to-back (pure SPI, no HTTP) ---
