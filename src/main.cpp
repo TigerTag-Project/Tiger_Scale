@@ -460,10 +460,233 @@ void saveConfigCallback() {
     displayMessage("Saving...", "WiFi config OK", "Reconnecting...");
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Captive portal branding — injected via wm.setCustomHeadElement().
+// WiFiManager renders very basic HTML; we override its CSS heavily to match
+// the TigerTag dark/orange brand and make the experience friendly to non-tech
+// users (large buttons, clear typography, helpful messaging).
+// Stored in PROGMEM to avoid using up SRAM at boot.
+// ─────────────────────────────────────────────────────────────────────────
+static const char CAPTIVE_PORTAL_HEAD[] PROGMEM = R"HEAD(
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#0f0f0f">
+<style>
+:root {
+  --orange:#e67e22;
+  --orange-dk:#d35400;
+  --orange-glow:rgba(230,126,34,.35);
+  --bg-grad:linear-gradient(135deg,#0f0f0f 0%,#1a1a1a 100%);
+  --card-bg:rgba(255,255,255,.05);
+  --card-bd:rgba(255,255,255,.1);
+  --txt:#fff;
+  --txt-mut:rgba(255,255,255,.65);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;min-height:100vh}
+body{
+  background:
+    radial-gradient(circle at 15% -10%,var(--orange-glow) 0%,transparent 45%),
+    radial-gradient(circle at 90% 110%,rgba(211,84,0,.3) 0%,transparent 45%),
+    var(--bg-grad);
+  background-attachment:fixed;
+  color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  font-size:16px;
+  padding:20px 14px 40px;
+}
+/* Wordmark above every page */
+body::before{
+  content:"🐯  TIGERTAG";
+  display:block;
+  text-align:center;
+  font-size:20px;
+  font-weight:800;
+  letter-spacing:.18em;
+  color:var(--orange);
+  margin:14px 0 6px;
+  text-shadow:0 0 20px var(--orange-glow);
+}
+body::after{
+  content:"Setup Mode";
+  display:block;
+  text-align:center;
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:.25em;
+  color:var(--txt-mut);
+  text-transform:uppercase;
+  margin-bottom:18px;
+}
+/* WiFiManager wraps content in <div class="c"> by default. We also style
+   any direct child div as a fallback. */
+.c, body > div:not(.notify){
+  max-width:440px;
+  margin:0 auto;
+  background:var(--card-bg);
+  border:1px solid var(--card-bd);
+  border-radius:18px;
+  padding:24px 22px;
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  box-shadow:0 8px 32px rgba(0,0,0,.4);
+}
+h1{
+  font-size:22px;
+  font-weight:600;
+  margin:0 0 4px;
+  text-align:center;
+  letter-spacing:-.01em;
+}
+h2,h3{
+  text-align:center;
+  font-size:14px;
+  font-weight:400;
+  color:var(--txt-mut);
+  margin:0 0 18px;
+}
+hr{
+  border:none;
+  border-top:1px solid rgba(255,255,255,.08);
+  margin:18px 0;
+}
+/* Primary buttons */
+button,input[type=submit],input[type=button]{
+  display:block;
+  width:100%;
+  background:linear-gradient(135deg,var(--orange),var(--orange-dk));
+  color:#fff;
+  border:none;
+  border-radius:12px;
+  padding:14px 18px;
+  font-size:15px;
+  font-weight:600;
+  cursor:pointer;
+  font-family:inherit;
+  margin:8px 0;
+  transition:transform .06s,box-shadow .15s,filter .15s;
+  box-shadow:0 4px 14px var(--orange-glow);
+}
+button:hover,input[type=submit]:hover{box-shadow:0 6px 20px var(--orange-glow);filter:brightness(1.05)}
+button:active,input[type=submit]:active{transform:scale(.98)}
+button[name=action]{background:transparent;border:1px solid var(--card-bd);box-shadow:none;color:var(--txt-mut)}
+button[name=action]:hover{background:var(--card-bg)}
+/* Inputs */
+input[type=text],input[type=password],input[type=number],input[type=email]{
+  width:100%;
+  background:rgba(0,0,0,.35);
+  border:1px solid var(--card-bd);
+  color:var(--txt);
+  border-radius:10px;
+  padding:12px 14px;
+  font-size:15px;
+  font-family:inherit;
+  margin:6px 0 10px;
+  outline:none;
+  transition:border-color .15s,background .15s;
+  -webkit-appearance:none;
+}
+input:focus{border-color:var(--orange);background:rgba(0,0,0,.5)}
+input::placeholder{color:rgba(255,255,255,.35)}
+label{display:block;font-size:13px;color:var(--txt-mut);margin:6px 0 2px}
+/* WiFi scan list — items are <a> wrapped in <div> by WiFiManager */
+a{
+  color:var(--txt);
+  text-decoration:none;
+  display:block;
+  padding:13px 16px;
+  background:rgba(255,255,255,.04);
+  border:1px solid var(--card-bd);
+  border-radius:12px;
+  margin:6px 0;
+  transition:background .15s,border-color .15s,transform .05s;
+  font-size:15px;
+  cursor:pointer;
+}
+a:hover{background:rgba(230,126,34,.08);border-color:rgba(230,126,34,.3)}
+a:active{transform:scale(.99)}
+/* Signal strength badges (WiFiManager appends class q1..q4) */
+.q{
+  position:relative;
+  width:38px;height:18px;
+  display:inline-block;
+  vertical-align:middle;
+  margin-left:4px;
+}
+.q::before{
+  position:absolute;right:0;bottom:0;
+  font-size:10px;font-weight:700;
+  color:var(--orange);
+}
+.q.q4::before{content:"●●●●"}
+.q.q3::before{content:"●●●○"}
+.q.q2::before{content:"●●○○"}
+.q.q1::before{content:"●○○○"}
+.q.q0::before{content:"○○○○";color:var(--txt-mut)}
+/* Lock icon (WiFiManager prefixes secured networks with 🔒) */
+.l::before{content:"🔒  ";font-size:14px}
+/* Forms */
+form{margin:0;padding:0}
+/* Info & messages */
+.msg,.notify{
+  background:rgba(255,255,255,.04);
+  border-left:3px solid var(--orange);
+  padding:12px 14px;
+  border-radius:10px;
+  font-size:14px;
+  line-height:1.5;
+  margin:14px 0;
+  color:var(--txt-mut);
+}
+.S{background:rgba(39,174,96,.1);border-left-color:#27ae60;color:#a8e3c5}
+.D{background:rgba(231,76,60,.1);border-left-color:#e74c3c;color:#f5b7b1}
+/* Info table */
+table{width:100%;border-collapse:collapse;font-size:14px}
+table tr td{padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+table tr td:first-child{color:var(--txt-mut);font-size:13px}
+table tr td:last-child{text-align:right}
+/* Loading dots */
+.spin{
+  display:inline-block;width:14px;height:14px;
+  border:2px solid rgba(255,255,255,.2);
+  border-top-color:var(--orange);
+  border-radius:50%;
+  animation:tt-spin .7s linear infinite;
+  margin-right:8px;vertical-align:middle;
+}
+@keyframes tt-spin{to{transform:rotate(360deg)}}
+/* Footer hint */
+body > p:last-of-type{
+  text-align:center;
+  font-size:11px;
+  color:rgba(255,255,255,.3);
+  margin-top:20px;
+}
+/* Responsive */
+@media (max-width:480px){
+  .c,body > div:not(.notify){padding:20px 16px;border-radius:14px}
+  body::before{font-size:18px;letter-spacing:.15em}
+  h1{font-size:20px}
+}
+</style>
+)HEAD";
+
 void setupWiFi() {
     wm.setAPCallback(configModeCallback);
     wm.setSaveConfigCallback(saveConfigCallback);
     wm.setConfigPortalTimeout(180);
+
+    // Brand the captive portal — title in the H1, our CSS in <head>, simplified menu.
+    wm.setTitle("TigerScale");
+    wm.setCustomHeadElement(CAPTIVE_PORTAL_HEAD);
+    // Trim the menu to what a non-technical user actually needs (no "Erase WiFi"
+    // button by accident, no "Update" since OTA is handled elsewhere).
+    std::vector<const char*> menu = {"wifi", "info", "sep", "restart", "exit"};
+    wm.setMenu(menu);
+    wm.setBreakAfterConfig(true);    // close portal as soon as creds are saved
+    wm.setShowStaticFields(false);   // hide static IP fields (advanced, scary)
+    wm.setShowDnsFields(false);      // hide DNS fields (idem)
 
     displayMessage("Connecting WiFi...", "Waiting...");
     gSetupSsid = makeSetupSSID();
