@@ -1,0 +1,12 @@
+# Build artifacts
+*.bin
+*.elf
+*.map
+
+# Arduino / IDE temp
+*.tmp
+*.bak
+
+# OS
+Thumbs.db
+.DS_Store
