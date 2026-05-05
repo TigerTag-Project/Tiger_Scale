@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-    <title>TigerScale — Web Installer</title>
-    <meta name="description" content="Flash your TigerScale firmware directly from the browser. No Arduino IDE, no command line.">
-    <meta name="theme-color" content="#e67e22">
+    <title data-i18n="pageTitle">TigerScale — Web Installer</title>
+    <meta name="description" data-i18n-attr-content="metaDesc" content="Flash your TigerScale firmware directly from the browser. No Arduino IDE, no command line.">
+    <meta name="theme-color" content="#1a1a1a">
 
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='52' font-size='52'%3E%F0%9F%90%AF%3C/text%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml" href="img/tigertag-logo.svg">
 
     <!-- ESP Web Tools — browser-based ESP32 flasher -->
     <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
@@ -17,185 +17,478 @@
         :root {
             --orange: #e67e22;
             --orange-dark: #d35400;
+            --orange-glow: rgba(230, 126, 34, 0.4);
             --bg: #fff8f1;
             --card: #ffffff;
             --text: #2c3e50;
             --muted: #7f8c8d;
             --border: #ecf0f1;
-            --success: #27ae60;
-            --warning: #f39c12;
+            --hero-bg: #1a1a1a;
+            --hero-text: #ffffff;
         }
         html, body {
             margin: 0; padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: linear-gradient(135deg, var(--bg) 0%, #fff 100%);
+            background: var(--bg);
             color: var(--text);
             min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
-        .wrap { max-width: 720px; margin: 0 auto; padding: 40px 24px; }
-        header { text-align: center; margin-bottom: 32px; }
-        h1 {
-            font-size: 36px; font-weight: 700; margin: 8px 0;
-            background: linear-gradient(135deg, var(--orange), var(--orange-dark));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            background-clip: text;
+
+        /* ─────── LANGUAGE SWITCHER — dropdown (fixed top-right) ─────── */
+        .lang-switcher {
+            position: fixed;
+            top: 16px; right: 16px;
+            z-index: 100;
+            font-family: inherit;
         }
-        .logo { font-size: 64px; line-height: 1; }
-        .tagline { color: var(--muted); font-size: 17px; max-width: 480px; margin: 8px auto; line-height: 1.5; }
+        .lang-trigger {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.12);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 100px;
+            cursor: pointer;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            transition: background .15s, border-color .15s;
+        }
+        .lang-trigger:hover { background: rgba(0,0,0,0.7); border-color: rgba(230,126,34,0.4); }
+        .lang-trigger-chevron {
+            font-size: 10px;
+            opacity: 0.6;
+            transition: transform .2s;
+        }
+        .lang-dropdown.open .lang-trigger-chevron { transform: rotate(180deg); }
+
+        .lang-menu {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            min-width: 200px;
+            margin: 0; padding: 6px;
+            list-style: none;
+            background: rgba(20,20,20,0.95);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-6px);
+            transition: opacity .15s, transform .15s, visibility .15s;
+        }
+        .lang-dropdown.open .lang-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .lang-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: rgba(255,255,255,0.8);
+            font-size: 13px;
+            transition: background .12s, color .12s;
+        }
+        .lang-item:hover { background: rgba(230,126,34,0.15); color: #fff; }
+        .lang-item:focus-visible { outline: 2px solid var(--orange); outline-offset: -2px; }
+        .lang-item.active { background: rgba(230,126,34,0.25); color: #fff; }
+        .lang-item-code {
+            display: inline-flex;
+            align-items: center; justify-content: center;
+            min-width: 38px;
+            font-weight: 700;
+            font-size: 11px;
+            letter-spacing: 0.05em;
+            color: var(--orange);
+            background: rgba(230,126,34,0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .lang-item-name {
+            flex: 1;
+            white-space: nowrap;
+        }
+
+        /* ─────── HERO ─────── */
+        .hero {
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+            color: var(--hero-text);
+            padding: 56px 24px 64px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            isolation: isolate;
+        }
+
+        .hero-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            opacity: 0.55;
+            pointer-events: none;
+            z-index: 0;
+            will-change: transform;
+        }
+        .hero-orb-1 {
+            width: 420px; height: 420px;
+            background: radial-gradient(circle, #e67e22 0%, transparent 70%);
+            top: -100px; left: -100px;
+            animation: orbSweep1 9s ease-in-out infinite;
+        }
+        .hero-orb-2 {
+            width: 360px; height: 360px;
+            background: radial-gradient(circle, #d35400 0%, transparent 70%);
+            top: -50px; right: -100px;
+            animation: orbSweep2 11s ease-in-out infinite;
+        }
+        .hero-orb-3 {
+            width: 280px; height: 280px;
+            background: radial-gradient(circle, #f39c12 0%, transparent 70%);
+            bottom: -80px; left: 30%;
+            animation: orbSweep3 8s ease-in-out infinite;
+            opacity: 0.45;
+        }
+        @keyframes orbSweep1 {
+            0%, 100% { transform: translate(0, 0)        scale(1);   }
+            25%      { transform: translate(380px, 60px)  scale(1.25); }
+            50%      { transform: translate(540px, 200px) scale(1.0); }
+            75%      { transform: translate(200px, 240px) scale(0.85); }
+        }
+        @keyframes orbSweep2 {
+            0%, 100% { transform: translate(0, 0)         scale(1);   }
+            25%      { transform: translate(-260px, 200px) scale(1.15); }
+            50%      { transform: translate(-460px, 80px)  scale(0.9); }
+            75%      { transform: translate(-180px, -40px) scale(1.3); }
+        }
+        @keyframes orbSweep3 {
+            0%, 100% { transform: translate(0, 0)         scale(1);   }
+            33%      { transform: translate(-280px, -160px) scale(1.4); }
+            66%      { transform: translate(220px, -100px)  scale(0.75); }
+        }
+
+        .hero::after {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: linear-gradient(115deg,
+                transparent 40%,
+                rgba(230, 126, 34, 0.15) 47%,
+                rgba(243, 156, 18, 0.25) 50%,
+                rgba(230, 126, 34, 0.15) 53%,
+                transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+            animation: beamSweep 7s ease-in-out infinite;
+            will-change: transform;
+        }
+        @keyframes beamSweep {
+            0%, 100% { transform: translate(-30%, -30%); }
+            50%      { transform: translate(30%, 30%);   }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .hero-orb, .hero::after { animation: none; }
+        }
+
+        .hero > *:not(.hero-orb) { position: relative; z-index: 1; }
+
+        .hero-logo {
+            color: var(--hero-text);
+            display: block;
+            width: 280px; height: auto;
+            max-width: 80%;
+            margin: 0 auto 16px;
+            filter: invert(1) drop-shadow(0 4px 24px rgba(230, 126, 34, 0.25));
+        }
+        .hero-title {
+            font-size: 26px; font-weight: 600;
+            margin: 0 0 8px;
+            letter-spacing: -0.02em;
+        }
+        .hero-tagline {
+            font-size: 16px;
+            color: rgba(255,255,255,0.7);
+            margin: 0 auto;
+            max-width: 480px;
+            line-height: 1.5;
+        }
+        .hero-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(230, 126, 34, 0.15);
+            border: 1px solid rgba(230, 126, 34, 0.3);
+            color: var(--orange);
+            padding: 4px 12px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 500;
+            margin: 0 0 24px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .hero-pill::before {
+            content: '';
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--orange);
+            box-shadow: 0 0 8px var(--orange);
+        }
+
+        /* ─────── MAIN CONTENT ─────── */
+        .wrap { max-width: 720px; margin: -32px auto 0; padding: 0 24px 40px; position: relative; z-index: 2; }
         .card {
-            background: var(--card); border-radius: 16px;
+            background: var(--card);
+            border-radius: 16px;
             padding: 32px 28px;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.06);
-            margin-bottom: 24px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.06);
+            margin-bottom: 20px;
         }
-        h2 { font-size: 22px; margin: 0 0 16px; }
+        h2 { font-size: 22px; margin: 0 0 16px; font-weight: 600; }
         p { line-height: 1.6; color: var(--text); }
+
+        .steps { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 24px; }
         .step {
-            display: flex; align-items: flex-start; gap: 16px;
-            padding: 14px 0; border-top: 1px solid var(--border);
+            display: flex; align-items: flex-start; gap: 14px;
+            padding: 14px 0;
+            border-top: 1px solid var(--border);
         }
         .step:first-child { border-top: none; padding-top: 0; }
-        .step-num {
-            flex: 0 0 32px; height: 32px; border-radius: 50%;
-            background: var(--orange); color: #fff;
+        .step-icon {
+            flex: 0 0 40px; height: 40px; border-radius: 10px;
+            background: var(--bg);
+            color: var(--orange);
             display: flex; align-items: center; justify-content: center;
-            font-weight: 600; font-size: 14px;
         }
-        .step-body { flex: 1; }
-        .step-body strong { display: block; margin-bottom: 4px; }
+        .step-icon svg { width: 20px; height: 20px; }
+        .step-body { flex: 1; padding-top: 4px; }
+        .step-body strong { display: block; margin-bottom: 4px; font-weight: 600; }
         .step-body code {
             background: var(--border); padding: 2px 6px;
             border-radius: 4px; font-size: 13px;
+            font-family: ui-monospace, "SF Mono", monospace;
         }
-        esp-web-install-button {
-            display: block; margin: 24px auto;
-            text-align: center;
-        }
-        esp-web-install-button::part(button) {
-            background: var(--orange); color: #fff;
-            border: none; border-radius: 12px;
-            padding: 16px 36px; font-size: 17px; font-weight: 600;
-            cursor: pointer; transition: transform .05s, background .15s;
+
+        .install-area { text-align: center; padding: 8px 0 4px; }
+        esp-web-install-button { display: inline-block; }
+        esp-web-install-button::part(button),
+        .install-btn {
+            background: linear-gradient(135deg, var(--orange), var(--orange-dark));
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 16px 36px;
+            font-size: 17px; font-weight: 600;
+            cursor: pointer;
             font-family: inherit;
+            box-shadow: 0 4px 16px var(--orange-glow);
+            transition: transform .05s, box-shadow .15s;
         }
-        esp-web-install-button::part(button):hover {
-            background: var(--orange-dark);
-        }
-        esp-web-install-button::part(button):active {
-            transform: scale(0.98);
-        }
+        esp-web-install-button::part(button):hover,
+        .install-btn:hover { box-shadow: 0 6px 24px var(--orange-glow); }
+        esp-web-install-button::part(button):active,
+        .install-btn:active { transform: scale(0.98); }
+
+        .install-hint { font-size: 12px; color: var(--muted); margin-top: 12px; }
+
         .browser-warning {
             background: #fff3cd; border: 1px solid #ffd966;
-            border-radius: 8px; padding: 14px 16px;
+            border-radius: 10px; padding: 14px 16px;
             color: #7c5800; margin: 16px 0;
             display: none;
         }
         .browser-warning.show { display: block; }
         .browser-warning strong { display: block; margin-bottom: 4px; }
+
+        ul { padding-left: 20px; }
+        ul li { margin: 8px 0; line-height: 1.6; }
+
         footer {
-            text-align: center; color: var(--muted); font-size: 13px;
-            margin-top: 32px; padding: 20px 0;
+            text-align: center;
+            color: var(--muted);
+            font-size: 13px;
+            padding: 32px 24px 40px;
+            border-top: 1px solid var(--border);
+            margin-top: 24px;
         }
         footer a { color: var(--orange); text-decoration: none; }
         footer a:hover { text-decoration: underline; }
-        ul { padding-left: 24px; }
-        ul li { margin: 6px 0; line-height: 1.5; }
+        footer p { margin: 4px 0; }
+
+        @media (max-width: 480px) {
+            .hero { padding: 40px 20px 56px; }
+            .hero-logo { width: 220px; }
+            .hero-title { font-size: 22px; }
+            .wrap { padding: 0 16px 32px; }
+            .card { padding: 24px 20px; }
+            .lang-switcher { font-size: 10px; }
+        }
     </style>
 </head>
 <body>
+
+<!-- ═══════════════════════ LANGUAGE SWITCHER ═══════════════════════ -->
+<div class="lang-switcher" id="langSwitcher" role="group" aria-label="Language selector"></div>
+
+<!-- ═══════════════════════ HERO ═══════════════════════ -->
+<div class="hero">
+    <div class="hero-orb hero-orb-1"></div>
+    <div class="hero-orb hero-orb-2"></div>
+    <div class="hero-orb hero-orb-3"></div>
+
+    <img src="img/tigertag-logo.svg" alt="TigerTag" class="hero-logo">
+    <div class="hero-pill" data-i18n="pill">v2.0.0 · Open source</div>
+    <h1 class="hero-title" data-i18n="heroTitle">TigerScale Web Installer</h1>
+    <p class="hero-tagline" data-i18n-html="heroTagline">
+        Flash your TigerScale firmware directly from the browser.<br>
+        No Arduino IDE, no command line, no toolchain.
+    </p>
+</div>
+
 <div class="wrap">
 
-    <header>
-        <div class="logo">🐯</div>
-        <h1>TigerScale Web Installer</h1>
-        <p class="tagline">
-            Flash your TigerScale firmware directly from the browser. No Arduino IDE, no PlatformIO, no command line.
-        </p>
-    </header>
+    <!-- INSTALL CARD -->
+    <div class="card">
 
-    <div class="browser-warning" id="warning">
-        <strong>⚠️ Browser not supported</strong>
-        ESP Web Tools requires the <strong>Web Serial API</strong>, which only works in <strong>Chrome, Edge, Brave, or Opera</strong>. Please open this page in one of those.
+        <div class="browser-warning" id="warning">
+            <strong data-i18n="warningTitle">⚠️ Browser not supported</strong>
+            <span data-i18n-html="warningBody">ESP Web Tools requires the <strong>Web Serial API</strong>, which only works in <strong>Chrome, Edge, Brave, or Opera</strong>. Please open this page in one of those.</span>
+        </div>
+
+        <h2 data-i18n="installTitle">Install in 60 seconds</h2>
+
+        <div class="steps">
+            <div class="step">
+                <div class="step-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="10" cy="7" r="1"/><circle cx="4" cy="20" r="1"/>
+                        <path d="M4.7 19.3 19 5"/><path d="m21 3-3 1 2 2 1-3Z"/>
+                        <path d="M9.26 7.68 5 12l2 5"/><path d="m10 14 5 2 3.5-3.5"/>
+                        <path d="m18 12 1-1 1 1-1 1-1-1Z"/>
+                    </svg>
+                </div>
+                <div class="step-body">
+                    <strong data-i18n="step1Title">1 · Plug in your ESP32 via USB</strong>
+                    <span data-i18n-html="step1Body">Use a <em>data</em> cable (not charge-only). Your ESP32 should be detectable by the operating system.</span>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
+                        <path d="M13 13l6 6"/>
+                    </svg>
+                </div>
+                <div class="step-body">
+                    <strong data-i18n="step2Title">2 · Click "Install" below</strong>
+                    <span data-i18n-html="step2Body">A popup asks which serial port to use. Pick your ESP32 — typically <code>cu.usbserial-XXXX</code> on macOS, <code>COMx</code> on Windows, or <code>ttyUSB0</code> on Linux.</span>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                </div>
+                <div class="step-body">
+                    <strong data-i18n="step3Title">3 · Wait ~60 seconds</strong>
+                    <span data-i18n-html="step3Body">The browser flashes the firmware (1.3 MB) and the web interface (900 KB). <strong>Don't unplug</strong> while it runs.</span>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+                        <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+                        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+                        <line x1="12" y1="20" x2="12.01" y2="20"/>
+                    </svg>
+                </div>
+                <div class="step-body">
+                    <strong data-i18n="step4Title">4 · Configure Wi-Fi</strong>
+                    <span data-i18n-html="step4Body">The scale boots into setup mode. Connect your phone to the <code>Setup-TigerScale-XXXX</code> Wi-Fi and follow the captive portal.</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="install-area">
+            <esp-web-install-button manifest="manifest.json">
+                <button slot="activate" class="install-btn" data-i18n="installBtn">Install TigerScale</button>
+            </esp-web-install-button>
+            <p class="install-hint">
+                <span data-i18n="troubleHint">Having trouble?</span>
+                <a href="https://github.com/TigerTag-Project/TigerScale/blob/main/docs/TROUBLESHOOTING.md"
+                   style="color: var(--orange);" data-i18n="troubleLink">See TROUBLESHOOTING.md</a>
+            </p>
+        </div>
     </div>
 
+    <!-- WHAT'S INSTALLED -->
     <div class="card">
-        <h2>Install in 60 seconds</h2>
-
-        <div class="step">
-            <div class="step-num">1</div>
-            <div class="step-body">
-                <strong>Plug in your ESP32 via USB</strong>
-                Use a <em>data</em> cable (not charge-only). The ESP32 should be visible to your computer.
-            </div>
-        </div>
-
-        <div class="step">
-            <div class="step-num">2</div>
-            <div class="step-body">
-                <strong>Click "Install TigerScale"</strong> below
-                A popup will ask which serial port to use — pick your ESP32 (typically <code>cu.usbserial-XXXX</code> on macOS, <code>COMx</code> on Windows, <code>ttyUSB0</code> on Linux).
-            </div>
-        </div>
-
-        <div class="step">
-            <div class="step-num">3</div>
-            <div class="step-body">
-                <strong>Wait ~60 seconds</strong>
-                The browser flashes the firmware and the web UI. Don't unplug while it runs.
-            </div>
-        </div>
-
-        <div class="step">
-            <div class="step-num">4</div>
-            <div class="step-body">
-                <strong>Configure Wi-Fi</strong>
-                After install, the scale boots into setup mode. Connect your phone to the <code>Setup-TigerScale-XXXX</code> Wi-Fi network and follow the captive portal.
-            </div>
-        </div>
-
-        <esp-web-install-button manifest="manifest.json"></esp-web-install-button>
-
-        <p style="text-align: center; color: var(--muted); font-size: 13px;">
-            Having trouble? See <a href="https://github.com/TigerTag-Project/TigerScale/blob/main/docs/TROUBLESHOOTING.md" style="color: var(--orange)">TROUBLESHOOTING.md</a>
-        </p>
-    </div>
-
-    <div class="card">
-        <h2>What gets installed?</h2>
+        <h2 data-i18n="whatTitle">What gets installed?</h2>
         <ul>
-            <li><strong>Firmware</strong> (~1.3 MB) — the C++ code that runs on the ESP32</li>
-            <li><strong>Web interface</strong> (~900 KB) — the page you'll see at <code>tigerscale-XXXX.local</code></li>
-            <li><strong>Bootloader</strong> + partition table</li>
+            <li data-i18n-html="whatItem1"><strong>Firmware</strong> (~1.3 MB) — the C++ code that runs on the ESP32</li>
+            <li data-i18n-html="whatItem2"><strong>Web interface</strong> (~900 KB) — the page you'll see at <code>tigerscale-XXXX.local</code></li>
+            <li data-i18n-html="whatItem3"><strong>Bootloader</strong> + partition table</li>
         </ul>
-        <p>Your existing settings (Wi-Fi, Firebase login, calibration) will be <strong>preserved</strong>.</p>
+        <p data-i18n-html="whatNote">Your existing settings (Wi-Fi, Firebase login, calibration) are <strong>preserved</strong> across firmware updates.</p>
     </div>
 
+    <!-- SECURITY -->
     <div class="card">
-        <h2>Don't trust the browser to flash your device?</h2>
-        <p>The TigerScale firmware is fully <a href="https://github.com/TigerTag-Project/TigerScale" style="color: var(--orange)">open-source</a>. You can :</p>
+        <h2 data-i18n="trustTitle">Don't trust the browser to flash your device?</h2>
+        <p data-i18n-html="trustIntro">The TigerScale firmware is fully <a href="https://github.com/TigerTag-Project/TigerScale" style="color: var(--orange);">open-source</a>. You can:</p>
         <ul>
-            <li>Read every line of code on GitHub</li>
-            <li>Compile and flash it yourself with <a href="https://github.com/TigerTag-Project/TigerScale/blob/main/docs/INSTALLATION.md#option-b--platformio" style="color: var(--orange)">PlatformIO</a> or <a href="https://github.com/TigerTag-Project/TigerScale/blob/main/docs/INSTALLATION.md#option-c--arduino-ide" style="color: var(--orange)">Arduino IDE</a></li>
-            <li>Verify the SHA256 of the published binary against your own build</li>
+            <li data-i18n="trustItem1">Read every line of code on GitHub</li>
+            <li data-i18n-html="trustItem2">Compile and flash it yourself with <a href="https://github.com/TigerTag-Project/TigerScale/blob/main/docs/INSTALLATION.md#option-b--platformio" style="color: var(--orange);">PlatformIO</a> or <a href="https://github.com/TigerTag-Project/TigerScale/blob/main/docs/INSTALLATION.md#option-c--arduino-ide" style="color: var(--orange);">Arduino IDE</a></li>
+            <li data-i18n="trustItem3">Verify the SHA256 of the published binaries against your own build</li>
         </ul>
-        <p>The Web Installer is just a convenience — it uses the <a href="https://web.dev/serial/" style="color: var(--orange)">Web Serial API</a> which is sandboxed by your browser : the page only sees the device when you explicitly grant access via the popup.</p>
+        <p data-i18n-html="trustOutro">The Web Installer is just a convenience layer — it uses the <a href="https://web.dev/serial/" style="color: var(--orange);">Web Serial API</a> sandboxed by your browser. The page only sees your USB device when you explicitly grant access via the browser popup.</p>
     </div>
-
-    <footer>
-        <p>
-            🐯 <a href="https://github.com/TigerTag-Project/TigerScale">TigerScale on GitHub</a> ·
-            <a href="https://discord.gg/3Qv5TSqnJH">Discord</a> ·
-            <a href="https://tigertag.io">TigerTag.io</a>
-        </p>
-        <p>Built with <a href="https://esphome.github.io/esp-web-tools/">ESP Web Tools</a> · MIT License</p>
-    </footer>
 
 </div>
 
+<footer>
+    <p>
+        🐯 <a href="https://github.com/TigerTag-Project/TigerScale" data-i18n="footerGithub">TigerScale on GitHub</a> ·
+        <a href="https://discord.gg/3Qv5TSqnJH">Discord</a> ·
+        <a href="https://tigertag.io">TigerTag.io</a>
+    </p>
+    <p data-i18n-html="footerCredit">Built with <a href="https://esphome.github.io/esp-web-tools/">ESP Web Tools</a> · MIT License</p>
+</footer>
+
+<!-- ═══════════════════════ I18N ═══════════════════════
+     Translation controller : token files in locales/<lang>.json,
+     loaded async, with EN fallback. See i18n.js for the API.
+     ═══════════════════════════════════════════════════ -->
+<script src="i18n.js" defer></script>
+
+<!-- Browser-support warning (handled outside i18n) -->
 <script>
-    // Detect browser support
     if (!navigator.serial) {
-        document.getElementById('warning').classList.add('show');
+        document.addEventListener('DOMContentLoaded', function () {
+            const w = document.getElementById('warning');
+            if (w) w.classList.add('show');
+        });
     }
 </script>
 

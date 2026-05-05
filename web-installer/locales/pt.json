@@ -1,0 +1,41 @@
+{
+  "pageTitle":    "TigerScale — Instalador Web",
+  "metaDesc":     "Faça o flash do firmware da sua TigerScale diretamente do navegador. Sem Arduino IDE, sem linha de comando.",
+
+  "pill":         "v2.0.0 · Código aberto",
+  "heroTitle":    "Instalador Web TigerScale",
+  "heroTagline":  "Faça o flash do firmware da sua TigerScale diretamente do navegador.<br>Sem Arduino IDE, sem linha de comando, sem toolchain.",
+
+  "warningTitle": "⚠️ Navegador não suportado",
+  "warningBody":  "ESP Web Tools requer a <strong>Web Serial API</strong>, disponível apenas em <strong>Chrome, Edge, Brave ou Opera</strong>. Abra esta página em um deles.",
+
+  "installTitle": "Instale em 60 segundos",
+  "step1Title":   "1 · Conecte seu ESP32 via USB",
+  "step1Body":    "Use um cabo de <em>dados</em> (não apenas de carga). Seu ESP32 deve ser detectado pelo sistema operacional.",
+  "step2Title":   "2 · Clique em \"Instalar\" abaixo",
+  "step2Body":    "Aparecerá um popup pedindo a porta serial. Selecione seu ESP32 — geralmente <code>cu.usbserial-XXXX</code> no macOS, <code>COMx</code> no Windows ou <code>ttyUSB0</code> no Linux.",
+  "step3Title":   "3 · Aguarde ~60 segundos",
+  "step3Body":    "O navegador faz o flash do firmware (1,3 MB) e da interface web (900 KB). <strong>Não desconecte</strong> durante o processo.",
+  "step4Title":   "4 · Configure o Wi-Fi",
+  "step4Body":    "A balança inicia em modo de configuração. Conecte seu celular ao Wi-Fi <code>Setup-TigerScale-XXXX</code> e siga o portal cativo.",
+
+  "installBtn":   "Instalar TigerScale",
+  "troubleHint":  "Algum problema?",
+  "troubleLink":  "Ver TROUBLESHOOTING.md",
+
+  "whatTitle":    "O que é instalado?",
+  "whatItem1":    "<strong>Firmware</strong> (~1,3 MB) — o código C++ que roda no ESP32",
+  "whatItem2":    "<strong>Interface web</strong> (~900 KB) — a página em <code>tigerscale-XXXX.local</code>",
+  "whatItem3":    "<strong>Bootloader</strong> + tabela de partições",
+  "whatNote":     "Suas configurações atuais (Wi-Fi, login Firebase, calibração) são <strong>preservadas</strong> nas atualizações.",
+
+  "trustTitle":   "Não confia no navegador para fazer o flash?",
+  "trustIntro":   "O firmware TigerScale é totalmente <a href=\"https://github.com/TigerTag-Project/TigerScale\" style=\"color: var(--orange);\">open-source</a>. Você pode:",
+  "trustItem1":   "Ler cada linha de código no GitHub",
+  "trustItem2":   "Compilar e fazer flash você mesmo com <a href=\"https://github.com/TigerTag-Project/TigerScale/blob/main/docs/INSTALLATION.md#option-b--platformio\" style=\"color: var(--orange);\">PlatformIO</a> ou <a href=\"https://github.com/TigerTag-Project/TigerScale/blob/main/docs/INSTALLATION.md#option-c--arduino-ide\" style=\"color: var(--orange);\">Arduino IDE</a>",
+  "trustItem3":   "Verificar o SHA256 dos binários publicados contra seu próprio build",
+  "trustOutro":   "O Instalador Web é apenas uma camada de conveniência — usa a <a href=\"https://web.dev/serial/\" style=\"color: var(--orange);\">Web Serial API</a> isolada pelo seu navegador. A página só vê seu dispositivo USB quando você autoriza explicitamente.",
+
+  "footerGithub": "TigerScale no GitHub",
+  "footerCredit": "Construído com <a href=\"https://esphome.github.io/esp-web-tools/\">ESP Web Tools</a> · Licença MIT"
+}
