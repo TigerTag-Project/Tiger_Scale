@@ -34,7 +34,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: "pip"
 
       - name: Install PlatformIO
         run: |
@@ -81,8 +80,8 @@ jobs:
             "git_date":     "$GIT_DATE",
             "firmware_sha": "$FW_SHA",
             "littlefs_sha": "$FS_SHA",
-            "firmware_url": "https://tigertag-project.github.io/TigerScale/firmware/firmware.bin",
-            "littlefs_url": "https://tigertag-project.github.io/TigerScale/firmware/littlefs.bin"
+            "firmware_url": "https://tigertag-project.github.io/Tiger_Scale/firmware/firmware.bin",
+            "littlefs_url": "https://tigertag-project.github.io/Tiger_Scale/firmware/littlefs.bin"
           }
           EOF
           cat web-installer/version.json
