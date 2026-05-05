@@ -463,211 +463,210 @@ void saveConfigCallback() {
 // ─────────────────────────────────────────────────────────────────────────
 // Captive portal branding — injected via wm.setCustomHeadElement().
 // WiFiManager renders very basic HTML; we override its CSS heavily to match
-// the TigerTag dark/orange brand and make the experience friendly to non-tech
-// users (large buttons, clear typography, helpful messaging).
-// Stored in PROGMEM to avoid using up SRAM at boot.
+// the TigerTag brand. Stored in PROGMEM to avoid using up SRAM at boot.
+//
+// Design system (Apple HIG-inspired):
+//   • Pure black background, restrained accents
+//   • SF system font stack, weights 300–500 only
+//   • No emojis anywhere — icons are stroke SVGs (Lucide style) inlined
+//     as data-URL CSS masks so they inherit `currentColor` cleanly
+//   • Subtle borders (rgba 0.08), zero glow, minimal shadows
 // ─────────────────────────────────────────────────────────────────────────
 static const char CAPTIVE_PORTAL_HEAD[] PROGMEM = R"HEAD(
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="theme-color" content="#0f0f0f">
+<meta name="theme-color" content="#000000">
 <style>
-:root {
+:root{
+  --bg:#000;
+  --surface:rgba(255,255,255,.04);
+  --surface-hi:rgba(255,255,255,.07);
+  --border:rgba(255,255,255,.08);
+  --border-hi:rgba(255,255,255,.16);
+  --text:#fff;
+  --text-mute:rgba(255,255,255,.55);
+  --text-dim:rgba(255,255,255,.28);
   --orange:#e67e22;
-  --orange-dk:#d35400;
-  --orange-glow:rgba(230,126,34,.35);
-  --bg-grad:linear-gradient(135deg,#0f0f0f 0%,#1a1a1a 100%);
-  --card-bg:rgba(255,255,255,.05);
-  --card-bd:rgba(255,255,255,.1);
-  --txt:#fff;
-  --txt-mut:rgba(255,255,255,.65);
+  --orange-hi:#FF9F40;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;min-height:100vh}
 body{
-  background:
-    radial-gradient(circle at 15% -10%,var(--orange-glow) 0%,transparent 45%),
-    radial-gradient(circle at 90% 110%,rgba(211,84,0,.3) 0%,transparent 45%),
-    var(--bg-grad);
-  background-attachment:fixed;
-  color:var(--txt);
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",Arial,sans-serif;
   -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
   font-size:16px;
-  padding:20px 14px 40px;
+  padding:0 20px 48px;
 }
-/* Wordmark above every page */
+/* Wordmark — typography only (no emoji), Apple-style thin + wide tracking */
 body::before{
-  content:"🐯  TIGERTAG";
+  content:"TIGERTAG";
   display:block;
   text-align:center;
-  font-size:20px;
-  font-weight:800;
-  letter-spacing:.18em;
-  color:var(--orange);
-  margin:14px 0 6px;
-  text-shadow:0 0 20px var(--orange-glow);
+  font-size:15px;
+  font-weight:300;
+  letter-spacing:.55em;
+  color:var(--text);
+  padding:48px 0 4px;
+  text-indent:.55em;
 }
 body::after{
-  content:"Setup Mode";
+  content:"Setup";
   display:block;
   text-align:center;
   font-size:11px;
-  font-weight:600;
-  letter-spacing:.25em;
-  color:var(--txt-mut);
+  font-weight:500;
+  letter-spacing:.2em;
   text-transform:uppercase;
-  margin-bottom:18px;
+  color:var(--text-dim);
+  margin-bottom:36px;
 }
-/* WiFiManager wraps content in <div class="c"> by default. We also style
-   any direct child div as a fallback. */
-.c, body > div:not(.notify){
-  max-width:440px;
+/* Card — minimal, no shadow */
+.c, body > div:not(.notify):not(.wm-foot){
+  max-width:380px;
   margin:0 auto;
-  background:var(--card-bg);
-  border:1px solid var(--card-bd);
-  border-radius:18px;
-  padding:24px 22px;
-  backdrop-filter:blur(20px);
-  -webkit-backdrop-filter:blur(20px);
-  box-shadow:0 8px 32px rgba(0,0,0,.4);
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:28px 24px;
 }
 h1{
-  font-size:22px;
-  font-weight:600;
-  margin:0 0 4px;
-  text-align:center;
-  letter-spacing:-.01em;
+  font-size:20px;font-weight:500;margin:0 0 4px;
+  text-align:center;letter-spacing:-.01em;
 }
 h2,h3{
-  text-align:center;
-  font-size:14px;
-  font-weight:400;
-  color:var(--txt-mut);
-  margin:0 0 18px;
+  text-align:center;font-size:13px;font-weight:400;
+  color:var(--text-mute);margin:0 0 22px;
 }
-hr{
-  border:none;
-  border-top:1px solid rgba(255,255,255,.08);
-  margin:18px 0;
-}
+hr{border:none;border-top:1px solid var(--border);margin:18px 0}
 /* Primary buttons */
 button,input[type=submit],input[type=button]{
-  display:block;
-  width:100%;
-  background:linear-gradient(135deg,var(--orange),var(--orange-dk));
-  color:#fff;
-  border:none;
-  border-radius:12px;
-  padding:14px 18px;
-  font-size:15px;
-  font-weight:600;
-  cursor:pointer;
-  font-family:inherit;
-  margin:8px 0;
-  transition:transform .06s,box-shadow .15s,filter .15s;
-  box-shadow:0 4px 14px var(--orange-glow);
+  display:block;width:100%;
+  background:var(--orange);color:#fff;border:none;
+  border-radius:11px;padding:14px 18px;
+  font-size:15px;font-weight:500;
+  cursor:pointer;font-family:inherit;
+  margin:8px 0;letter-spacing:-.01em;
+  transition:opacity .15s,transform .05s;
 }
-button:hover,input[type=submit]:hover{box-shadow:0 6px 20px var(--orange-glow);filter:brightness(1.05)}
-button:active,input[type=submit]:active{transform:scale(.98)}
-button[name=action]{background:transparent;border:1px solid var(--card-bd);box-shadow:none;color:var(--txt-mut)}
-button[name=action]:hover{background:var(--card-bg)}
+button:hover,input[type=submit]:hover{opacity:.92}
+button:active,input[type=submit]:active{transform:scale(.99)}
+button[name=action]{background:var(--surface-hi);color:var(--text);font-weight:400}
 /* Inputs */
 input[type=text],input[type=password],input[type=number],input[type=email]{
-  width:100%;
-  background:rgba(0,0,0,.35);
-  border:1px solid var(--card-bd);
-  color:var(--txt);
-  border-radius:10px;
-  padding:12px 14px;
-  font-size:15px;
-  font-family:inherit;
-  margin:6px 0 10px;
-  outline:none;
+  width:100%;background:rgba(0,0,0,.4);
+  border:1px solid var(--border);color:var(--text);
+  border-radius:10px;padding:13px 14px;
+  font-size:15px;font-family:inherit;
+  margin:6px 0 12px;outline:none;
   transition:border-color .15s,background .15s;
   -webkit-appearance:none;
 }
-input:focus{border-color:var(--orange);background:rgba(0,0,0,.5)}
-input::placeholder{color:rgba(255,255,255,.35)}
-label{display:block;font-size:13px;color:var(--txt-mut);margin:6px 0 2px}
-/* WiFi scan list — items are <a> wrapped in <div> by WiFiManager */
-a{
-  color:var(--txt);
-  text-decoration:none;
-  display:block;
-  padding:13px 16px;
-  background:rgba(255,255,255,.04);
-  border:1px solid var(--card-bd);
-  border-radius:12px;
-  margin:6px 0;
-  transition:background .15s,border-color .15s,transform .05s;
-  font-size:15px;
-  cursor:pointer;
-}
-a:hover{background:rgba(230,126,34,.08);border-color:rgba(230,126,34,.3)}
-a:active{transform:scale(.99)}
-/* Signal strength badges (WiFiManager appends class q1..q4) */
-.q{
-  position:relative;
-  width:38px;height:18px;
-  display:inline-block;
-  vertical-align:middle;
-  margin-left:4px;
-}
-.q::before{
-  position:absolute;right:0;bottom:0;
-  font-size:10px;font-weight:700;
-  color:var(--orange);
-}
-.q.q4::before{content:"●●●●"}
-.q.q3::before{content:"●●●○"}
-.q.q2::before{content:"●●○○"}
-.q.q1::before{content:"●○○○"}
-.q.q0::before{content:"○○○○";color:var(--txt-mut)}
-/* Lock icon (WiFiManager prefixes secured networks with 🔒) */
-.l::before{content:"🔒  ";font-size:14px}
-/* Forms */
+input:focus{border-color:var(--orange);background:rgba(0,0,0,.6)}
+input::placeholder{color:var(--text-dim)}
+label{display:block;font-size:13px;color:var(--text-mute);margin:6px 0 2px;font-weight:400}
 form{margin:0;padding:0}
-/* Info & messages */
-.msg,.notify{
-  background:rgba(255,255,255,.04);
-  border-left:3px solid var(--orange);
-  padding:12px 14px;
-  border-radius:10px;
-  font-size:14px;
-  line-height:1.5;
-  margin:14px 0;
-  color:var(--txt-mut);
+/* WiFi list rows */
+a{
+  color:var(--text);text-decoration:none;display:block;
+  padding:14px 16px;background:var(--surface);
+  border:1px solid var(--border);border-radius:10px;
+  margin:6px 0;font-size:15px;font-weight:400;
+  cursor:pointer;position:relative;
+  transition:background .15s,border-color .15s;
 }
-.S{background:rgba(39,174,96,.1);border-left-color:#27ae60;color:#a8e3c5}
-.D{background:rgba(231,76,60,.1);border-left-color:#e74c3c;color:#f5b7b1}
+a:hover{background:var(--surface-hi);border-color:var(--border-hi)}
+a:active{transform:scale(.99)}
+/* Signal-strength bars — pure CSS, four upright rectangles */
+.q{display:inline-block;width:20px;height:14px;vertical-align:middle;margin-left:8px;position:relative}
+.q::before{
+  content:"";position:absolute;inset:0;
+  background:
+    linear-gradient(var(--text-dim),var(--text-dim)) 0 100%/3px 30% no-repeat,
+    linear-gradient(var(--text-dim),var(--text-dim)) 5px 100%/3px 55% no-repeat,
+    linear-gradient(var(--text-dim),var(--text-dim)) 10px 100%/3px 80% no-repeat,
+    linear-gradient(var(--text-dim),var(--text-dim)) 15px 100%/3px 100% no-repeat;
+}
+.q.q1::before{background:
+  linear-gradient(var(--orange),var(--orange))     0 100%/3px 30% no-repeat,
+  linear-gradient(var(--text-dim),var(--text-dim)) 5px 100%/3px 55% no-repeat,
+  linear-gradient(var(--text-dim),var(--text-dim)) 10px 100%/3px 80% no-repeat,
+  linear-gradient(var(--text-dim),var(--text-dim)) 15px 100%/3px 100% no-repeat}
+.q.q2::before{background:
+  linear-gradient(var(--orange),var(--orange))     0 100%/3px 30% no-repeat,
+  linear-gradient(var(--orange),var(--orange))     5px 100%/3px 55% no-repeat,
+  linear-gradient(var(--text-dim),var(--text-dim)) 10px 100%/3px 80% no-repeat,
+  linear-gradient(var(--text-dim),var(--text-dim)) 15px 100%/3px 100% no-repeat}
+.q.q3::before{background:
+  linear-gradient(var(--orange),var(--orange))     0 100%/3px 30% no-repeat,
+  linear-gradient(var(--orange),var(--orange))     5px 100%/3px 55% no-repeat,
+  linear-gradient(var(--orange),var(--orange))     10px 100%/3px 80% no-repeat,
+  linear-gradient(var(--text-dim),var(--text-dim)) 15px 100%/3px 100% no-repeat}
+.q.q4::before{background:
+  linear-gradient(var(--orange),var(--orange)) 0 100%/3px 30% no-repeat,
+  linear-gradient(var(--orange),var(--orange)) 5px 100%/3px 55% no-repeat,
+  linear-gradient(var(--orange),var(--orange)) 10px 100%/3px 80% no-repeat,
+  linear-gradient(var(--orange),var(--orange)) 15px 100%/3px 100% no-repeat}
+/* Lock icon (secured WiFi) — Lucide stroke SVG via CSS mask */
+.q.l{padding-right:18px}
+.l::after{
+  content:"";position:absolute;
+  width:11px;height:11px;right:-2px;top:50%;
+  transform:translateY(-50%);
+  background-color:var(--text-mute);
+  -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect width='18' height='11' x='3' y='11' rx='2' ry='2'/><path d='M7 11V7a5 5 0 0 1 10 0v4'/></svg>") center/contain no-repeat;
+  mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect width='18' height='11' x='3' y='11' rx='2' ry='2'/><path d='M7 11V7a5 5 0 0 1 10 0v4'/></svg>") center/contain no-repeat;
+}
+/* Info / messages */
+.msg,.notify{
+  background:var(--surface);border-left:2px solid var(--orange);
+  padding:12px 14px;border-radius:8px;
+  font-size:13px;line-height:1.5;margin:14px 0;
+  color:var(--text-mute);
+}
+.S{border-left-color:#27ae60;color:#a8e3c5}
+.D{border-left-color:#e74c3c;color:#f5b7b1}
 /* Info table */
 table{width:100%;border-collapse:collapse;font-size:14px}
-table tr td{padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)}
-table tr td:first-child{color:var(--txt-mut);font-size:13px}
-table tr td:last-child{text-align:right}
-/* Loading dots */
+table tr td{padding:10px 0;border-bottom:1px solid var(--border)}
+table tr td:first-child{color:var(--text-mute);font-size:13px;font-weight:400}
+table tr td:last-child{text-align:right;font-family:ui-monospace,"SF Mono","Menlo",monospace;font-size:13px}
+/* Discrete "Device info" footer link with SVG info icon */
+.wm-foot{margin:32px 0 0;text-align:center}
+.wm-foot-link{
+  display:inline-flex !important;
+  align-items:center;gap:6px;
+  background:transparent !important;
+  border:none !important;
+  color:var(--text-mute) !important;
+  font-size:12px !important;font-weight:400;
+  padding:6px 12px !important;margin:0 !important;
+  text-decoration:none !important;
+  transition:color .15s !important;
+}
+.wm-foot-link::before{
+  content:"";width:12px;height:12px;
+  background-color:currentColor;
+  -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><path d='M12 16v-4'/><path d='M12 8h.01'/></svg>") center/contain no-repeat;
+  mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><path d='M12 16v-4'/><path d='M12 8h.01'/></svg>") center/contain no-repeat;
+}
+.wm-foot-link:hover{color:var(--orange) !important;background:transparent !important}
+/* Spinner (loading state) */
 .spin{
   display:inline-block;width:14px;height:14px;
-  border:2px solid rgba(255,255,255,.2);
+  border:1.5px solid rgba(255,255,255,.18);
   border-top-color:var(--orange);
   border-radius:50%;
   animation:tt-spin .7s linear infinite;
   margin-right:8px;vertical-align:middle;
 }
 @keyframes tt-spin{to{transform:rotate(360deg)}}
-/* Footer hint */
-body > p:last-of-type{
-  text-align:center;
-  font-size:11px;
-  color:rgba(255,255,255,.3);
-  margin-top:20px;
-}
 /* Responsive */
 @media (max-width:480px){
-  .c,body > div:not(.notify){padding:20px 16px;border-radius:14px}
-  body::before{font-size:18px;letter-spacing:.15em}
-  h1{font-size:20px}
+  .c,body > div:not(.notify):not(.wm-foot){padding:24px 18px;border-radius:12px}
+  body::before{font-size:14px;letter-spacing:.5em;padding-top:36px}
 }
 </style>
 )HEAD";
@@ -680,10 +679,16 @@ void setupWiFi() {
     // Brand the captive portal — title in the H1, our CSS in <head>, simplified menu.
     wm.setTitle("TigerScale");
     wm.setCustomHeadElement(CAPTIVE_PORTAL_HEAD);
-    // Trim the menu to what a non-technical user actually needs (no "Erase WiFi"
-    // button by accident, no "Update" since OTA is handled elsewhere).
-    std::vector<const char*> menu = {"wifi", "info", "sep", "restart", "exit"};
+    // Single big action for non-technical users: "Configure WiFi". The "Info"
+    // page (chip ID, MAC, build) is still useful for support, but we move it to
+    // a tiny discrete footer link via setCustomMenuHTML below.
+    std::vector<const char*> menu = {"wifi"};
     wm.setMenu(menu);
+    wm.setCustomMenuHTML(
+        "<div class='wm-foot'>"
+        "<a href='/i' class='wm-foot-link'>&#9432; Device info</a>"
+        "</div>"
+    );
     wm.setBreakAfterConfig(true);    // close portal as soon as creds are saved
     wm.setShowStaticFields(false);   // hide static IP fields (advanced, scary)
     wm.setShowDnsFields(false);      // hide DNS fields (idem)
