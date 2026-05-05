@@ -9,7 +9,7 @@
 [![Discord](https://img.shields.io/badge/Discord-Join-5865F2.svg)](https://discord.gg/3Qv5TSqnJH)
 
 <p align="center">
-  <img src="web-installer/img/tigertag-logo.svg" alt="TigerTag logo" width="140">
+  <img src="web-installer/img/logo_tigertag_contouring.svg" alt="TigerTag logo" width="140">
 </p>
 
 ---
