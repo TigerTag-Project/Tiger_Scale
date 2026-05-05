@@ -205,6 +205,7 @@ uint32_t autoTareStableSinceMs   = 0;
 uint32_t autoTareStartedMs       = 0;        // Track when auto-tare started (for timeout safety)
 uint32_t lastIdleAutoTareMs      = 0;        // Prevent infinite auto-tare loop at 0g
 bool     idleAutoTareArmed       = true;     // Rearm only after leaving near-zero zone
+uint32_t lowWeightSinceMs        = 0;        // Anti-stuck timer when near empty
 
 // Auto-push configuration
 const float    STABLE_EPSILON_G    =  0.6f;
@@ -2999,6 +3000,36 @@ void loop() {
         processAutoTare(weight);
     } else {
         updateServoWorkflow(weight);
+    }
+
+    // Failsafe: if cycle is locked while weight stays low for some time, force reset.
+    // This avoids getting stuck because of residual/noisy grams.
+    bool lockedCycle = (rfidLockedForCurrentLoad || servoLockedUntilAutotare || servoHoldAfterRemoval || autoTarePending);
+    const float LOW_WEIGHT_UNLOCK_G = 18.0f;
+    const uint32_t LOW_WEIGHT_UNLOCK_MS = 6000;
+
+    if (lockedCycle && fabs(weight) <= LOW_WEIGHT_UNLOCK_G) {
+        if (lowWeightSinceMs == 0) lowWeightSinceMs = millis();
+        if (millis() - lowWeightSinceMs >= LOW_WEIGHT_UNLOCK_MS) {
+            autoTarePending = false;
+            autoTareStableSinceMs = 0;
+            autoTareStartedMs = 0;
+            rfidLockedForCurrentLoad = false;
+            servoLockedUntilAutotare = false;
+            servoHoldAfterRemoval = false;
+            idleAutoTareArmed = true;
+            lowWeightSinceMs = 0;
+            gLastSentWeight = NAN;
+            gLastCloudWeight = NAN;
+            gCloudWeightSetMs = 0;
+            firstUidDetectedMs = 0;
+            firstUidPauseUntilMs = 0;
+            lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
+            currentOledState = OLED_STATE_IDLE;
+            Serial.println("[CYCLE] Forced unlock after low-weight timeout");
+        }
+    } else {
+        lowWeightSinceMs = 0;
     }
 
     // Detect spool removal by comparing to last sent weight

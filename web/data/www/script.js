@@ -52,6 +52,7 @@ const translations = {
         apply: 'Appliquer',
         advanced: 'Avancé',
         reconfigWifi: 'Reconfigurer Wi‑Fi',
+        openPortal: 'Ouvrir le portail',
         factoryReset: 'Réinitialisation',
         uptime: 'Durée de fonctionnement',
         // Calibration wizard
@@ -122,6 +123,7 @@ const translations = {
         apply: 'Apply',
         advanced: 'Advanced',
         reconfigWifi: 'Reconfigure Wi‑Fi',
+        openPortal: 'Open Portal',
         factoryReset: 'Factory Reset',
         uptime: 'Uptime',
         // Calibration wizard
