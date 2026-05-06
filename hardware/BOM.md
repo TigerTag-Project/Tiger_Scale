@@ -13,7 +13,7 @@ Total cost : **~30 € for the electronics** + cost of 3D-printed parts (typical
 | **RFID Reader Module RC522** (13.56 MHz, SPI) — needs **2** | 6 € (×5 set) | [amzn.to/47mqpQt](https://amzn.to/47mqpQt) |
 | **Dupont Jumper Wires** (ELEGOO 120 pcs 28 AWG 20 cm M-M, M-F, F-F) | 6 € | [amzn.to/42QEdB9](https://amzn.to/42QEdB9) |
 | **Load Cell 5 kg + HX711 amplifier** (Wishiot kit) | 7 € | [amzn.to/3KZIOLl](https://amzn.to/3KZIOLl) |
-| **Continuous Servo FS90R** (Wishiot 360° rotation) | 5 € | [Amazon FR](https://www.amazon.fr/Wishiot-rotation-continue-Microbit-h%C3%A9licopt%C3%A8re/dp/B0BZH7JK4N/?tag=tigertag09-21) |
+| **Continuous Servo FS90R** (Wishiot 360° rotation) | 5 € | [amzn.to/4tRzpGZ](https://amzn.to/4tRzpGZ) |
 | **Misc** : breadboard, 5 V/2 A USB power supply | ~5 € | Any electronics supplier |
 
 **Total electronics : ~35 €**
