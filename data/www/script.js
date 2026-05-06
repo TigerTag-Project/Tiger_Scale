@@ -796,8 +796,19 @@ window.addEventListener('message', (event) => {
 
 // ========== INITIALIZATION ==========
 window.onload = () => {
-    // Set language
-    setLanguage(currentLang);
+    // Language: i18n.js (loaded before this script) auto-detects and applies
+    // the user's language during its own init(). The legacy `currentLang`
+    // local variable was removed when translations were externalised into
+    // locales/*.json — referencing it here previously threw a ReferenceError
+    // that aborted the rest of window.onload (no pollStatus, no modal, no
+    // data). Use window.currentLang (set by the i18n controller) as a safe
+    // alias, or fall back to "en".
+    const lang = (window.TigerI18n && window.TigerI18n.getLang && window.TigerI18n.getLang())
+              || window.currentLang
+              || 'en';
+    if (typeof window.setLanguage === 'function') {
+        try { window.setLanguage(lang); } catch (_) {}
+    }
     setFirebaseConfigured(false);
 
     // Initial weight display
