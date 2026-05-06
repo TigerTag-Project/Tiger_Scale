@@ -317,6 +317,54 @@
         .browser-warning strong { display: block; margin-bottom: 4px; }
 
         ul { padding-left: 20px; }
+
+        /* ─────── HARDWARE SHOPPING LIST ─────── */
+        .shop-intro { color: var(--muted); font-size: 14px; margin: 0 0 20px; line-height: 1.6; }
+        .shop-list { list-style: none; padding: 0; margin: 0 0 14px; display: flex; flex-direction: column; gap: 10px; }
+        .shop-item {
+            display: flex; align-items: center; justify-content: space-between; gap: 16px;
+            padding: 14px 16px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            transition: border-color .15s, transform .05s;
+        }
+        .shop-item:hover { border-color: rgba(230, 126, 34, 0.4); }
+        .shop-item-body { flex: 1; min-width: 0; }
+        .shop-item h4 { margin: 0 0 4px; font-size: 15px; font-weight: 600; color: var(--text); }
+        .shop-item p { margin: 0 0 8px; font-size: 13px; color: var(--muted); line-height: 1.4; }
+        .shop-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+        .shop-tag {
+            display: inline-block;
+            background: rgba(230, 126, 34, 0.08);
+            color: var(--orange-dark);
+            font-size: 11px; font-weight: 500;
+            padding: 3px 8px;
+            border-radius: 100px;
+            white-space: nowrap;
+        }
+        .shop-btn {
+            flex-shrink: 0;
+            background: linear-gradient(135deg, var(--orange), var(--orange-dark));
+            color: #fff !important;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-size: 13px; font-weight: 600;
+            text-decoration: none !important;
+            cursor: pointer;
+            transition: box-shadow .15s, transform .05s;
+            box-shadow: 0 2px 8px var(--orange-glow);
+            white-space: nowrap;
+        }
+        .shop-btn:hover { box-shadow: 0 4px 14px var(--orange-glow); }
+        .shop-btn:active { transform: scale(0.98); }
+        .shop-disclosure { margin-top: 14px; padding: 10px 14px; background: var(--bg); border-left: 2px solid var(--orange); border-radius: 6px; }
+        .shop-disclosure small { font-size: 12px; color: var(--muted); }
+        @media (max-width: 480px) {
+            .shop-item { flex-direction: column; align-items: stretch; gap: 12px; }
+            .shop-btn { width: 100%; text-align: center; }
+        }
         ul li { margin: 8px 0; line-height: 1.6; }
 
         footer {
@@ -453,6 +501,93 @@
             <li data-i18n-html="whatItem3"><strong>Bootloader</strong> + partition table</li>
         </ul>
         <p data-i18n-html="whatNote">Your existing settings (Wi-Fi, Firebase login, calibration) are <strong>preserved</strong> across firmware updates.</p>
+    </div>
+
+    <!-- ═══════════════════════ HARDWARE SHOPPING LIST ═══════════════════════ -->
+    <div class="card">
+        <h2 data-i18n="shopTitle">Hardware shopping list</h2>
+        <p data-i18n="shopIntro" class="shop-intro">
+            Everything you need to build your TigerScale. Affiliate links — buying through them helps fund the project at no extra cost to you.
+        </p>
+
+        <ul class="shop-list">
+            <li class="shop-item">
+                <div class="shop-item-body">
+                    <h4 data-i18n="shopEsp32Title">ESP32 Development Board</h4>
+                    <p data-i18n="shopEsp32Desc">Binghe ESP32-WROOM-32 with CH340, USB-C</p>
+                    <div class="shop-tags">
+                        <span class="shop-tag">×2 boards</span>
+                        <span class="shop-tag">CH340</span>
+                        <span class="shop-tag">Type-C</span>
+                    </div>
+                </div>
+                <a href="https://amzn.to/4hlnITL" target="_blank" rel="noopener sponsored" class="shop-btn" data-i18n="shopView">View on Amazon</a>
+            </li>
+            <li class="shop-item">
+                <div class="shop-item-body">
+                    <h4 data-i18n="shopOledTitle">OLED Display Module</h4>
+                    <p data-i18n="shopOledDesc">ELEGOO 0.96" 128×64 I²C self-luminous</p>
+                    <div class="shop-tags">
+                        <span class="shop-tag">×3 modules</span>
+                        <span class="shop-tag">128×64</span>
+                        <span class="shop-tag">I²C</span>
+                    </div>
+                </div>
+                <a href="https://amzn.to/47gIf7j" target="_blank" rel="noopener sponsored" class="shop-btn" data-i18n="shopView">View on Amazon</a>
+            </li>
+            <li class="shop-item">
+                <div class="shop-item-body">
+                    <h4 data-i18n="shopRfidTitle">RFID Reader Module (RC522)</h4>
+                    <p data-i18n="shopRfidDesc">13.56 MHz RF/IC card induction, SPI</p>
+                    <div class="shop-tags">
+                        <span class="shop-tag">×5 modules</span>
+                        <span class="shop-tag">13.56 MHz</span>
+                        <span class="shop-tag">SPI</span>
+                    </div>
+                </div>
+                <a href="https://amzn.to/47mqpQt" target="_blank" rel="noopener sponsored" class="shop-btn" data-i18n="shopView">View on Amazon</a>
+            </li>
+            <li class="shop-item">
+                <div class="shop-item-body">
+                    <h4 data-i18n="shopWiresTitle">Dupont Jumper Wires</h4>
+                    <p data-i18n="shopWiresDesc">ELEGOO 120 pcs 28 AWG 20 cm (M-M, M-F, F-F)</p>
+                    <div class="shop-tags">
+                        <span class="shop-tag">120 pcs</span>
+                        <span class="shop-tag">3-in-1</span>
+                        <span class="shop-tag">20 cm</span>
+                    </div>
+                </div>
+                <a href="https://amzn.to/42QEdB9" target="_blank" rel="noopener sponsored" class="shop-btn" data-i18n="shopView">View on Amazon</a>
+            </li>
+            <li class="shop-item">
+                <div class="shop-item-body">
+                    <h4 data-i18n="shopLoadTitle">Load Cell + HX711</h4>
+                    <p data-i18n="shopLoadDesc">Wishiot 5 kg high-precision load cell with HX711 amplifier</p>
+                    <div class="shop-tags">
+                        <span class="shop-tag">×2 sets</span>
+                        <span class="shop-tag">5 kg</span>
+                        <span class="shop-tag">HX711</span>
+                    </div>
+                </div>
+                <a href="https://amzn.to/3KZIOLl" target="_blank" rel="noopener sponsored" class="shop-btn" data-i18n="shopView">View on Amazon</a>
+            </li>
+            <li class="shop-item">
+                <div class="shop-item-body">
+                    <h4 data-i18n="shopServoTitle">Continuous Servo (FS90R)</h4>
+                    <p data-i18n="shopServoDesc">Wishiot 360° rotation continue, FS90R compatible</p>
+                    <div class="shop-tags">
+                        <span class="shop-tag">×1</span>
+                        <span class="shop-tag">360°</span>
+                        <span class="shop-tag">PWM</span>
+                    </div>
+                </div>
+                <a href="https://www.amazon.fr/Wishiot-rotation-continue-Microbit-h%C3%A9licopt%C3%A8re/dp/B0BZH7JK4N/?tag=tigertag09-21" target="_blank" rel="noopener sponsored" class="shop-btn" data-i18n="shopView">View on Amazon</a>
+            </li>
+        </ul>
+
+        <p class="shop-disclosure" data-i18n-html="shopDisclosure">
+            <small>Full BOM and 3D-printable parts: <a href="https://github.com/TigerTag-Project/Tiger_Scale/blob/main/hardware/BOM.md" style="color: var(--orange);">hardware/BOM.md</a> · As an Amazon Associate, we earn from qualifying purchases.</small>
+        </p>
     </div>
 
     <!-- SECURITY -->

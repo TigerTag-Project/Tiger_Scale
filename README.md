@@ -80,9 +80,11 @@ Detailed instructions: **[docs/INSTALLATION.md](docs/INSTALLATION.md)**
 | 3D-printed enclosure | [hardware/3d-models/](hardware/3d-models/) | filament cost |
 | **Total** | | **~30 €** |
 
-Full Bill of Materials: **[hardware/BOM.md](hardware/BOM.md)**
+Full Bill of Materials: **[hardware/BOM.md](hardware/BOM.md)** (with affiliate links)
 Wiring diagram: **[docs/HARDWARE.md](docs/HARDWARE.md)**
 Print settings: **[hardware/3d-models/README.md](hardware/3d-models/README.md)**
+
+> 💡 **Buy a kit** — the [Web Installer page](https://tigertag-project.github.io/Tiger_Scale/) includes a one-click shopping list of every component with Amazon affiliate links. Buying through them at no extra cost supports the project and keeps the TigerTag cloud free.
 
 ---
 
