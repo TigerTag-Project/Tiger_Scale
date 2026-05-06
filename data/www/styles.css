@@ -724,6 +724,35 @@ input::placeholder {
 
 .auth-modal {
     max-width: 410px;
+    position: relative;
+}
+
+/* Close button — top-right corner of the auth modal */
+.auth-close-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 32px;
+    height: 32px;
+    padding: 4px;
+    border: none;
+    background: transparent;
+    color: var(--muted, #9ca3af);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s, color .15s;
+    flex-shrink: 0;
+}
+.auth-close-btn:hover {
+    background: rgba(0,0,0,0.06);
+    color: var(--ink, #1a1a1a);
+}
+.auth-close-btn svg {
+    width: 18px;
+    height: 18px;
 }
 
 .auth-logo {

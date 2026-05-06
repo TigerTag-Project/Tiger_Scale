@@ -271,7 +271,13 @@
     <!-- Firebase Login Modal - auto-shown when firebaseConfigured=false -->
     <div id="firebaseLoginModal" class="modal modal-blocking" style="display:none" aria-hidden="true">
         <div class="modal-content auth-modal" role="dialog" aria-labelledby="authTitle">
-            <div class="auth-logo">🐯</div>
+            <!-- Close button — lets user skip login and use the scale offline -->
+            <button class="auth-close-btn" onclick="hideAuthModal()" aria-label="Fermer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+            <div class="auth-logo"><img src="img/logo-tigertag.svg" alt="TigerTag"></div>
             <h2 class="auth-title" id="authTitle" data-i18n="authTitle">Bienvenue sur votre TigerScale</h2>
             <p class="auth-sub" data-i18n="authSub">Connectez-vous pour synchroniser vos bobines avec le cloud TigerTag.</p>
 
