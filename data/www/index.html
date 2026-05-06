@@ -69,10 +69,8 @@
                         <span id="fbText">FB</span>
                     </div>
                 </div>
-                <div class="lang-switcher">
-                    <button class="lang-btn active" onclick="setLanguage('en')" data-lang="en">EN</button>
-                    <button class="lang-btn" onclick="setLanguage('fr')" data-lang="fr">FR</button>
-                </div>
+                <!-- i18n.js builds a dropdown switcher inside this container -->
+                <div class="lang-switcher" id="langSwitcher" role="group" aria-label="Language"></div>
             </div>
         </div>
 
@@ -309,6 +307,9 @@
         </div>
     </div>
 
+    <!-- i18n controller MUST load before script.js so the global t() shim is
+         available when application code starts calling t(). -->
+    <script src="i18n.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

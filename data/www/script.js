@@ -28,239 +28,30 @@ const masterspools = [
 ];
 
 // ========== TRANSLATIONS ==========
-const translations = {
-    fr: {
-        waiting: 'Attente du TigerTag...',
-        quickActions: 'Actions rapides',
-        tare: 'TARE',
-        firebase: 'Firebase',
-        firebaseStatus: 'Statut Firebase',
-        firebaseEmail: 'Email Firebase',
-        firebasePassword: 'Mot de passe Firebase',
-        apiKey: 'Clé API',
-        user: 'Utilisateur',
-        newApiKey: 'Nouvelle clé API',
-        update: 'Mettre à jour',
-        delete: 'Supprimer',
-        calibration: 'Calibration Magique',
-        currentFactor: 'Facteur actuel',
-        autoCalc: 'Calcul automatique',
-        knownWeight: 'Poids connu (g)',
-        compute: 'Calculer',
-        manual: 'Manuel',
-        newFactor: 'Nouveau facteur',
-        apply: 'Appliquer',
-        advanced: 'Avancé',
-        reconfigWifi: 'Reconfigurer Wi‑Fi',
-        openPortal: 'Ouvrir le portail',
-        factoryReset: 'Réinitialisation',
-        uptime: 'Durée de fonctionnement',
-        // Calibration wizard
-        step1Title: 'Step 1',
-        step1Instruction: 'Laissez la balance vide puis appuyez sur le bouton',
-        step1Button: 'Next',
-        step2Title: 'Step 2',
-        step2Instruction: 'Sélectionnez votre Masterspool vide et placez-la sur la balance',
-        selectMasterspool: 'Sélectionnez votre Masterspool',
-        step2Button: 'Calibrer',
-        step3Title: 'Calibré !',
-        step3Instruction: 'La balance est maintenant calibrée',
-        currentReading: 'Lecture actuelle',
-        calibKnownWeight: 'Poids réel (g)',
-        newFactor: 'Nouveau facteur',
-        back: 'Retour',
-        calibAgain: 'Restart',
-        manualCalib: 'Calibration manuelle',
-        // Status
-        cloud: 'Cloud',
-        offline: 'Hors ligne',
-        validated: 'Validé',
-        invalid: 'Invalide',
-        notConfigured: 'Non configuré',
-        configureApiKey: 'Configurer la clé API',
-        apiKeyInvalid: 'Clé API invalide',
-        // Alerts
-        alertEnterKey: 'Veuillez saisir une clé API',
-        alertUpdateError: 'Erreur lors de la mise à jour',
-        alertDeleteConfirm: 'Supprimer la clé API ?',
-        alertDeleteError: 'Erreur lors de la suppression',
-        alertInvalidFactor: 'Facteur invalide',
-        alertNegativeFactor: 'Le coefficient doit être positif',
-        alertError: 'Erreur',
-        alertInvalidWeight: 'Poids connu invalide',
-        alertDataUnavailable: 'Données non disponibles',
-        alertWeightTooLight: 'Poids trop léger (min. 200g)\nVérifiez que le filament est bien sur la balance.',
-        errorWeightRequired: 'Veuillez entrer un poids valide (min. 200g)',
-        modalWeightTooLightTitle: 'Poids insuffisant',
-        modalWeightTooLightMessage: 'Le poids est trop léger pour une calibration. Utilisez une Masterspool ou un filament d\'au moins 200g.',
-        modalWeightInvalidTitle: 'Poids invalide',
-        modalWeightInvalidMessage: 'Veuillez entrer un poids valide',
-        modalOk: 'OK',
-        alertReconfigConfirm: 'Reconfigurer le Wi‑Fi ? L\'appareil redémarrera.',
-        alertResetConfirm: 'ATTENTION : Cette action effacera toutes les données. Continuer ?',
-        // Send status
-        sending: 'Envoi...',
-        sent: 'Envoyé',
-        sendError: 'Erreur',
-        sendIn: 'Envoi dans'
-    },
-    en: {
-        waiting: 'Waiting TigerTag...',
-        quickActions: 'Quick Actions',
-        tare: 'TARE',
-        apiKey: 'API Key',
-        user: 'User',
-        newApiKey: 'New API Key',
-        update: 'Update',
-        delete: 'Delete',
-        calibration: 'Wizard Calibration',
-        currentFactor: 'Current factor',
-        autoCalc: 'Auto calculation',
-        knownWeight: 'Known weight (g)',
-        compute: 'Compute',
-        manual: 'Manual',
-        newFactor: 'New factor',
-        apply: 'Apply',
-        advanced: 'Advanced',
-        reconfigWifi: 'Reconfigure Wi‑Fi',
-        openPortal: 'Open Portal',
-        factoryReset: 'Factory Reset',
-        uptime: 'Uptime',
-        // Calibration wizard
-        step1Title: 'Step 1',
-        step1Instruction: 'Leave the scale empty then press the button',
-        step1Button: 'Next',
-        step2Title: 'Step 2',
-        step2Instruction: 'Select your empty Masterspool and place it on the scale',
-        selectMasterspool: 'Select your Masterspool',
-        step2Button: 'Calibrate',
-        step3Title: 'Calibrated!',
-        step3Instruction: 'The scale is now calibrated',
-        currentReading: 'Current reading',
-        calibKnownWeight: 'Real weight (g)',
-        newFactor: 'New factor',
-        back: 'Back',
-        calibAgain: 'Restart',
-        manualCalib: 'Manual calibration',
-        // Status
-        cloud: 'Cloud',
-        offline: 'Offline',
-        validated: 'Validated',
-        invalid: 'Invalid',
-        notConfigured: 'Not configured',
-        configureApiKey: 'Setup API Key',
-        apiKeyInvalid: 'Invalid API Key',
-        // Alerts
-        alertEnterKey: 'Please enter an API key',
-        alertUpdateError: 'Update error',
-        alertDeleteConfirm: 'Delete API key?',
-        alertDeleteError: 'Delete error',
-        alertInvalidFactor: 'Invalid factor',
-        alertNegativeFactor: 'Coefficient must be positive',
-        alertError: 'Error',
-        alertInvalidWeight: 'Invalid known weight',
-        alertDataUnavailable: 'Data unavailable',
-        alertWeightTooLight: 'Weight too light (min. 200g)\nCheck that the filament is on the scale.',
-        errorWeightRequired: 'Please enter a valid weight (min. 200g)',
-        modalWeightTooLightTitle: 'Insufficient weight',
-        modalWeightTooLightMessage: 'The weight is too light for calibration. Use a Masterspool or filament of at least 200g.',
-        modalWeightInvalidTitle: 'Invalid weight',
-        modalWeightInvalidMessage: 'Please enter a valid weight',
-        modalOk: 'OK',
-        alertReconfigConfirm: 'Reconfigure Wi‑Fi? Device will restart.',
-        alertResetConfirm: 'WARNING: This will erase all data. Continue?',
-        // Send status
-        sending: 'Sending...',
-        sent: 'Sent',
-        sendError: 'Error',
-        sendIn: 'Sending in'
-    }
-};
+// Translations live in locales/{lang}.json. The i18n controller (i18n.js) is
+// loaded BEFORE this script in index.html and exposes window.t() and
+// window.setLanguage() shims so the application code below keeps working.
+//
+// Backward-compat: the legacy `currentLang` global is updated by the controller
+// every time the language changes (window.currentLang).
+//
+// To add a language: drop a new locales/<code>.json + add an entry in the
+// LANGS object inside i18n.js. No change needed in this file.
+//
+// Override updateCloudText() in setLanguage() — keep the legacy hook so the
+// status pill text re-renders when the language changes.
+document.addEventListener("i18n:applied", () => {
+    if (typeof updateCloudText === "function") updateCloudText();
+});
 
-translations.fr.save = 'Enregistrer';
-translations.en.save = 'Save';
-translations.fr.firebase = 'Firebase';
-translations.fr.firebaseStatus = 'Statut Firebase';
-translations.fr.firebaseEmail = 'Email Firebase';
-translations.fr.firebasePassword = 'Mot de passe Firebase';
-translations.en.firebase = 'Firebase';
-translations.en.firebaseStatus = 'Firebase status';
-translations.en.firebaseEmail = 'Firebase email';
-translations.en.firebasePassword = 'Firebase password';
-translations.fr.alertFirebaseSaved = 'Identifiants Firebase enregistres';
-translations.fr.alertFirebaseDeleted = 'Identifiants Firebase supprimes';
-translations.fr.alertFirebaseError = 'Erreur Firebase';
-translations.en.alertFirebaseSaved = 'Firebase credentials saved';
-translations.en.alertFirebaseDeleted = 'Firebase credentials deleted';
-translations.en.alertFirebaseError = 'Firebase error';
-
-// ── Auth modal (NEW) ──
-translations.fr.authTitle = 'Bienvenue sur votre TigerScale';
-translations.fr.authSub = 'Connectez-vous pour synchroniser vos bobines avec le cloud TigerTag.';
-translations.fr.authGoogleBtn = 'Continuer avec Google';
-translations.fr.authOr = 'ou';
-translations.fr.authSignIn = 'Se connecter';
-translations.fr.authNoAccount = 'Pas encore de compte ?';
-translations.fr.authSignUp = 'Créer un compte';
-translations.fr.authPopupBlocked = 'Le popup a été bloqué. Autorisez les popups pour ce site.';
-translations.fr.authPopupClosed = 'Connexion annulée.';
-translations.fr.authNetworkError = 'Erreur réseau. Vérifiez votre connexion.';
-translations.fr.authInvalidCreds = 'Email ou mot de passe incorrect.';
-translations.fr.authSuccess = 'Connecté !';
-translations.en.authTitle = 'Welcome to your TigerScale';
-translations.en.authSub = 'Sign in to sync your spools with the TigerTag cloud.';
-translations.en.authGoogleBtn = 'Continue with Google';
-translations.en.authOr = 'or';
-translations.en.authSignIn = 'Sign in';
-translations.en.authNoAccount = 'No account yet?';
-translations.en.authSignUp = 'Create account';
-translations.en.authPopupBlocked = 'Popup blocked. Please allow popups for this site.';
-translations.en.authPopupClosed = 'Sign-in cancelled.';
-translations.en.authNetworkError = 'Network error. Check your connection.';
-translations.en.authInvalidCreds = 'Wrong email or password.';
-translations.en.authSuccess = 'Signed in!';
-
-// ── Account / logout (NEW) ──
-translations.fr.account = 'Compte';
-translations.fr.connectedAs = 'Connecté en tant que';
-translations.fr.signOut = 'Se déconnecter';
-translations.fr.confirmSignOut = 'Vous voulez vraiment vous déconnecter ? Vous devrez vous reconnecter pour synchroniser vos bobines.';
-translations.en.account = 'Account';
-translations.en.connectedAs = 'Signed in as';
-translations.en.signOut = 'Sign out';
-translations.en.confirmSignOut = 'Sign out for real? You will need to sign back in to sync your spools.';
-
-let currentLang = localStorage.getItem('tigertag_lang') || 'en';
-
-function t(key) {
-    return translations[currentLang][key] || key;
+// Make sure t() exists even if i18n.js failed to load — never crash the app.
+if (typeof window.t !== "function") {
+    window.t = (k) => k;
+}
+if (typeof window.setLanguage !== "function") {
+    window.setLanguage = () => {};
 }
 
-function setLanguage(lang) {
-    currentLang = lang;
-    localStorage.setItem('tigertag_lang', lang);
-    document.documentElement.lang = lang;
-    
-    // Update lang buttons
-    document.querySelectorAll('.lang-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.lang === lang);
-    });
-    
-    // Update all translated elements
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-        const key = el.dataset.i18n;
-        el.textContent = t(key);
-    });
-    
-    // Update placeholders
-    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-        const key = el.dataset.i18nPlaceholder;
-        el.placeholder = t(key);
-    });
-    
-    // Update dynamic content
-    updateCloudText();
-}
 
 // ========== DOM ELEMENTS ==========
 const cloudDot = document.getElementById('cloudDot');
