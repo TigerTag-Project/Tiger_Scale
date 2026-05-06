@@ -90,6 +90,9 @@
         document.querySelectorAll('.lang-item').forEach(li => {
             li.classList.toggle('active', li.dataset.lang === state.lang);
         });
+        // Sync modal select
+        const modalSel = document.getElementById('modalLangSelect');
+        if (modalSel) modalSel.value = lang;
         // Legacy compat: keep .lang-btn[data-lang] active states in sync
         document.querySelectorAll('.lang-btn[data-lang]').forEach(b => {
             b.classList.toggle('active', b.dataset.lang === state.lang);
@@ -120,11 +123,6 @@
         trigger.setAttribute('aria-expanded', 'false');
         trigger.setAttribute('aria-label', 'Language');
 
-        const globe = document.createElement('span');
-        globe.setAttribute('aria-hidden', 'true');
-        globe.textContent = '🌐';
-        globe.style.fontSize = '14px';
-
         const label = document.createElement('span');
         label.className = 'lang-trigger-label';
         label.textContent = (LANGS[state.lang] || LANGS[DEFAULT_LANG]).short;
@@ -132,7 +130,6 @@
         chev.className = 'lang-trigger-chevron';
         chev.setAttribute('aria-hidden', 'true');
         chev.textContent = '▾';
-        trigger.appendChild(globe);
         trigger.appendChild(label);
         trigger.appendChild(chev);
 
@@ -158,6 +155,20 @@
         });
 
         root.appendChild(trigger); root.appendChild(menu);
+
+        // Populate the in-modal language select (if present)
+        const modalSel = document.getElementById('modalLangSelect');
+        if (modalSel && modalSel.options.length === 0) {
+            Object.keys(LANGS).forEach(code => {
+                const opt = document.createElement('option');
+                opt.value = code;
+                opt.textContent = LANGS[code].short + ' — ' + LANGS[code].name;
+                if (code === state.lang) opt.selected = true;
+                modalSel.appendChild(opt);
+            });
+        } else if (modalSel) {
+            modalSel.value = state.lang;
+        }
 
         const open  = () => { root.classList.add('open');    trigger.setAttribute('aria-expanded', 'true');
                               document.addEventListener('click', onDocClick, true);
@@ -201,5 +212,6 @@
     // Backward-compat shims so legacy script.js code keeps working
     if (typeof global.t !== 'function')           global.t           = (k, p) => t(k, p);
     if (typeof global.setLanguage !== 'function') global.setLanguage = (lang) => setLang(lang);
+    global.setLang = (lang) => setLang(lang);
 
 })(window);

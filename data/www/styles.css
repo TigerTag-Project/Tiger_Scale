@@ -90,45 +90,51 @@ body {
     text-transform: uppercase;
 }
 
-.header-right {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 10px;
-}
-
-.status-bar {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-}
-
-.status-info {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    min-height: 28px;
-    padding: 6px 10px;
-    border: 1px solid rgba(255, 255, 255, 0.09);
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.72);
-    font-size: 12px;
-    font-weight: 650;
-}
-
 .status-dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #8a938d;
+    background: #9aa49e;
+    flex-shrink: 0;
 }
 
-.status-dot.active { background: var(--green); }
-.status-dot.error { background: var(--red); }
+.status-dot.active  { background: var(--green); }
+.status-dot.error   { background: var(--red); }
 .status-dot.warning { background: var(--orange); }
+
+/* ── Page status strip (below header) ── */
+.page-status {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 10px 16px;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    box-shadow: 0 2px 8px rgba(23, 32, 27, 0.04);
+}
+
+.page-status-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.page-status-sep {
+    width: 1px;
+    height: 14px;
+    background: var(--line);
+    margin: 0 14px;
+    flex-shrink: 0;
+}
+
+.page-status-label {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+}
 
 .lang-switcher {
     display: flex;
@@ -157,12 +163,13 @@ body {
 .weight-card {
     position: relative;
     overflow: hidden;
-    padding: 30px 24px 24px;
+    padding: 30px 24px 28px;
     margin-bottom: 14px;
     border-radius: 8px;
     background: #fff;
     border: 1px solid var(--line);
     box-shadow: var(--shadow);
+    text-align: center;
 }
 
 .weight-card::before {
@@ -184,25 +191,39 @@ body {
 }
 
 .weight-display {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 4px;
     margin-top: 10px;
-    font-size: 72px;
+    font-size: 80px;
     line-height: 0.95;
     font-weight: 780;
-    letter-spacing: 0;
+    letter-spacing: -2px;
 }
 
 .weight-unit {
-    margin-left: 6px;
     color: var(--muted);
-    font-size: 24px;
-    font-weight: 700;
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
+@keyframes weightPop {
+    0%   { transform: scale(1); }
+    35%  { transform: scale(1.04); }
+    100% { transform: scale(1); }
+}
+#weight.updated {
+    animation: weightPop 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .tag-id {
-    margin-top: 12px;
+    margin-top: 10px;
     color: var(--muted);
     font-family: ui-monospace, "SF Mono", Menlo, monospace;
     font-size: 13px;
+    letter-spacing: 0.03em;
 }
 
 .send-status {
@@ -264,6 +285,22 @@ body {
 .inline-icon {
     width: 16px;
     height: 16px;
+}
+
+select {
+    /* Reset — selects should not inherit button styles */
+    display: block;
+    width: auto;
+    min-height: auto;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    border: 1px solid var(--line, #e5e7eb);
+    border-radius: 8px;
+    padding: 6px 10px;
+    transition: none;
+    box-shadow: none;
 }
 
 button {
@@ -448,16 +485,22 @@ input::placeholder {
 
 .collapsible::after {
     content: "";
-    width: 9px;
-    height: 9px;
-    border-right: 2px solid #9aa49e;
-    border-bottom: 2px solid #9aa49e;
-    transform: rotate(-45deg);
-    transition: transform 0.18s;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background-color: var(--soft);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239aa49e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-size: 16px;
+    background-repeat: no-repeat;
+    background-position: center;
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.15s;
 }
 
 .collapsible.active::after {
-    transform: rotate(45deg);
+    transform: rotate(180deg);
+    background-color: rgba(230, 126, 34, 0.1);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e67e22' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
 }
 
 .collapsible-content {
@@ -520,15 +563,22 @@ input::placeholder {
     height: 70px;
     margin: 10px auto 16px;
     border-radius: 50%;
-    background: #111712;
-    color: #fff;
+    background: linear-gradient(135deg, rgba(230,126,34,0.12), rgba(230,126,34,0.05));
+    border: 1.5px solid rgba(230,126,34,0.2);
+    color: var(--orange);
+}
+
+.step-icon--success {
+    background: linear-gradient(135deg, rgba(47,158,104,0.12), rgba(47,158,104,0.05));
+    border-color: rgba(47,158,104,0.2);
+    color: var(--green);
 }
 
 .step-icon svg {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     stroke: currentColor;
-    stroke-width: 1.9;
+    stroke-width: 1.8;
     stroke-linecap: round;
     stroke-linejoin: round;
     fill: none;
@@ -539,6 +589,16 @@ input::placeholder {
     color: var(--muted);
     font-size: 15px;
     line-height: 1.45;
+}
+
+/* Wizard action buttons → orange to match TigerTag brand */
+.calib-step button:not(.secondary):not(.close-btn):not(.tare-hold-btn) {
+    background: var(--orange);
+    color: #fff;
+}
+.calib-step button:not(.secondary):not(.close-btn):not(.tare-hold-btn):hover {
+    background: var(--orange-strong);
+    box-shadow: 0 8px 20px rgba(230, 126, 34, 0.3);
 }
 
 .close-btn {
@@ -580,7 +640,8 @@ input::placeholder {
     background: var(--line);
 }
 
-.compact-row {
+.compact-row,
+.setting-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -588,9 +649,14 @@ input::placeholder {
     margin-bottom: 8px;
 }
 
-.compact-label {
-    color: var(--muted);
-    font-size: 13px;
+.compact-label,
+.setting-row-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 600;
 }
 
 .compact-value {
@@ -598,6 +664,48 @@ input::placeholder {
     font-family: ui-monospace, "SF Mono", Menlo, monospace;
     font-size: 13px;
     font-weight: 760;
+}
+
+/* Indented sub-row (e.g. motor enabled, shown under motor connected) */
+.setting-row--indent {
+    padding-left: 28px;
+}
+.setting-row--indent .setting-row-label {
+    color: var(--muted);
+    font-weight: 500;
+}
+
+/* Segment control (e.g. RFID reader count: [1] [2]) */
+.segment-control {
+    display: flex;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1.5px solid var(--line);
+    flex-shrink: 0;
+}
+.segment-btn {
+    flex: 1;
+    padding: 5px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    min-width: 36px;
+    line-height: 1;
+}
+.segment-btn + .segment-btn {
+    border-left: 1.5px solid var(--line);
+}
+.segment-btn.active {
+    background: var(--orange);
+    color: #fff;
+}
+.segment-btn:not(.active):hover {
+    background: var(--soft);
+    color: var(--ink);
 }
 
 .hidden {
@@ -611,12 +719,12 @@ input::placeholder {
     z-index: 1000;
     padding: 18px;
     background: rgba(16, 20, 17, 0.62);
+    align-items: center;
+    justify-content: center;
 }
 
 .modal.show {
     display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 .modal-content {
@@ -722,20 +830,52 @@ input::placeholder {
     -webkit-backdrop-filter: blur(8px);
 }
 
-.toggle-btn {
-    padding: 4px 14px;
-    border: none;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
+/* ── iOS-style toggle switch ── */
+.ios-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 28px;
+    flex-shrink: 0;
     cursor: pointer;
-    transition: background .2s, color .2s;
-    min-width: 44px;
+    vertical-align: middle;
 }
-.toggle-btn--on  { background: #22c55e; color: #fff; }
-.toggle-btn--off { background: #e5e7eb; color: #6b7280; }
-.toggle-btn--on:hover  { background: #16a34a; }
-.toggle-btn--off:hover { background: #d1d5db; }
+.ios-switch input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    margin: 0;
+}
+.ios-switch-track {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: #d1d5db;
+    transition: background 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.ios-switch-track::before {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.22), 0 0 0 0.5px rgba(0,0,0,0.04);
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.ios-switch input:checked ~ .ios-switch-track {
+    background: #22c55e;
+}
+.ios-switch input:checked ~ .ios-switch-track::before {
+    transform: translateX(22px);
+}
+.ios-switch input:focus-visible ~ .ios-switch-track {
+    outline: 2px solid var(--orange);
+    outline-offset: 2px;
+}
 
 .header-actions {
     display: flex;
@@ -748,22 +888,70 @@ input::placeholder {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
     padding: 0;
-    border: 1px solid rgba(255,255,255,0.30);
+    border: 1.5px solid rgba(255,255,255,0.22);
     border-radius: 50%;
-    background: rgba(255,255,255,0.12);
-    color: #fff;
-    font-size: 16px;
+    background: rgba(255,255,255,0.10);
+    color: rgba(255,255,255,0.7);
     cursor: pointer;
     flex-shrink: 0;
-    transition: background .15s;
+    transition: background .15s, border-color .15s, color .15s;
 }
 .btn-header-login:hover {
-    background: rgba(255,255,255,0.22);
+    background: rgba(255,255,255,0.2);
     transform: none;
     box-shadow: none;
+}
+.btn-header-login.logged-in {
+    border-color: var(--green);
+    background: rgba(47, 158, 104, 0.18);
+    color: #fff;
+}
+
+/* ── Account popover ── */
+.account-popover {
+    position: fixed;
+    top: 76px;
+    right: 18px;
+    width: min(280px, calc(100vw - 36px));
+    padding: 16px;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid var(--line);
+    box-shadow: 0 16px 48px rgba(23, 32, 27, 0.16);
+    z-index: 600;
+    animation: popoverIn 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes popoverIn {
+    from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+.account-popover-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+.account-name {
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.account-email-label {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .auth-modal {
@@ -881,6 +1069,52 @@ input::placeholder {
     font-size: 13px;
 }
 
+/* Language row at bottom of auth modal */
+.auth-lang-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line, #e5e7eb);
+}
+.auth-lang-icon {
+    width: 16px;
+    height: 16px;
+    stroke: var(--muted);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+.auth-lang-select {
+    border: 1px solid var(--line, #e5e7eb);
+    border-radius: 8px;
+    background: var(--soft, #f5f5f5);
+    color: var(--ink, #1a1a1a);
+    font-size: 13px;
+    font-family: inherit;
+    padding: 6px 10px;
+    min-height: 36px;
+    cursor: pointer;
+    outline: none;
+    width: auto;
+    min-width: 0;
+    flex: 1;
+    max-width: 220px;
+    /* Override default button styles */
+    display: block;
+    gap: 0;
+    font-weight: 500;
+    transition: border-color .15s;
+}
+.auth-lang-select:focus {
+    border-color: var(--orange, #e67e22);
+}
+
 .auth-footer a {
     margin-left: 4px;
     color: var(--orange);
@@ -932,29 +1166,13 @@ input::placeholder {
         padding: 12px;
     }
 
-    .header {
-        align-items: flex-start;
-        flex-direction: column;
-    }
-
-    .header-right {
-        align-items: flex-start;
-        width: 100%;
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .status-bar {
-        justify-content: flex-start;
-    }
-
     .lang-switcher.lang-dropdown .lang-menu {
         right: 0;
         left: auto;
     }
 
     .weight-display {
-        font-size: 58px;
+        font-size: 64px;
     }
 
     .button-group {

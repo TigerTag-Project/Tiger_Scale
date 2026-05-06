@@ -86,5 +86,15 @@
   "account": "Account",
   "connectedAs": "Connesso come",
   "signOut": "Esci",
-  "confirmSignOut": "Vuoi davvero uscire? Dovrai accedere di nuovo per sincronizzare le tue bobine."
+  "confirmSignOut": "Vuoi davvero uscire? Dovrai accedere di nuovo per sincronizzare le tue bobine.",
+  "authEmail": "Indirizzo email",
+  "authPassword": "Password",
+  "hardware": "Hardware",
+  "rfidReaders": "Lettori RFID",
+  "motorConnected": "Motore collegato",
+  "motorEnabled": "Rotazione abilitata",
+  "spoolDetected": "Bobina rilevata",
+  "spoolPosition": "Posizione",
+  "yes": "Sì",
+  "no": "No"
 }

@@ -86,5 +86,15 @@
   "account": "Cuenta",
   "connectedAs": "Conectado como",
   "signOut": "Cerrar sesión",
-  "confirmSignOut": "¿Cerrar sesión? Tendrá que volver a iniciar sesión para sincronizar sus bobinas."
+  "confirmSignOut": "¿Cerrar sesión? Tendrá que volver a iniciar sesión para sincronizar sus bobinas.",
+  "authEmail": "Correo electrónico",
+  "authPassword": "Contraseña",
+  "hardware": "Hardware",
+  "rfidReaders": "Lectores RFID",
+  "motorConnected": "Motor conectado",
+  "motorEnabled": "Rotación activada",
+  "spoolDetected": "Bobina detectada",
+  "spoolPosition": "Posición",
+  "yes": "Sí",
+  "no": "No"
 }

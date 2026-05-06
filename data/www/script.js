@@ -42,6 +42,8 @@ const masterspools = [
 // status pill text re-renders when the language changes.
 document.addEventListener("i18n:applied", () => {
     if (typeof updateCloudText === "function") updateCloudText();
+    // Re-render translated status labels now that locale is loaded
+    if (typeof setFirebaseConfigured === "function") setFirebaseConfigured(firebaseConfigured);
 });
 
 // Make sure t() exists even if i18n.js failed to load — never crash the app.
@@ -105,16 +107,62 @@ function setFirebaseConfigured(flag) {
     const el = document.getElementById('firebaseStatus');
     if (el) setTextIfChanged(el, firebaseConfigured ? t('validated') : t('notConfigured'));
     if (fbDot) fbDot.className = firebaseConfigured ? 'status-dot active' : 'status-dot warning';
-    if (fbText) setTextIfChanged(fbText, firebaseConfigured ? 'FB OK' : 'FB OFF');
-    // Toggle the Account card (visible only when authenticated)
-    const accountCard = document.getElementById('accountCard');
-    if (accountCard) accountCard.style.display = firebaseConfigured ? '' : 'none';
-    // Toggle the header login button (visible only when NOT authenticated)
+    if (fbText) {
+        if (firebaseConfigured) {
+            const stored = localStorage.getItem('tt_displayName') || localStorage.getItem('tt_email') || '';
+            const emailEl = document.getElementById('accountEmail');
+            const emailVal = (emailEl ? emailEl.value : '') || stored;
+            setTextIfChanged(fbText, emailVal || t('validated'));
+        } else {
+            setTextIfChanged(fbText, t('notConfigured'));
+        }
+    }
+    // Header login button — always visible, style changes based on auth
     const btnHeaderLogin = document.getElementById('btnHeaderLogin');
-    if (btnHeaderLogin) btnHeaderLogin.style.display = firebaseConfigured ? 'none' : '';
-    // Auto-show/hide login modal - only after we know the actual status (not on init)
+    if (btnHeaderLogin) {
+        btnHeaderLogin.classList.toggle('logged-in', firebaseConfigured);
+    }
+    // Auto-show/hide login modal
     if (typeof firebaseStatusKnown !== 'undefined' && firebaseStatusKnown) {
         if (firebaseConfigured) hideAuthModal(); else showAuthModal();
+    }
+}
+
+function handleAccountBtn() {
+    if (firebaseConfigured) {
+        toggleAccountPopover();
+    } else {
+        openAuthModal();
+    }
+}
+
+function toggleAccountPopover() {
+    const pop = document.getElementById('accountPopover');
+    if (!pop) return;
+    const isOpen = pop.style.display !== 'none';
+    if (isOpen) {
+        closeAccountPopover();
+    } else {
+        pop.style.display = '';
+        pop.setAttribute('aria-hidden', 'false');
+        // Close on outside click
+        setTimeout(() => {
+            document.addEventListener('click', _closePopoverOnOutside, true);
+        }, 0);
+    }
+}
+
+function closeAccountPopover() {
+    const pop = document.getElementById('accountPopover');
+    if (pop) { pop.style.display = 'none'; pop.setAttribute('aria-hidden', 'true'); }
+    document.removeEventListener('click', _closePopoverOnOutside, true);
+}
+
+function _closePopoverOnOutside(e) {
+    const pop = document.getElementById('accountPopover');
+    const btn = document.getElementById('btnHeaderLogin');
+    if (pop && !pop.contains(e.target) && btn && !btn.contains(e.target)) {
+        closeAccountPopover();
     }
 }
 
@@ -122,14 +170,30 @@ function setFirebaseConfigured(flag) {
 // Called from applyStatusSnapshot when /api/status reports a firebaseEmail.
 function setAccountInfo(email) {
     if (!email) return;
+    // Persist email for status bar
     const emailEl = document.getElementById('accountEmail');
+    if (emailEl) emailEl.value = email;
+    try { localStorage.setItem('tt_email', email); } catch (_) {}
+
+    // displayName: prefer localStorage (set at login), fallback to email local part
+    const stored = '';
+    try { localStorage.getItem('tt_displayName') || ''; } catch (_) {}
+    const displayName = (localStorage.getItem('tt_displayName') || '').trim()
+                        || email.split('@')[0];
+
+    // Populate popover
+    const nameEl  = document.getElementById('accountDisplayName');
+    const mailLbl = document.getElementById('accountEmailLabel');
     const avatarEl = document.getElementById('accountAvatar');
-    if (emailEl) setTextIfChanged(emailEl, email);
-    if (avatarEl) {
-        // Use first char of the email's local part (before @) as avatar initial
-        const local = email.split('@')[0] || '?';
-        avatarEl.textContent = local.charAt(0).toUpperCase();
-    }
+
+    if (nameEl)  setTextIfChanged(nameEl, displayName);
+    if (mailLbl) setTextIfChanged(mailLbl, email);
+    if (avatarEl) avatarEl.textContent = displayName.charAt(0).toUpperCase();
+
+    // Also update fbText in status bar (only when actually authenticated)
+    if (fbText && firebaseConfigured) setTextIfChanged(fbText, displayName || email);
+    // Ensure the dot reflects the authenticated state
+    if (firebaseConfigured && fbDot) fbDot.className = 'status-dot active';
 }
 
 function setSendState(msg, color) {
@@ -334,16 +398,110 @@ function computeFactor() {
 }
 
 function toggleServo() {
+    const chk = document.getElementById('servoToggleCheck');
     fetch('/api/servo-toggle', { method: 'POST' })
     .then(r => r.ok ? r.json() : Promise.reject(r.status))
     .then(data => updateServoToggleBtn(data.servoEnabled))
-    .catch(() => {});
+    .catch(() => { if (chk) chk.checked = !chk.checked; }); // revert on error
 }
 function updateServoToggleBtn(enabled) {
-    const btn = document.getElementById('btnServoToggle');
-    if (!btn) return;
-    btn.textContent = enabled ? 'ON' : 'OFF';
-    btn.className = enabled ? 'toggle-btn toggle-btn--on' : 'toggle-btn toggle-btn--off';
+    const chk = document.getElementById('servoToggleCheck');
+    if (chk) chk.checked = !!enabled;
+    // Keep hardware section motor-enabled in sync
+    const enChk = document.getElementById('motorEnabledCheck');
+    if (enChk) enChk.checked = !!enabled;
+}
+
+// ========== HARDWARE CONFIG ==========
+let hwConfig = { rfidCount: 1, motorConnected: false, motorEnabled: false };
+
+async function fetchHardwareConfig() {
+    try {
+        const r = await fetch('/api/hw/config', { cache: 'no-cache' });
+        if (!r.ok) return; // endpoint may not exist yet — fail silently
+        const d = await r.json();
+        hwConfig = { ...hwConfig, ...d };
+    } catch (_) { /* ESP32 may not have this endpoint yet */ }
+    applyHardwareConfig();
+}
+
+function applyHardwareConfig() {
+    // RFID segment
+    document.querySelectorAll('#rfidSegment .segment-btn').forEach(b => {
+        b.classList.toggle('active', +b.dataset.val === hwConfig.rfidCount);
+    });
+    // Motor connected toggle
+    const connChk = document.getElementById('motorConnectedCheck');
+    if (connChk) connChk.checked = !!hwConfig.motorConnected;
+    // Show/hide enabled row
+    const enabledRow = document.getElementById('motorEnabledRow');
+    if (enabledRow) enabledRow.style.display = hwConfig.motorConnected ? '' : 'none';
+    // Motor enabled toggle
+    const enChk = document.getElementById('motorEnabledCheck');
+    if (enChk) enChk.checked = !!hwConfig.motorEnabled;
+}
+
+async function saveHardwareConfig() {
+    try {
+        await fetch('/api/hw/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(hwConfig)
+        });
+    } catch (_) {}
+}
+
+function setRfidCount(n) {
+    hwConfig.rfidCount = n;
+    document.querySelectorAll('#rfidSegment .segment-btn').forEach(b => {
+        b.classList.toggle('active', +b.dataset.val === n);
+    });
+    saveHardwareConfig();
+}
+
+function onMotorConnectedChange() {
+    const chk = document.getElementById('motorConnectedCheck');
+    hwConfig.motorConnected = !!(chk && chk.checked);
+    const row = document.getElementById('motorEnabledRow');
+    if (row) row.style.display = hwConfig.motorConnected ? '' : 'none';
+    if (!hwConfig.motorConnected) {
+        hwConfig.motorEnabled = false;
+        const enChk = document.getElementById('motorEnabledCheck');
+        if (enChk) enChk.checked = false;
+        updateServoToggleBtn(false);
+    }
+    saveHardwareConfig();
+}
+
+function onMotorEnabledChange() {
+    const chk = document.getElementById('motorEnabledCheck');
+    hwConfig.motorEnabled = !!(chk && chk.checked);
+    updateServoToggleBtn(hwConfig.motorEnabled);
+    // Also call servo toggle endpoint so ESP32 state stays in sync
+    fetch('/api/servo-toggle', { method: 'POST' })
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(d => { if (typeof d.servoEnabled !== 'undefined') updateServoToggleBtn(d.servoEnabled); })
+    .catch(() => { /* revert */
+        hwConfig.motorEnabled = !hwConfig.motorEnabled;
+        const c = document.getElementById('motorEnabledCheck');
+        if (c) c.checked = hwConfig.motorEnabled;
+    });
+    saveHardwareConfig();
+}
+
+function updateSpoolStatus(detected, position) {
+    const detEl = document.getElementById('spoolDetectedVal');
+    const posRow = document.getElementById('spoolPositionRow');
+    const posEl  = document.getElementById('spoolPositionVal');
+    if (!detEl) return;
+    if (detected) {
+        setTextIfChanged(detEl, t('yes'));
+        if (posRow) posRow.style.display = '';
+        if (posEl && position != null) setTextIfChanged(posEl, String(position));
+    } else {
+        setTextIfChanged(detEl, t('no'));
+        if (posRow) posRow.style.display = 'none';
+    }
 }
 
 function resetWiFi() {
@@ -580,6 +738,10 @@ function applyStatusSnapshot(s) {
     if (typeof s.weight !== 'undefined' && currentWeight !== s.weight) {
         currentWeight = s.weight;
         setTextIfChanged(weightEl, String(s.weight));
+        // Micro-animation on change
+        weightEl.classList.remove('updated');
+        void weightEl.offsetWidth; // reflow to restart animation
+        weightEl.classList.add('updated');
     }
     
     // UID
@@ -624,9 +786,21 @@ function applyStatusSnapshot(s) {
         calFactor = n;
     }
     
-    // Servo toggle button state
+    // Servo / motor enabled state
     if (typeof s.servoEnabled !== 'undefined') {
+        hwConfig.motorEnabled = !!s.servoEnabled;
         updateServoToggleBtn(!!s.servoEnabled);
+    }
+
+    // Hardware config fields (rfidCount, motorConnected) if ESP32 exposes them
+    let hwUpdated = false;
+    if (typeof s.rfidCount !== 'undefined')      { hwConfig.rfidCount = Number(s.rfidCount);          hwUpdated = true; }
+    if (typeof s.motorConnected !== 'undefined') { hwConfig.motorConnected = !!s.motorConnected;       hwUpdated = true; }
+    if (hwUpdated) applyHardwareConfig();
+
+    // Spool detection
+    if (typeof s.spoolDetected !== 'undefined') {
+        updateSpoolStatus(!!s.spoolDetected, s.spoolPosition);
     }
 
     // Uptime
@@ -792,20 +966,27 @@ function signOut() {
     fetch('/api/firebase/auth', { method: 'DELETE' })
     .then(r => r.ok ? r.json() : Promise.reject(r.status))
     .then(() => {
+        // Clear persisted user info
+        try { localStorage.removeItem('tt_displayName'); localStorage.removeItem('tt_email'); } catch (_) {}
         // Reset local UI state
         const emailEl = document.getElementById('firebaseEmail');
         const passEl = document.getElementById('firebasePassword');
         if (emailEl) emailEl.value = '';
         if (passEl) passEl.value = '';
-        // Clear the modal's input fields too (so the next user starts fresh)
+        // Clear the modal's input fields
         const loginEmail = document.getElementById('loginEmail');
         const loginPass = document.getElementById('loginPassword');
         if (loginEmail) loginEmail.value = '';
         if (loginPass) loginPass.value = '';
-        setAccountInfo('');
+        // Reset popover
         const avatarEl = document.getElementById('accountAvatar');
         if (avatarEl) avatarEl.textContent = '?';
-        setFirebaseConfigured(false); // this also re-shows the modal via setFirebaseConfigured
+        const nameEl = document.getElementById('accountDisplayName');
+        if (nameEl) nameEl.textContent = '—';
+        const mailLbl = document.getElementById('accountEmailLabel');
+        if (mailLbl) mailLbl.textContent = '—';
+        closeAccountPopover();
+        setFirebaseConfigured(false);
     })
     .catch(() => alert(t('alertFirebaseError')));
 }
@@ -823,6 +1004,12 @@ window.addEventListener('message', (event) => {
         return;
     }
 
+    // Persist displayName locally so the UI can show it across sessions
+    try {
+        if (p.displayName) localStorage.setItem('tt_displayName', p.displayName);
+        if (p.email)       localStorage.setItem('tt_email', p.email);
+    } catch (_) {}
+
     // Send tokens to the firmware
     fetch('/api/firebase/token', {
         method: 'POST',
@@ -838,6 +1025,7 @@ window.addEventListener('message', (event) => {
     })
     .then(r => r.ok ? r.json() : Promise.reject(r.status))
     .then(() => {
+        if (p.email) setAccountInfo(p.email);
         setFirebaseConfigured(true);
         hideAuthModal();
         // Best-effort close of the popup
@@ -865,6 +1053,9 @@ window.onload = () => {
 
     // Initial weight display
     setTextIfChanged(weightEl, '…');
+
+    // Fetch hardware config (RFID count, motor connected, etc.)
+    fetchHardwareConfig();
 
     // Start polling
     pollStatus();

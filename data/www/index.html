@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#667eea">
+    <meta name="theme-color" content="#101411">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="TigerTag">
-    <meta name="description" content="TigerTag Scale - Professional weight management">
+    <meta name="description" content="TigerTag Scale - RFID Filament Scale">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="icon" type="image/png" href="favicon.png">
     <link rel="apple-touch-icon" href="favicon.png">
@@ -50,193 +50,261 @@
         <symbol id="icon-globe" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
         </symbol>
+        <symbol id="icon-tool" viewBox="0 0 24 24">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+        </symbol>
+        <symbol id="icon-rotate-cw" viewBox="0 0 24 24">
+            <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </symbol>
+        <symbol id="icon-cloud" viewBox="0 0 24 24">
+            <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+        </symbol>
+        <symbol id="icon-tag" viewBox="0 0 24 24">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>
+        </symbol>
+        <symbol id="icon-radio" viewBox="0 0 24 24">
+            <path d="M1.5 8.5a13 13 0 0 1 21 0"/><path d="M5 12a9 9 0 0 1 14 0"/><path d="M8.5 15.5a5 5 0 0 1 7 0"/><circle cx="12" cy="20" r="1.5" fill="currentColor" stroke="none"/>
+        </symbol>
+        <symbol id="icon-cpu" viewBox="0 0 24 24">
+            <rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/>
+        </symbol>
+        <symbol id="icon-spool" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="3"/><path d="M6 12a6 6 0 0 1 6-6"/><path d="M12 6a6 6 0 0 1 6 6"/><path d="M18 12a6 6 0 0 1-6 6"/><path d="M12 18a6 6 0 0 1-6-6"/>
+        </symbol>
     </svg>
+
     <div class="container">
-        <!-- Header -->
+
+        <!-- ── Header ── -->
         <div class="header">
             <div class="brand">
                 <img src="img/logo-tigertag.svg" alt="TigerTag" class="brand-logo">
                 <div>
                     <h1>TigerScale</h1>
-                    <p>RFID filament scale</p>
+                    <p>RFID Filament Scale</p>
                 </div>
             </div>
-            <div class="header-right">
-                <div class="status-bar">
-                    <div class="status-info">
-                        <span id="cloudDot" class="status-dot"></span>
-                        <span id="cloudText">-</span>
-                    </div>
-                    <div class="status-info">
-                        <span id="fbDot" class="status-dot"></span>
-                        <span id="fbText">FB</span>
-                    </div>
-                </div>
-                <!-- Lang switcher + login button always in the same compact row -->
-                <div class="header-actions">
-                    <div class="lang-switcher" id="langSwitcher" role="group" aria-label="Language"></div>
-                    <button id="btnHeaderLogin" class="btn-header-login" onclick="openAuthModal()" style="display:none" aria-label="Se connecter">
-                        👤
-                    </button>
-                </div>
+            <div class="header-actions">
+                <div class="lang-switcher" id="langSwitcher" role="group" aria-label="Language"></div>
+                <button id="btnHeaderLogin" class="btn-header-login" onclick="handleAccountBtn()" aria-label="Compte">
+                    <svg class="icon"><use href="#icon-user"></use></svg>
+                </button>
             </div>
         </div>
 
-        <!-- Weight Display -->
+        <!-- ── Account popover (shown when logged in) ── -->
+        <div id="accountPopover" class="account-popover" style="display:none" aria-hidden="true">
+            <div class="account-popover-user">
+                <div class="account-avatar" id="accountAvatar">?</div>
+                <div class="account-info">
+                    <div class="account-name" id="accountDisplayName">—</div>
+                    <div class="account-email-label" id="accountEmailLabel">—</div>
+                </div>
+            </div>
+            <div class="divider"></div>
+            <button class="danger" onclick="signOut(); closeAccountPopover()">
+                <svg class="btn-icon"><use href="#icon-log-out"></use></svg>
+                <span data-i18n="signOut">Sign out</span>
+            </button>
+        </div>
+
+        <!-- ── Status strip ── -->
+        <div class="page-status">
+            <div class="page-status-item">
+                <span id="cloudDot" class="status-dot"></span>
+                <span id="cloudText" class="page-status-label">—</span>
+            </div>
+            <div class="page-status-sep"></div>
+            <div class="page-status-item">
+                <span id="fbDot" class="status-dot"></span>
+                <span id="fbText" class="page-status-label">—</span>
+            </div>
+        </div>
+
+        <!-- ── Weight display ── -->
         <div class="weight-card">
             <div id="userName" class="user-name hidden"></div>
             <div class="weight-display">
-                <span id="weight">-</span>
+                <span id="weight">—</span>
                 <span class="weight-unit">g</span>
             </div>
             <div class="tag-id" id="uid" data-i18n="waiting">En attente...</div>
             <div id="sendState" class="send-status hidden"></div>
         </div>
 
-        <!-- Tare Button -->
+        <!-- ── Tare ── -->
         <button id="tareBtn" class="tare-hold-btn" onmousedown="startTare()" onmouseup="cancelTare()" onmouseleave="cancelTare()" ontouchstart="startTare()" ontouchend="cancelTare()">
             <span class="tare-text" data-i18n="tare">TARE</span>
             <span class="tare-progress"></span>
         </button>
 
-        <!-- Account card - visible only when authenticated. Replaces the old inline
-             email/password Firebase card (now obsolete: login is handled by the modal). -->
-        <div id="accountCard" class="card" style="display:none">
-            <div class="card-title collapsible" onclick="toggleSection(this)">
-                👤 <span data-i18n="account">Compte</span>
-            </div>
-            <div class="collapsible-content">
-                <div class="account-row">
-                    <div class="account-avatar" id="accountAvatar">?</div>
-                    <div class="account-info">
-                        <div class="account-label" data-i18n="connectedAs">Connecté en tant que</div>
-                        <div class="account-email" id="accountEmail">-</div>
-                    </div>
-                </div>
-                <div class="divider"></div>
-                <button class="danger" onclick="signOut()">
-                    🚪 <span data-i18n="signOut">Se déconnecter</span>
-                </button>
-            </div>
-        </div>
+        <!-- Hidden inputs preserved for backward-compat -->
 
-        <!-- Hidden inputs preserved for backward-compat with status snapshots
-             (some code still reads/writes these). Will be removed in a later cleanup. -->
+        <!-- Hidden inputs preserved for backward-compat -->
+        <input type="hidden" id="accountEmail">
         <input type="hidden" id="firebaseEmail">
         <input type="hidden" id="firebasePassword">
         <span id="firebaseStatus" style="display:none">-</span>
 
-        <!-- Calibration -->
+        <!-- ── Hardware configuration ── -->
         <div class="card">
             <div class="card-title collapsible" onclick="toggleSection(this)">
-                ⚖️ <span data-i18n="calibration">Calibration</span>
+                <svg class="icon"><use href="#icon-cpu"></use></svg>
+                <span data-i18n="hardware">Hardware</span>
             </div>
             <div class="collapsible-content">
-                <!-- Calibration Wizard -->
+                <!-- RFID Reader count -->
+                <div class="setting-row">
+                    <div class="setting-row-label">
+                        <svg class="icon"><use href="#icon-radio"></use></svg>
+                        <span data-i18n="rfidReaders">RFID Readers</span>
+                    </div>
+                    <div class="segment-control" id="rfidSegment">
+                        <button class="segment-btn active" data-val="1" onclick="setRfidCount(1)">1</button>
+                        <button class="segment-btn" data-val="2" onclick="setRfidCount(2)">2</button>
+                    </div>
+                </div>
+                <div class="divider"></div>
+                <!-- Motor connected -->
+                <div class="setting-row">
+                    <div class="setting-row-label">
+                        <svg class="icon"><use href="#icon-rotate-cw"></use></svg>
+                        <span data-i18n="motorConnected">Motor connected</span>
+                    </div>
+                    <label class="ios-switch" aria-label="Motor connected">
+                        <input type="checkbox" id="motorConnectedCheck" onchange="onMotorConnectedChange()">
+                        <span class="ios-switch-track"></span>
+                    </label>
+                </div>
+                <!-- Rotation enabled (visible only if motor connected) -->
+                <div class="setting-row setting-row--indent" id="motorEnabledRow" style="display:none">
+                    <div class="setting-row-label">
+                        <span data-i18n="motorEnabled">Rotation enabled</span>
+                    </div>
+                    <label class="ios-switch" aria-label="Rotation enabled">
+                        <input type="checkbox" id="motorEnabledCheck" onchange="onMotorEnabledChange()">
+                        <span class="ios-switch-track"></span>
+                    </label>
+                </div>
+                <div class="divider"></div>
+                <!-- Spool detection info (read-only, updated from /api/status) -->
+                <div class="setting-row">
+                    <div class="setting-row-label">
+                        <svg class="icon"><use href="#icon-spool"></use></svg>
+                        <span data-i18n="spoolDetected">Spool detected</span>
+                    </div>
+                    <span class="compact-value" id="spoolDetectedVal">—</span>
+                </div>
+                <div class="setting-row" id="spoolPositionRow" style="display:none">
+                    <span class="setting-row-label" data-i18n="spoolPosition">Position</span>
+                    <span class="compact-value" id="spoolPositionVal">—</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Calibration ── -->
+        <div class="card">
+            <div class="card-title collapsible" onclick="toggleSection(this)">
+                <svg class="icon"><use href="#icon-scale"></use></svg>
+                <span data-i18n="calibration">Calibration</span>
+            </div>
+            <div class="collapsible-content">
+                <!-- Wizard -->
                 <div id="calibWizard">
-                    <!-- Progress indicator -->
                     <div class="progress-dots">
                         <span class="dot active" data-step="1"></span>
                         <span class="dot" data-step="2"></span>
                         <span class="dot" data-step="3"></span>
                     </div>
-                    
-                    <!-- Step 1: Empty scale -->
+
+                    <!-- Step 1 -->
                     <div id="step1" class="calib-step active">
-                        <div class="step-icon">⚖️</div>
-                        <div class="step-instruction" data-i18n="step1Instruction">Retirez le filament de la balance</div>
+                        <div class="step-icon">
+                            <svg class="icon"><use href="#icon-scale"></use></svg>
+                        </div>
+                        <div class="step-instruction" data-i18n="step1Instruction">Leave the scale empty then press the button</div>
                         <button onclick="calibStep1()" data-i18n="step1Button">Next</button>
                     </div>
-                    
-                    <!-- Step 2: Place known weight -->
+
+                    <!-- Step 2 -->
                     <div id="step2" class="calib-step">
-                        <!-- Close button (X) -->
                         <button class="close-btn" onclick="calibBack(1)" title="Retour" aria-label="Retour">
                             <svg class="btn-icon"><use href="#icon-close"></use></svg>
                         </button>
-                        
-                        <!-- Masterspool image -->
                         <div id="masterspoolImageMain" class="masterspool-image-main">
                             <img id="masterspoolImg" src="" alt="Masterspool">
                         </div>
-                        
-                        <div class="step-instruction" data-i18n="step2Instruction">Sélectionnez votre Masterspool vide et placez-la sur la balance</div>
-                        
-                        <!-- Masterspool selector -->
+                        <div class="step-instruction" data-i18n="step2Instruction">Select your empty Masterspool and place it on the scale</div>
                         <div class="masterspool-selector">
-                            <label data-i18n="selectMasterspool">Sélectionnez votre Masterspool</label>
-                            <select id="masterspoolSelect" onchange="onMasterspoolChange()">
-                                <!-- Options will be populated by JavaScript -->
-                            </select>
-                            
-                            <!-- Custom weight input (shown only when Custom is selected) -->
-                            <input type="number" id="calibKnownWeight" class="calib-weight-input" data-i18n-placeholder="calibKnownWeight" placeholder="Poids réel (g)" step="0.1" min="0.1" inputmode="decimal" style="display: none;">
+                            <label data-i18n="selectMasterspool">Select your Masterspool</label>
+                            <select id="masterspoolSelect" onchange="onMasterspoolChange()"></select>
+                            <input type="number" id="calibKnownWeight" class="calib-weight-input" data-i18n-placeholder="calibKnownWeight" placeholder="Real weight (g)" step="0.1" min="0.1" inputmode="decimal" style="display: none;">
                             <div id="calibWeightError" class="error-message" style="display: none;">
                                 <svg class="inline-icon"><use href="#icon-alert"></use></svg>
-                                <span data-i18n="errorWeightRequired">Veuillez entrer un poids valide (min. 200g)</span>
+                                <span data-i18n="errorWeightRequired">Please enter a valid weight (min. 200g)</span>
                             </div>
                         </div>
-                        
                         <div class="button-group">
                             <button id="tareBtnCalib" class="tare-hold-btn" onmousedown="startTareCalib()" onmouseup="cancelTareCalib()" onmouseleave="cancelTareCalib()" ontouchstart="startTareCalib()" ontouchend="cancelTareCalib()">
                                 <span class="tare-text" data-i18n="tare">TARE</span>
                                 <span class="tare-progress"></span>
                             </button>
-                            <button onclick="calibStep2()" data-i18n="step2Button">Calibrer</button>
+                            <button onclick="calibStep2()" data-i18n="step2Button">Calibrate</button>
                         </div>
                     </div>
-                    
-                    <!-- Step 3: Success -->
+
+                    <!-- Step 3 -->
                     <div id="step3" class="calib-step">
-                        <div class="step-icon">✅</div>
-                        <div class="step-instruction" data-i18n="step3Instruction">La balance est maintenant calibrée</div>
-                        <button class="secondary" onclick="calibReset()" data-i18n="calibAgain">Calibrer à nouveau</button>
+                        <div class="step-icon step-icon--success">
+                            <svg class="icon"><use href="#icon-check"></use></svg>
+                        </div>
+                        <div class="step-instruction" data-i18n="step3Instruction">The scale is now calibrated</div>
+                        <button class="secondary" onclick="calibReset()" data-i18n="calibAgain">Restart</button>
                     </div>
                 </div>
-                
+
                 <div class="divider"></div>
-                
-                <!-- Manual calibration (collapsed by default) -->
+
+                <!-- Manual calibration -->
                 <div class="card-subtitle collapsible" onclick="toggleSection(this)">
-                    🔧 <span data-i18n="manualCalib">Calibration manuelle</span>
+                    <svg class="icon"><use href="#icon-tool"></use></svg>
+                    <span data-i18n="manualCalib">Manual calibration</span>
                 </div>
                 <div class="collapsible-content">
                     <div class="info-badge spaced">
-                        <span data-i18n="currentFactor">Facteur actuel</span>: <strong id="calFactor">-</strong>
+                        <span data-i18n="currentFactor">Current factor</span>: <strong id="calFactor">-</strong>
                     </div>
-                    <input type="number" id="newCalFactor" data-i18n-placeholder="newFactor" placeholder="Nouveau facteur" step="0.1" min="0.1">
-                    <button class="secondary" onclick="updateCalibration()" data-i18n="apply">Appliquer</button>
+                    <input type="number" id="newCalFactor" data-i18n-placeholder="newFactor" placeholder="New factor" step="0.1" min="0.1">
+                    <button class="secondary" onclick="updateCalibration()" data-i18n="apply">Apply</button>
                 </div>
             </div>
         </div>
 
-        <!-- Advanced -->
+        <!-- ── Advanced settings ── -->
         <div class="card">
             <div class="card-title collapsible" onclick="toggleSection(this)">
-                ⚙️ <span data-i18n="advanced">Avancé</span>
+                <svg class="icon"><use href="#icon-settings"></use></svg>
+                <span data-i18n="advanced">Advanced</span>
             </div>
             <div class="collapsible-content">
-                <div class="compact-row">
-                    <span class="compact-label">⚙️ <span data-i18n="servoMotor">Moteur de rotation</span></span>
-                    <button id="btnServoToggle" class="toggle-btn toggle-btn--on" onclick="toggleServo()">ON</button>
-                </div>
-                <div class="divider"></div>
                 <button class="secondary" onclick="resetWiFi()">
-                    📶 <span data-i18n="reconfigWifi">Reconfigurer Wi‑Fi</span>
+                    <svg class="btn-icon"><use href="#icon-wifi"></use></svg>
+                    <span data-i18n="reconfigWifi">Reconfigure Wi-Fi</span>
                 </button>
                 <div class="button-spacer"></div>
                 <button class="danger" onclick="factoryReset()">
-                    🗑️ <span data-i18n="factoryReset">Réinitialisation</span>
+                    <svg class="btn-icon"><use href="#icon-trash"></use></svg>
+                    <span data-i18n="factoryReset">Factory Reset</span>
                 </button>
                 <div class="divider"></div>
-                <div class="compact-row">
-                    <span class="compact-label" data-i18n="uptime">Durée de fonctionnement</span>
+                <div class="setting-row">
+                    <span class="setting-row-label" data-i18n="uptime">Uptime</span>
                     <span class="compact-value" id="uptime">--:--:--</span>
                 </div>
             </div>
         </div>
-        
-        <!-- Footer -->
+
+        <!-- ── Footer ── -->
         <div class="footer">
             <div class="footer-version">
                 <a href="https://tigertag.io" target="_blank" rel="noopener noreferrer">TigerTag.io</a>
@@ -258,38 +326,41 @@
         </div>
     </div>
 
-    <!-- Modal for weight too light error -->
+    <!-- ── Modal: weight too light ── -->
     <div id="weightErrorModal" class="modal">
         <div class="modal-content">
-            <div class="modal-icon">⚠️</div>
-            <h3 class="modal-title" data-i18n="modalWeightTooLightTitle">Poids insuffisant</h3>
-            <p class="modal-message" data-i18n="modalWeightTooLightMessage">Le poids est trop léger pour une calibration. Utilisez une Masterspool ou un filament d'au moins 200g.</p>
+            <div class="modal-icon">
+                <svg><use href="#icon-alert"></use></svg>
+            </div>
+            <h3 class="modal-title" data-i18n="modalWeightTooLightTitle">Insufficient weight</h3>
+            <p class="modal-message" data-i18n="modalWeightTooLightMessage">The weight is too light for calibration. Use a Masterspool or filament of at least 200g.</p>
             <button class="modal-btn" onclick="closeWeightErrorModal()" data-i18n="modalOk">OK</button>
         </div>
     </div>
 
-    <!-- Modal for invalid weight error -->
+    <!-- ── Modal: invalid weight ── -->
     <div id="weightInvalidModal" class="modal">
         <div class="modal-content">
-            <div class="modal-icon">⚠️</div>
-            <h3 class="modal-title" data-i18n="modalWeightInvalidTitle">Poids invalide</h3>
-            <p class="modal-message" data-i18n="modalWeightInvalidMessage">Veuillez entrer un poids valide</p>
+            <div class="modal-icon">
+                <svg><use href="#icon-alert"></use></svg>
+            </div>
+            <h3 class="modal-title" data-i18n="modalWeightInvalidTitle">Invalid weight</h3>
+            <p class="modal-message" data-i18n="modalWeightInvalidMessage">Please enter a valid weight</p>
             <button class="modal-btn" onclick="closeWeightInvalidModal()" data-i18n="modalOk">OK</button>
         </div>
     </div>
 
-    <!-- Firebase Login Modal - auto-shown when firebaseConfigured=false -->
+    <!-- ── Modal: Firebase login ── -->
     <div id="firebaseLoginModal" class="modal modal-blocking" style="display:none" aria-hidden="true">
         <div class="modal-content auth-modal" role="dialog" aria-labelledby="authTitle">
-            <!-- Close button — lets user skip login and use the scale offline -->
             <button class="auth-close-btn" onclick="dismissAuthModal()" aria-label="Fermer">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
             </button>
             <div class="auth-logo"><img src="img/logo-tigertag.svg" alt="TigerTag"></div>
-            <h2 class="auth-title" id="authTitle" data-i18n="authTitle">Bienvenue sur votre TigerScale</h2>
-            <p class="auth-sub" data-i18n="authSub">Connectez-vous pour synchroniser vos bobines avec le cloud TigerTag.</p>
+            <h2 class="auth-title" id="authTitle" data-i18n="authTitle">Welcome to your TigerScale</h2>
+            <p class="auth-sub" data-i18n="authSub">Sign in to sync your spools with the TigerTag cloud.</p>
 
             <button type="button" class="auth-btn auth-btn-google" id="btnAuthGoogle" onclick="signInWithGoogleBridge()">
                 <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -298,29 +369,32 @@
                     <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
                     <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
                 </svg>
-                <span data-i18n="authGoogleBtn">Continuer avec Google</span>
+                <span data-i18n="authGoogleBtn">Continue with Google</span>
             </button>
 
-            <div class="auth-divider"><span data-i18n="authOr">ou</span></div>
+            <div class="auth-divider"><span data-i18n="authOr">or</span></div>
 
-            <input type="email" id="loginEmail" data-i18n-placeholder="firebaseEmail" placeholder="Email" autocomplete="username">
-            <input type="password" id="loginPassword" data-i18n-placeholder="firebasePassword" placeholder="Mot de passe" autocomplete="current-password">
+            <input type="email" id="loginEmail" data-i18n-placeholder="authEmail" placeholder="Email address" autocomplete="username">
+            <input type="password" id="loginPassword" data-i18n-placeholder="authPassword" placeholder="Password" autocomplete="current-password">
 
             <button type="button" class="auth-btn auth-btn-primary" onclick="signInWithEmail()">
-                <span data-i18n="authSignIn">Se connecter</span>
+                <span data-i18n="authSignIn">Sign in</span>
             </button>
 
             <div class="auth-error" id="authError" style="display:none"></div>
 
             <div class="auth-footer">
-                <span data-i18n="authNoAccount">Pas encore de compte ?</span>
-                <a href="https://tigertag.io" target="_blank" rel="noopener" data-i18n="authSignUp">Créer un compte</a>
+                <span data-i18n="authNoAccount">No account yet?</span>
+                <a href="https://tigertag.io" target="_blank" rel="noopener" data-i18n="authSignUp">Create account</a>
+            </div>
+
+            <div class="auth-lang-row">
+                <svg class="icon auth-lang-icon" aria-hidden="true"><use href="#icon-globe"></use></svg>
+                <select id="modalLangSelect" class="auth-lang-select" onchange="if(window.setLang) window.setLang(this.value)"></select>
             </div>
         </div>
     </div>
 
-    <!-- i18n controller MUST load before script.js so the global t() shim is
-         available when application code starts calling t(). -->
     <script src="i18n.js"></script>
     <script src="script.js"></script>
 </body>

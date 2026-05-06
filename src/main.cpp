@@ -17,19 +17,19 @@
 //   §8  CLOUD PARSING                                                             467–  481
 //   §9  WIFI SETUP                                                                482–  740
 //   §10 LITTLEFS                                                                  741–  785
-//   §11 FIREBASE AUTHENTICATION                                                   786–  930
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          931– 1858
-//   §13 WEBSOCKET                                                                1859– 1895
-//   §14 WEIGHT FILTER HELPERS                                                    1896– 1910
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         1911– 1932
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1933– 2005
-//   §17 WEB SERVER                                                               2006– 2500
-//   §18 CLOUD COMMUNICATION                                                      2501– 2774
-//   §19 mDNS                                                                     2775– 2812
-//   §20 SCALE                                                                    2813– 2904
-//   §21 RFID                                                                     2905– 3271
-//   §22 OTA — Over-the-air firmware + filesystem update                          3272– 3640
-//   §23 SETUP & LOOP                                                             3641– 3959
+//   §11 FIREBASE AUTHENTICATION                                                   786–  960
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          961– 1888
+//   §13 WEBSOCKET                                                                1889– 1925
+//   §14 WEIGHT FILTER HELPERS                                                    1926– 1940
+//   §15 POST-SEND STATE RESET (shared by all send paths)                         1941– 1962
+//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1963– 2035
+//   §17 WEB SERVER                                                               2036– 2530
+//   §18 CLOUD COMMUNICATION                                                      2531– 2804
+//   §19 mDNS                                                                     2805– 2842
+//   §20 SCALE                                                                    2843– 2934
+//   §21 RFID                                                                     2935– 3301
+//   §22 OTA — Over-the-air firmware + filesystem update                          3302– 3670
+//   §23 SETUP & LOOP                                                             3671– 4002
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -912,15 +912,45 @@ bool ensureFirebaseToken() {
             String resp = http.getString();
             http.end();
             if (code == 200) {
-                StaticJsonDocument<768> doc;
-                if (!deserializeJson(doc, resp)) {
-                    firebaseIdToken      = String(doc["id_token"]      | "");
-                    firebaseRefreshToken = String(doc["refresh_token"] | firebaseRefreshToken.c_str());
+                // The securetoken response contains two JWTs (id_token +
+                // access_token) of 900-1400 chars each.  ArduinoJson always
+                // returns NoMemory for any practical buffer size when parsing
+                // two such large strings.  Extract the two fields manually —
+                // handles both compact ("key":"val") and spaced ("key": "val").
+                Serial.printf("[FIREBASE] resp len=%u head=%.120s\n",
+                              resp.length(), resp.c_str());
+                auto extractJsonStr = [](const String& json, const char* key) -> String {
+                    String needle = String("\"") + key + "\"";
+                    int s = json.indexOf(needle);
+                    if (s < 0) return "";
+                    s += needle.length();
+                    // skip colon and optional whitespace
+                    while (s < (int)json.length() && (json[s] == ':' || json[s] == ' ')) s++;
+                    if (s >= (int)json.length() || json[s] != '"') return "";
+                    s++;  // skip opening quote
+                    int e = json.indexOf('"', s);
+                    return (e > s) ? json.substring(s, e) : String("");
+                };
+                String newIdToken      = extractJsonStr(resp, "id_token");
+                String newRefreshToken = extractJsonStr(resp, "refresh_token");
+                Serial.printf("[FIREBASE] parsed idLen=%u rtLen=%u\n",
+                              newIdToken.length(), newRefreshToken.length());
+                if (newIdToken.length() > 0) {
+                    firebaseIdToken      = newIdToken;
+                    if (newRefreshToken.length() > 0)
+                        firebaseRefreshToken = newRefreshToken;
                     firebaseTokenMs      = millis();
-                    firebaseAuth         = firebaseIdToken.length() > 0;
-                    Serial.printf("[FIREBASE] Token refresh %s\n", firebaseAuth ? "OK" : "FAIL");
-                    return firebaseAuth;
+                    firebaseAuth         = true;
+                    // Persist the (possibly rotated) refresh token so the next
+                    // reboot re-authenticates without user interaction.
+                    prefs.begin("config", false);
+                    prefs.putString("fbRefresh", firebaseRefreshToken);
+                    prefs.end();
+                    Serial.printf("[FIREBASE] Token refresh OK idLen=%u rtLen=%u\n",
+                                  firebaseIdToken.length(), firebaseRefreshToken.length());
+                    return true;
                 }
+                Serial.println("[FIREBASE] Token refresh 200 but id_token empty");
             }
             Serial.printf("[FIREBASE] Refresh HTTP %d, falling back to sign-in\n", code);
         }
@@ -3738,6 +3768,19 @@ void loop() {
         }
         if (lastConnectedSSID.length() == 0) {
             lastConnectedSSID = currentSSID;
+        }
+    }
+
+    // ── Proactive Firebase token renewal ──────────────────────────────────────
+    // Renew the idToken every 30 minutes in the background so it is never
+    // stale.  ensureFirebaseToken() is a no-op if the token is still fresh
+    // (< 55 min old), so calling it often is cheap.
+    {
+        static uint32_t lastTokenRenew = 0;
+        if (WiFi.isConnected() && isFirebaseConfigured()
+            && (millis() - lastTokenRenew) > 1800000UL) {   // every 30 min
+            lastTokenRenew = millis();
+            ensureFirebaseToken();
         }
     }
 

@@ -86,5 +86,15 @@
   "account": "Konto",
   "connectedAs": "Zalogowany jako",
   "signOut": "Wyloguj",
-  "confirmSignOut": "Naprawdę się wylogować? Musisz zalogować się ponownie, aby zsynchronizować szpulki."
+  "confirmSignOut": "Naprawdę się wylogować? Musisz zalogować się ponownie, aby zsynchronizować szpulki.",
+  "authEmail": "Adres e-mail",
+  "authPassword": "Hasło",
+  "hardware": "Sprzęt",
+  "rfidReaders": "Czytniki RFID",
+  "motorConnected": "Silnik podłączony",
+  "motorEnabled": "Obrót włączony",
+  "spoolDetected": "Szpula wykryta",
+  "spoolPosition": "Pozycja",
+  "yes": "Tak",
+  "no": "Nie"
 }

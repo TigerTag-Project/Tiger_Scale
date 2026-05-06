@@ -86,5 +86,15 @@
   "account": "Conta",
   "connectedAs": "Conectado como",
   "signOut": "Sair",
-  "confirmSignOut": "Sair de verdade? Você precisará entrar novamente para sincronizar suas bobinas."
+  "confirmSignOut": "Sair de verdade? Você precisará entrar novamente para sincronizar suas bobinas.",
+  "authEmail": "Endereço de e-mail",
+  "authPassword": "Senha",
+  "hardware": "Hardware",
+  "rfidReaders": "Leitores RFID",
+  "motorConnected": "Motor conectado",
+  "motorEnabled": "Rotação ativada",
+  "spoolDetected": "Carretel detectado",
+  "spoolPosition": "Posição",
+  "yes": "Sim",
+  "no": "Não"
 }

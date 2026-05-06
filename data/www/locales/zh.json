@@ -86,5 +86,15 @@
   "account": "账户",
   "connectedAs": "已登录为",
   "signOut": "退出登录",
-  "confirmSignOut": "确定退出? 您需要重新登录才能同步线轴。"
+  "confirmSignOut": "确定退出? 您需要重新登录才能同步线轴。",
+  "authEmail": "电子邮件地址",
+  "authPassword": "密码",
+  "hardware": "硬件",
+  "rfidReaders": "RFID读卡器",
+  "motorConnected": "电机已连接",
+  "motorEnabled": "旋转已启用",
+  "spoolDetected": "检测到料盘",
+  "spoolPosition": "位置",
+  "yes": "是",
+  "no": "否"
 }

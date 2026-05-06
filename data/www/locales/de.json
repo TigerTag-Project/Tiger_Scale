@@ -86,5 +86,15 @@
   "account": "Konto",
   "connectedAs": "Angemeldet als",
   "signOut": "Abmelden",
-  "confirmSignOut": "Wirklich abmelden? Sie müssen sich erneut anmelden, um Ihre Spulen zu synchronisieren."
+  "confirmSignOut": "Wirklich abmelden? Sie müssen sich erneut anmelden, um Ihre Spulen zu synchronisieren.",
+  "authEmail": "E-Mail-Adresse",
+  "authPassword": "Passwort",
+  "hardware": "Hardware",
+  "rfidReaders": "RFID-Leser",
+  "motorConnected": "Motor angeschlossen",
+  "motorEnabled": "Rotation aktiviert",
+  "spoolDetected": "Spule erkannt",
+  "spoolPosition": "Position",
+  "yes": "Ja",
+  "no": "Nein"
 }

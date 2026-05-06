@@ -87,5 +87,15 @@
   "account": "Account",
   "connectedAs": "Signed in as",
   "signOut": "Sign out",
-  "confirmSignOut": "Sign out for real? You will need to sign back in to sync your spools."
+  "confirmSignOut": "Sign out for real? You will need to sign back in to sync your spools.",
+  "authEmail": "Email address",
+  "authPassword": "Password",
+  "hardware": "Hardware",
+  "rfidReaders": "RFID Readers",
+  "motorConnected": "Motor connected",
+  "motorEnabled": "Rotation enabled",
+  "spoolDetected": "Spool detected",
+  "spoolPosition": "Position",
+  "yes": "Yes",
+  "no": "No"
 }
