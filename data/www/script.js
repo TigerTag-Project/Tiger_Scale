@@ -701,6 +701,19 @@ function signInWithEmail() {
 }
 
 // ── Google sign-in via OAuth bridge (popup -> postMessage) ──
+//
+// Mobile note: iOS Safari aggressively blocks `window.open()` calls that
+// include a features string (`width=...,height=...`) — it treats them as
+// pop-ups and the popup-blocker discards them, returning null. On mobile
+// we therefore open a plain `_blank` tab (which iOS allows from a direct
+// user gesture). On desktop we keep the centered popup window for a
+// nicer UX.
+function isMobileDevice() {
+    return ('ontouchstart' in window) ||
+           (navigator.maxTouchPoints > 0) ||
+           /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+}
+
 function signInWithGoogleBridge() {
     setAuthError('');
 
@@ -708,17 +721,25 @@ function signInWithGoogleBridge() {
     const returnTo = encodeURIComponent(location.origin);
     const url = `${AUTH_BRIDGE_URL}?return_to=${returnTo}`;
 
-    // Open centered popup
-    const w = 460, h = 640;
-    const left = Math.max(0, (screen.width - w) / 2);
-    const top = Math.max(0, (screen.height - h) / 2);
-    _authPopup = window.open(
-        url,
-        'tigertag-auth',
-        `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`
-    );
+    if (isMobileDevice()) {
+        // Plain `_blank` — iOS opens a new tab from this user-gesture click
+        _authPopup = window.open(url, '_blank');
+    } else {
+        // Centered popup on desktop
+        const w = 460, h = 640;
+        const left = Math.max(0, (screen.width - w) / 2);
+        const top = Math.max(0, (screen.height - h) / 2);
+        _authPopup = window.open(
+            url,
+            'tigertag-auth',
+            `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`
+        );
+    }
 
     if (!_authPopup) {
+        // Last-resort fallback: navigate the current tab to the bridge.
+        // The bridge's "no opener" state lets the user copy tokens manually.
+        // (Better than a dead end — no rare-on-modern-browsers blocker UX.)
         setAuthError(t('authPopupBlocked'));
         return;
     }
