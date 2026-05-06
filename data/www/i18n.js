@@ -120,16 +120,10 @@
         trigger.setAttribute('aria-expanded', 'false');
         trigger.setAttribute('aria-label', 'Language');
 
-        // Globe icon — re-uses the SVG sprite symbol injected by index.html
-        const iconNS = 'http://www.w3.org/2000/svg';
-        const icon = document.createElementNS(iconNS, 'svg');
-        icon.setAttribute('class', 'lang-trigger-icon');
-        icon.setAttribute('viewBox', '0 0 24 24');
-        icon.setAttribute('aria-hidden', 'true');
-        const useEl = document.createElementNS(iconNS, 'use');
-        useEl.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#icon-globe');
-        useEl.setAttribute('href', '#icon-globe');
-        icon.appendChild(useEl);
+        const globe = document.createElement('span');
+        globe.setAttribute('aria-hidden', 'true');
+        globe.textContent = '🌐';
+        globe.style.fontSize = '14px';
 
         const label = document.createElement('span');
         label.className = 'lang-trigger-label';
@@ -138,7 +132,7 @@
         chev.className = 'lang-trigger-chevron';
         chev.setAttribute('aria-hidden', 'true');
         chev.textContent = '▾';
-        trigger.appendChild(icon);
+        trigger.appendChild(globe);
         trigger.appendChild(label);
         trigger.appendChild(chev);
 

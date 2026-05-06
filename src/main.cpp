@@ -12,24 +12,24 @@
 //   §3  FORWARD DECLARATIONS                                                      129–  203
 //   §4  WEIGHT ROUNDING                                                           204–  223
 //   §5  GLOBAL OBJECTS                                                            224–  237
-//   §6  CONFIGURATION VARIABLES                                                   238–  347
-//   §7  OLED DISPLAY                                                              348–  465
-//   §8  CLOUD PARSING                                                             466–  480
-//   §9  WIFI SETUP                                                                481–  739
-//   §10 LITTLEFS                                                                  740–  784
-//   §11 FIREBASE AUTHENTICATION                                                   785–  929
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          930– 1857
-//   §13 WEBSOCKET                                                                1858– 1894
-//   §14 WEIGHT FILTER HELPERS                                                    1895– 1909
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         1910– 1931
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1932– 2004
-//   §17 WEB SERVER                                                               2005– 2479
-//   §18 CLOUD COMMUNICATION                                                      2480– 2753
-//   §19 mDNS                                                                     2754– 2791
-//   §20 SCALE                                                                    2792– 2883
-//   §21 RFID                                                                     2884– 3249
-//   §22 OTA — Over-the-air firmware + filesystem update                          3250– 3618
-//   §23 SETUP & LOOP                                                             3619– 3936
+//   §6  CONFIGURATION VARIABLES                                                   238–  348
+//   §7  OLED DISPLAY                                                              349–  466
+//   §8  CLOUD PARSING                                                             467–  481
+//   §9  WIFI SETUP                                                                482–  740
+//   §10 LITTLEFS                                                                  741–  785
+//   §11 FIREBASE AUTHENTICATION                                                   786–  930
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          931– 1858
+//   §13 WEBSOCKET                                                                1859– 1895
+//   §14 WEIGHT FILTER HELPERS                                                    1896– 1910
+//   §15 POST-SEND STATE RESET (shared by all send paths)                         1911– 1932
+//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1933– 2005
+//   §17 WEB SERVER                                                               2006– 2500
+//   §18 CLOUD COMMUNICATION                                                      2501– 2774
+//   §19 mDNS                                                                     2775– 2812
+//   §20 SCALE                                                                    2813– 2904
+//   §21 RFID                                                                     2905– 3271
+//   §22 OTA — Over-the-air firmware + filesystem update                          3272– 3640
+//   §23 SETUP & LOOP                                                             3641– 3959
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -264,6 +264,7 @@ bool     loadPresent             = false;
 bool     rfidLockedForCurrentLoad = false;
 bool     servoLockedUntilAutotare = false;  // Servo locked after weight sent until auto-tare completes
 bool     servoHoldAfterRemoval    = false;  // Keep servo stopped while load is being removed
+bool     servoEnabled             = true;   // User-controlled ON/OFF (persisted in NVS)
 uint32_t lastAutoPushSkipLogMs   = 0;
 uint32_t firstUidDetectedMs      = 0;
 uint32_t firstUidPauseUntilMs    = 0;
@@ -2092,8 +2093,14 @@ void setupWebServer() {
         }
         request->send(404, "text/plain", "app.js not found");
     });
-    server.serveStatic("/script.js", LittleFS, "/www/script.js").setCacheControl("no-store");
-    server.serveStatic("/img", LittleFS, "/www/img").setCacheControl("no-store");
+    server.serveStatic("/script.js",   LittleFS, "/www/script.js").setCacheControl("no-store");
+    server.serveStatic("/i18n.js",     LittleFS, "/www/i18n.js").setCacheControl("no-store");
+    server.serveStatic("/sw.js",       LittleFS, "/www/sw.js").setCacheControl("no-store");
+    server.serveStatic("/manifest.json", LittleFS, "/www/manifest.json").setCacheControl("no-store");
+    server.serveStatic("/favicon.ico", LittleFS, "/www/favicon.ico").setCacheControl("max-age=86400");
+    server.serveStatic("/favicon.png", LittleFS, "/www/favicon.png").setCacheControl("max-age=86400");
+    server.serveStatic("/locales",     LittleFS, "/www/locales").setCacheControl("no-store");
+    server.serveStatic("/img",         LittleFS, "/www/img").setCacheControl("no-store");
 
 
     server.on("/api/reset-wifi", HTTP_POST, [](AsyncWebServerRequest *request){
@@ -2130,6 +2137,7 @@ void setupWebServer() {
         doc["firebaseAuth"]      = firebaseAuth;
         doc["firebaseEmail"]     = firebaseEmail;
         doc["calibrationFactor"] = calibrationFactor;
+        doc["servoEnabled"]      = servoEnabled;
         doc["uptime_ms"]         = millis();
         doc["uptime_s"]          = millis() / 1000;
         // Build identity (used by Studio + web UI to show "update available")
@@ -2398,6 +2406,19 @@ void setupWebServer() {
 
     server.on("/api/ping", HTTP_GET, [](AsyncWebServerRequest *request){
         request->send(200, "text/plain", "pong");
+    });
+
+    // Toggle servo motor ON/OFF (persisted in NVS)
+    server.on("/api/servo-toggle", HTTP_POST, [](AsyncWebServerRequest *request){
+        servoEnabled = !servoEnabled;
+        if (!servoEnabled) stopServoSearch();
+        prefs.begin("config", false);
+        prefs.putBool("servoEnabled", servoEnabled);
+        prefs.end();
+        StaticJsonDocument<64> doc;
+        doc["servoEnabled"] = servoEnabled;
+        String out; serializeJson(doc, out);
+        request->send(200, "application/json", out);
     });
 
     // Weight push - shared implementation (ArduinoJson, merged handlers)
@@ -2947,6 +2968,7 @@ void setupServo() {
 }
 
 void startServoSearch() {
+    if (!servoEnabled) return;
     if (servoSearching) return;
 
     // Re-attach servo if it was detached
@@ -3639,6 +3661,7 @@ void setup() {
     firebaseRefreshToken = prefs.getString("fbRefresh", "");
     firebaseUid          = prefs.getString("fbUid",     "");
     calibrationFactor    = prefs.getFloat("calFactor", calibrationFactor);
+    servoEnabled         = prefs.getBool("servoEnabled", true);
     prefs.end();
 
     Serial.printf("[BOOT] Firebase configured: %s (mode=%s)\n",

@@ -72,8 +72,13 @@
                         <span id="fbText">FB</span>
                     </div>
                 </div>
-                <!-- i18n.js builds a dropdown switcher inside this container -->
-                <div class="lang-switcher" id="langSwitcher" role="group" aria-label="Language"></div>
+                <!-- Lang switcher + login button always in the same compact row -->
+                <div class="header-actions">
+                    <div class="lang-switcher" id="langSwitcher" role="group" aria-label="Language"></div>
+                    <button id="btnHeaderLogin" class="btn-header-login" onclick="openAuthModal()" style="display:none" aria-label="Se connecter">
+                        👤
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -211,6 +216,11 @@
                 ⚙️ <span data-i18n="advanced">Avancé</span>
             </div>
             <div class="collapsible-content">
+                <div class="compact-row">
+                    <span class="compact-label">⚙️ <span data-i18n="servoMotor">Moteur de rotation</span></span>
+                    <button id="btnServoToggle" class="toggle-btn toggle-btn--on" onclick="toggleServo()">ON</button>
+                </div>
+                <div class="divider"></div>
                 <button class="secondary" onclick="resetWiFi()">
                     📶 <span data-i18n="reconfigWifi">Reconfigurer Wi‑Fi</span>
                 </button>
@@ -272,7 +282,7 @@
     <div id="firebaseLoginModal" class="modal modal-blocking" style="display:none" aria-hidden="true">
         <div class="modal-content auth-modal" role="dialog" aria-labelledby="authTitle">
             <!-- Close button — lets user skip login and use the scale offline -->
-            <button class="auth-close-btn" onclick="hideAuthModal()" aria-label="Fermer">
+            <button class="auth-close-btn" onclick="dismissAuthModal()" aria-label="Fermer">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>

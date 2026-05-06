@@ -109,6 +109,9 @@ function setFirebaseConfigured(flag) {
     // Toggle the Account card (visible only when authenticated)
     const accountCard = document.getElementById('accountCard');
     if (accountCard) accountCard.style.display = firebaseConfigured ? '' : 'none';
+    // Toggle the header login button (visible only when NOT authenticated)
+    const btnHeaderLogin = document.getElementById('btnHeaderLogin');
+    if (btnHeaderLogin) btnHeaderLogin.style.display = firebaseConfigured ? 'none' : '';
     // Auto-show/hide login modal - only after we know the actual status (not on init)
     if (typeof firebaseStatusKnown !== 'undefined' && firebaseStatusKnown) {
         if (firebaseConfigured) hideAuthModal(); else showAuthModal();
@@ -328,6 +331,19 @@ function computeFactor() {
     })
     .then(r => r.ok ? r.json() : Promise.reject(r.status))
     .catch(() => alert(t('alertError')));
+}
+
+function toggleServo() {
+    fetch('/api/servo-toggle', { method: 'POST' })
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(data => updateServoToggleBtn(data.servoEnabled))
+    .catch(() => {});
+}
+function updateServoToggleBtn(enabled) {
+    const btn = document.getElementById('btnServoToggle');
+    if (!btn) return;
+    btn.textContent = enabled ? 'ON' : 'OFF';
+    btn.className = enabled ? 'toggle-btn toggle-btn--on' : 'toggle-btn toggle-btn--off';
 }
 
 function resetWiFi() {
@@ -608,6 +624,11 @@ function applyStatusSnapshot(s) {
         calFactor = n;
     }
     
+    // Servo toggle button state
+    if (typeof s.servoEnabled !== 'undefined') {
+        updateServoToggleBtn(!!s.servoEnabled);
+    }
+
     // Uptime
     if (typeof s.uptime_s !== 'undefined' || typeof s.uptime_ms !== 'undefined') {
         let secs = (typeof s.uptime_s !== 'undefined') ? Number(s.uptime_s) : Number(s.uptime_ms) / 1000;
@@ -652,8 +673,10 @@ const AUTH_BRIDGE_ORIGIN = 'https://tigertag-cdn.web.app';
 
 let _authPopup = null;
 let _authPopupWatcher = null;
+let _authModalDismissed = false;   // true once user explicitly closes the modal
 
 function showAuthModal() {
+    if (_authModalDismissed) return;  // don't reopen if user already dismissed it
     const m = document.getElementById('firebaseLoginModal');
     if (!m) return;
     m.style.display = 'flex';
@@ -665,6 +688,14 @@ function hideAuthModal() {
     m.style.display = 'none';
     m.setAttribute('aria-hidden', 'true');
     setAuthError('');
+}
+function dismissAuthModal() {
+    _authModalDismissed = true;
+    hideAuthModal();
+}
+function openAuthModal() {
+    _authModalDismissed = false;
+    showAuthModal();
 }
 function setAuthError(msg) {
     const el = document.getElementById('authError');

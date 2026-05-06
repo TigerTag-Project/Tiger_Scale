@@ -722,9 +722,55 @@ input::placeholder {
     -webkit-backdrop-filter: blur(8px);
 }
 
+.toggle-btn {
+    padding: 4px 14px;
+    border: none;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s, color .2s;
+    min-width: 44px;
+}
+.toggle-btn--on  { background: #22c55e; color: #fff; }
+.toggle-btn--off { background: #e5e7eb; color: #6b7280; }
+.toggle-btn--on:hover  { background: #16a34a; }
+.toggle-btn--off:hover { background: #d1d5db; }
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+}
+
+.btn-header-login {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 1px solid rgba(255,255,255,0.30);
+    border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background .15s;
+}
+.btn-header-login:hover {
+    background: rgba(255,255,255,0.22);
+    transform: none;
+    box-shadow: none;
+}
+
 .auth-modal {
-    max-width: 410px;
+    max-width: 380px;
     position: relative;
+    text-align: center;
+    padding: 36px 32px 32px;
 }
 
 /* Close button — top-right corner of the auth modal */
@@ -759,15 +805,16 @@ input::placeholder {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 84px;
-    height: 84px;
-    margin-bottom: 14px;
-    border-radius: 50%;
+    width: 76px;
+    height: 76px;
+    margin-bottom: 20px;
+    border-radius: 22px;
     background: #101411;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
 }
 
 .auth-logo img {
-    width: 56px;
+    width: 48px;
     height: auto;
     filter: invert(1);
 }
@@ -775,15 +822,16 @@ input::placeholder {
 .auth-title {
     margin: 0 0 8px;
     color: var(--ink);
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 780;
+    letter-spacing: -0.3px;
 }
 
 .auth-sub {
-    margin: 0 0 22px;
+    margin: 0 0 28px;
     color: var(--muted);
     font-size: 14px;
-    line-height: 1.5;
+    line-height: 1.55;
 }
 
 .auth-btn-google {
@@ -892,20 +940,14 @@ input::placeholder {
     .header-right {
         align-items: flex-start;
         width: 100%;
-        flex-direction: row;
-        flex-wrap: wrap;
+        flex-direction: column;
         gap: 8px;
     }
 
     .status-bar {
         justify-content: flex-start;
-        flex: 1 1 auto;
     }
 
-    /* Anchor the lang switcher menu so it doesn't overflow off-screen */
-    .lang-switcher {
-        flex: 0 0 auto;
-    }
     .lang-switcher.lang-dropdown .lang-menu {
         right: 0;
         left: auto;
@@ -923,21 +965,21 @@ input::placeholder {
 /* ─────── i18n DROPDOWN SWITCHER (built dynamically by i18n.js) ─────── */
 .lang-switcher.lang-dropdown { position: relative; font-family: inherit; }
 .lang-trigger {
-    display: inline-flex; align-items: center; gap: 8px;
-    background: rgba(255,255,255,0.10);
-    border: 1px solid rgba(255,255,255,0.18);
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.35);
     color: #fff;
-    padding: 8px 12px;
+    padding: 7px 12px;
     min-height: 36px;
     border-radius: 100px; cursor: pointer;
-    font: inherit; font-size: 12px;
-    font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+    font: inherit; font-size: 13px;
+    font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase;
     transition: background .15s, border-color .15s;
 }
 .lang-trigger:hover,
 .lang-trigger:focus-visible {
-    background: rgba(255,255,255,0.18);
-    border-color: rgba(230,126,34,0.5);
+    background: rgba(255,255,255,0.25);
+    border-color: rgba(230,126,34,0.7);
     outline: none;
 }
 .lang-trigger-icon {
