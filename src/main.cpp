@@ -15,21 +15,21 @@
 //   §6  CONFIGURATION VARIABLES                                                   238–  347
 //   §7  OLED DISPLAY                                                              348–  465
 //   §8  CLOUD PARSING                                                             466–  480
-//   §9  WIFI SETUP                                                                481–  747
-//   §10 LITTLEFS                                                                  748–  792
-//   §11 FIREBASE AUTHENTICATION                                                   793–  937
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          938– 1865
-//   §13 WEBSOCKET                                                                1866– 1902
-//   §14 WEIGHT FILTER HELPERS                                                    1903– 1917
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         1918– 1939
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1940– 2012
-//   §17 WEB SERVER                                                               2013– 2487
-//   §18 CLOUD COMMUNICATION                                                      2488– 2761
-//   §19 mDNS                                                                     2762– 2799
-//   §20 SCALE                                                                    2800– 2891
-//   §21 RFID                                                                     2892– 3257
-//   §22 OTA — Over-the-air firmware + filesystem update                          3258– 3626
-//   §23 SETUP & LOOP                                                             3627– 3944
+//   §9  WIFI SETUP                                                                481–  739
+//   §10 LITTLEFS                                                                  740–  784
+//   §11 FIREBASE AUTHENTICATION                                                   785–  929
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          930– 1857
+//   §13 WEBSOCKET                                                                1858– 1894
+//   §14 WEIGHT FILTER HELPERS                                                    1895– 1909
+//   §15 POST-SEND STATE RESET (shared by all send paths)                         1910– 1931
+//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1932– 2004
+//   §17 WEB SERVER                                                               2005– 2479
+//   §18 CLOUD COMMUNICATION                                                      2480– 2753
+//   §19 mDNS                                                                     2754– 2791
+//   §20 SCALE                                                                    2792– 2883
+//   §21 RFID                                                                     2884– 3249
+//   §22 OTA — Over-the-air firmware + filesystem update                          3250– 3618
+//   §23 SETUP & LOOP                                                             3619– 3936
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -531,9 +531,9 @@ body{
   font-size:16px;
   padding:0 20px 48px;
 }
-/* Wordmark — typography only (no emoji), Apple-style thin + wide tracking */
+/* Wordmark with tiger emoji */
 body::before{
-  content:"TIGERTAG";
+  content:"🐯  TIGERTAG";
   display:block;
   text-align:center;
   font-size:15px;
@@ -640,16 +640,8 @@ a:active{transform:scale(.99)}
   linear-gradient(var(--orange),var(--orange)) 5px 100%/3px 55% no-repeat,
   linear-gradient(var(--orange),var(--orange)) 10px 100%/3px 80% no-repeat,
   linear-gradient(var(--orange),var(--orange)) 15px 100%/3px 100% no-repeat}
-/* Lock icon (secured WiFi) — Lucide stroke SVG via CSS mask */
-.q.l{padding-right:18px}
-.l::after{
-  content:"";position:absolute;
-  width:11px;height:11px;right:-2px;top:50%;
-  transform:translateY(-50%);
-  background-color:var(--text-mute);
-  -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect width='18' height='11' x='3' y='11' rx='2' ry='2'/><path d='M7 11V7a5 5 0 0 1 10 0v4'/></svg>") center/contain no-repeat;
-  mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect width='18' height='11' x='3' y='11' rx='2' ry='2'/><path d='M7 11V7a5 5 0 0 1 10 0v4'/></svg>") center/contain no-repeat;
-}
+/* Lock emoji prefix for secured WiFi networks */
+.l::before{content:"🔒  ";font-size:14px}
 /* Info / messages */
 .msg,.notify{
   background:var(--surface);border-left:2px solid var(--orange);

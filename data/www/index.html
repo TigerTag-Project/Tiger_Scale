@@ -98,8 +98,7 @@
              email/password Firebase card (now obsolete: login is handled by the modal). -->
         <div id="accountCard" class="card" style="display:none">
             <div class="card-title collapsible" onclick="toggleSection(this)">
-                <svg class="icon"><use href="#icon-user"></use></svg>
-                <span data-i18n="account">Compte</span>
+                👤 <span data-i18n="account">Compte</span>
             </div>
             <div class="collapsible-content">
                 <div class="account-row">
@@ -111,8 +110,7 @@
                 </div>
                 <div class="divider"></div>
                 <button class="danger" onclick="signOut()">
-                    <svg class="btn-icon"><use href="#icon-log-out"></use></svg>
-                    <span data-i18n="signOut">Se déconnecter</span>
+                    🚪 <span data-i18n="signOut">Se déconnecter</span>
                 </button>
             </div>
         </div>
@@ -126,8 +124,7 @@
         <!-- Calibration -->
         <div class="card">
             <div class="card-title collapsible" onclick="toggleSection(this)">
-                <svg class="icon"><use href="#icon-scale"></use></svg>
-                <span data-i18n="calibration">Calibration</span>
+                ⚖️ <span data-i18n="calibration">Calibration</span>
             </div>
             <div class="collapsible-content">
                 <!-- Calibration Wizard -->
@@ -141,7 +138,7 @@
                     
                     <!-- Step 1: Empty scale -->
                     <div id="step1" class="calib-step active">
-                        <div class="step-icon"><svg><use href="#icon-scale"></use></svg></div>
+                        <div class="step-icon">⚖️</div>
                         <div class="step-instruction" data-i18n="step1Instruction">Retirez le filament de la balance</div>
                         <button onclick="calibStep1()" data-i18n="step1Button">Next</button>
                     </div>
@@ -186,7 +183,7 @@
                     
                     <!-- Step 3: Success -->
                     <div id="step3" class="calib-step">
-                        <div class="step-icon"><svg><use href="#icon-check"></use></svg></div>
+                        <div class="step-icon">✅</div>
                         <div class="step-instruction" data-i18n="step3Instruction">La balance est maintenant calibrée</div>
                         <button class="secondary" onclick="calibReset()" data-i18n="calibAgain">Calibrer à nouveau</button>
                     </div>
@@ -196,8 +193,7 @@
                 
                 <!-- Manual calibration (collapsed by default) -->
                 <div class="card-subtitle collapsible" onclick="toggleSection(this)">
-                    <svg class="icon"><use href="#icon-edit"></use></svg>
-                    <span data-i18n="manualCalib">Calibration manuelle</span>
+                    🔧 <span data-i18n="manualCalib">Calibration manuelle</span>
                 </div>
                 <div class="collapsible-content">
                     <div class="info-badge spaced">
@@ -212,18 +208,15 @@
         <!-- Advanced -->
         <div class="card">
             <div class="card-title collapsible" onclick="toggleSection(this)">
-                <svg class="icon"><use href="#icon-settings"></use></svg>
-                <span data-i18n="advanced">Avancé</span>
+                ⚙️ <span data-i18n="advanced">Avancé</span>
             </div>
             <div class="collapsible-content">
                 <button class="secondary" onclick="resetWiFi()">
-                    <svg class="btn-icon"><use href="#icon-wifi"></use></svg>
-                    <span data-i18n="reconfigWifi">Reconfigurer Wi‑Fi</span>
+                    📶 <span data-i18n="reconfigWifi">Reconfigurer Wi‑Fi</span>
                 </button>
                 <div class="button-spacer"></div>
                 <button class="danger" onclick="factoryReset()">
-                    <svg class="btn-icon"><use href="#icon-trash"></use></svg>
-                    <span data-i18n="factoryReset">Réinitialisation</span>
+                    🗑️ <span data-i18n="factoryReset">Réinitialisation</span>
                 </button>
                 <div class="divider"></div>
                 <div class="compact-row">
@@ -258,7 +251,7 @@
     <!-- Modal for weight too light error -->
     <div id="weightErrorModal" class="modal">
         <div class="modal-content">
-            <div class="modal-icon"><svg><use href="#icon-alert"></use></svg></div>
+            <div class="modal-icon">⚠️</div>
             <h3 class="modal-title" data-i18n="modalWeightTooLightTitle">Poids insuffisant</h3>
             <p class="modal-message" data-i18n="modalWeightTooLightMessage">Le poids est trop léger pour une calibration. Utilisez une Masterspool ou un filament d'au moins 200g.</p>
             <button class="modal-btn" onclick="closeWeightErrorModal()" data-i18n="modalOk">OK</button>
@@ -268,7 +261,7 @@
     <!-- Modal for invalid weight error -->
     <div id="weightInvalidModal" class="modal">
         <div class="modal-content">
-            <div class="modal-icon"><svg><use href="#icon-alert"></use></svg></div>
+            <div class="modal-icon">⚠️</div>
             <h3 class="modal-title" data-i18n="modalWeightInvalidTitle">Poids invalide</h3>
             <p class="modal-message" data-i18n="modalWeightInvalidMessage">Veuillez entrer un poids valide</p>
             <button class="modal-btn" onclick="closeWeightInvalidModal()" data-i18n="modalOk">OK</button>
@@ -278,7 +271,7 @@
     <!-- Firebase Login Modal - auto-shown when firebaseConfigured=false -->
     <div id="firebaseLoginModal" class="modal modal-blocking" style="display:none" aria-hidden="true">
         <div class="modal-content auth-modal" role="dialog" aria-labelledby="authTitle">
-            <div class="auth-logo"><img src="img/logo-tigertag.svg" alt="TigerTag"></div>
+            <div class="auth-logo">🐯</div>
             <h2 class="auth-title" id="authTitle" data-i18n="authTitle">Bienvenue sur votre TigerScale</h2>
             <p class="auth-sub" data-i18n="authSub">Connectez-vous pour synchroniser vos bobines avec le cloud TigerTag.</p>
 
