@@ -133,9 +133,8 @@ body {
 .lang-switcher {
     display: flex;
     gap: 4px;
-    padding: 4px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.09);
+    align-items: center;
+    /* No background — the dropdown trigger paints its own pill */
 }
 
 .lang-btn {
@@ -862,12 +861,25 @@ input::placeholder {
     }
 
     .header-right {
-        align-items: stretch;
+        align-items: flex-start;
         width: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 8px;
     }
 
     .status-bar {
         justify-content: flex-start;
+        flex: 1 1 auto;
+    }
+
+    /* Anchor the lang switcher menu so it doesn't overflow off-screen */
+    .lang-switcher {
+        flex: 0 0 auto;
+    }
+    .lang-switcher.lang-dropdown .lang-menu {
+        right: 0;
+        left: auto;
     }
 
     .weight-display {
@@ -882,17 +894,35 @@ input::placeholder {
 /* ─────── i18n DROPDOWN SWITCHER (built dynamically by i18n.js) ─────── */
 .lang-switcher.lang-dropdown { position: relative; font-family: inherit; }
 .lang-trigger {
-    display: inline-flex; align-items: center; gap: 6px;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.15);
-    color: #fff; padding: 6px 10px;
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.18);
+    color: #fff;
+    padding: 8px 12px;
+    min-height: 36px;
     border-radius: 100px; cursor: pointer;
-    font: inherit; font-size: 11px;
+    font: inherit; font-size: 12px;
     font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
     transition: background .15s, border-color .15s;
 }
-.lang-trigger:hover { background: rgba(255,255,255,0.14); border-color: rgba(230,126,34,0.4); }
-.lang-trigger-chevron { font-size: 9px; opacity: 0.6; transition: transform .2s; }
+.lang-trigger:hover,
+.lang-trigger:focus-visible {
+    background: rgba(255,255,255,0.18);
+    border-color: rgba(230,126,34,0.5);
+    outline: none;
+}
+.lang-trigger-icon {
+    width: 16px; height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex-shrink: 0;
+    opacity: 0.9;
+}
+.lang-trigger-label { line-height: 1; }
+.lang-trigger-chevron { font-size: 10px; opacity: 0.7; transition: transform .2s; }
 .lang-dropdown.open .lang-trigger-chevron { transform: rotate(180deg); }
 .lang-menu {
     position: absolute; top: calc(100% + 6px); right: 0;
