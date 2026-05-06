@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Auto-regenerate the TOC at the top of src/main.cpp before each commit.
+# If src/main.cpp is staged, run scripts/update_toc.sh and re-stage it.
+# Skipped silently if main.cpp isn't part of this commit.
+
+set -e
+
+# Are we touching main.cpp in this commit?
+if ! git diff --cached --name-only | grep -q "^src/main\.cpp$"; then
+    exit 0
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+"$REPO_ROOT/scripts/update_toc.sh" "$REPO_ROOT/src/main.cpp" >/dev/null
+
+# Re-stage if the script modified the file
+if ! git diff --quiet "$REPO_ROOT/src/main.cpp"; then
+    git add "$REPO_ROOT/src/main.cpp"
+    echo "  [pre-commit] TOC regenerated and re-staged."
+fi
+
+exit 0

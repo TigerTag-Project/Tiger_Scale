@@ -109,24 +109,51 @@ pio device monitor
 Current usage: Flash ~83 %, RAM 16 %, LittleFS ~25 %. Plenty of headroom for
 ~270 KB more code and ~600 KB more web assets.
 
-## Where to look for X
+## Where to look for X — `src/main.cpp` is monolithic but has a TOC
+
+The whole firmware lives in one ~3950-line `src/main.cpp`. To avoid loading the
+whole file each time you read it, an **auto-generated table of contents** sits
+at the top of `main.cpp` between `// ─── TOC BEGIN` and `// ─── TOC END`. Each
+section has a `§N` number with its line range.
+
+```
+//   §1   HARDWARE CONFIGURATION                                  27 –  78
+//   §2   OTA CONFIGURATION                                       79 –  97
+//   §3   FORWARD DECLARATIONS                                    98 – 172
+//   §11  FIREBASE AUTHENTICATION                                762 – 906
+//   §12  FIRESTORE SCALE HEARTBEAT & SYNC                       907 – 1834
+//   §17  WEB SERVER (REST endpoints)                           1982 – 2456
+//   §22  OTA — Over-the-air update                             3227 – 3595
+//   §23  SETUP & LOOP                                          3596 – 3913
+…
+```
+
+**Read this TOC first**, then load only the section you need with
+`Read(file, offset=N, limit=M)`. ~85 % token savings on focused tasks.
+
+The TOC is regenerated automatically by a git pre-commit hook
+(`scripts/update_toc.sh`). After cloning, run once:
+
+```bash
+./scripts/install-hooks.sh
+```
+
+To regenerate the TOC manually:
+
+```bash
+./scripts/update_toc.sh
+```
+
+### Other locations (not in main.cpp)
 
 | Need to change… | Look at… |
 |---|---|
-| Firebase auth flow | `src/main.cpp` § FIREBASE AUTHENTICATION (~l. 500) |
-| OTA logic | `src/main.cpp` § OTA — Over-the-air (~l. 3000) |
-| Firestore command listener | `src/main.cpp` § Firestore command queue listener |
-| REST endpoints (`/api/*`) | `src/main.cpp` § WEB SERVER — `setupWebServer()` |
-| Captive portal CSS | `src/main.cpp` § CAPTIVE_PORTAL_HEAD constant |
-| Dual RFID polling | `src/main.cpp` § RFID + `loop()` step 1 |
-| Twin-tag pairing logic | `src/main.cpp` § `updateScaleLastSpool()` (matrix §6.1) |
-| Auto-tare | `src/main.cpp` § `processAutoTare()` |
-| Servo state machine | `src/main.cpp` § `updateServoWorkflow()` |
 | Web UI structure | `data/www/index.html` |
 | Web UI behaviour / i18n shim | `data/www/script.js` |
 | Add a language | drop `data/www/locales/{code}.json` + add entry in `LANGS` of `i18n.js` |
 | OAuth bridge (Firebase Hosting) | external repo: `TigerTag_Firebase_Backend/public/scale-auth.html` |
 | GitHub Pages config | `.github/workflows/deploy-installer.yml` |
+| Web installer page | `web-installer/index.html` + `web-installer/i18n.js` |
 
 ## Cloud bridge (read-only context for the device repo)
 
