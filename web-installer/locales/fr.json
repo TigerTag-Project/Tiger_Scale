@@ -46,5 +46,10 @@
   "shopLoadDesc": "Wishiot cellule 5 kg haute précision avec amplificateur HX711",
   "shopServoTitle": "Servo à rotation continue (FS90R)",
   "shopServoDesc": "Wishiot rotation 360° continue, compatible FS90R",
-  "shopDisclosure": "<small>Liste complète des composants et pièces imprimables : <a href=\"https://github.com/TigerTag-Project/Tiger_Scale/blob/main/hardware/BOM.md\" style=\"color: var(--orange);\">hardware/BOM.md</a> · En tant que Partenaire Amazon, nous touchons une commission sur les achats remplissant les conditions requises.</small>"
+  "shopDisclosure": "<small>Liste complète des composants et pièces imprimables : <a href=\"https://github.com/TigerTag-Project/Tiger_Scale/blob/main/hardware/BOM.md\" style=\"color: var(--orange);\">hardware/BOM.md</a> · En tant que Partenaire Amazon, nous touchons une commission sur les achats remplissant les conditions requises.</small>",
+  "shopViewBambu": "Acheter chez Bambu Lab",
+  "shopActiveShaftTitle": "Arbre d entraînement actif",
+  "shopActiveShaftDesc": "Pièce Bambu Lab AMS — entraîne la rotation de la bobine",
+  "shopDrivenShaftTitle": "Arbre d entraînement passif",
+  "shopDrivenShaftDesc": "Pièce Bambu Lab AMS — suit la rotation de la bobine"
 }

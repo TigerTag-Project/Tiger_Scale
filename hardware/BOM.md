@@ -14,9 +14,11 @@ Total cost : **~30 € for the electronics** + cost of 3D-printed parts (typical
 | **Dupont Jumper Wires** (ELEGOO 120 pcs 28 AWG 20 cm M-M, M-F, F-F) | 6 € | [amzn.to/42QEdB9](https://amzn.to/42QEdB9) |
 | **Load Cell 5 kg + HX711 amplifier** (Wishiot kit) | 7 € | [amzn.to/3KZIOLl](https://amzn.to/3KZIOLl) |
 | **Continuous Servo FS90R** (Wishiot 360° rotation) | 5 € | [amzn.to/4tRzpGZ](https://amzn.to/4tRzpGZ) |
+| **Active Support Shaft Assembly** (Bambu Lab AMS — drives spool) | ~6 € | [Bambu Lab EU Store](https://eu.store.bambulab.com/fr/products/ams-active-support-shaft-assembly?id=47612006760796) |
+| **Driven Support Shaft Assembly** (Bambu Lab AMS — spool follower) | ~6 € | [Bambu Lab EU Store](https://eu.store.bambulab.com/fr/products/ams-driven-support-shaft-assembly?id=47611983626588) |
 | **Misc** : breadboard, 5 V/2 A USB power supply | ~5 € | Any electronics supplier |
 
-**Total electronics : ~35 €**
+**Total electronics + AMS shafts : ~47 €**
 
 ## 3D-printed parts
 
@@ -41,22 +43,19 @@ Recommended print settings :
 
 Total filament : ~170 g (≈ 3-4 € PLA at 20 €/kg).
 
-## Optional Bambu Lab AMS parts
+## Bambu Lab AMS shaft mechanism
 
-For a higher-precision rotation mechanism, the Bambu Lab official AMS replacement parts can be repurposed :
+The two **AMS shaft assemblies** listed in the electronics table above provide the high-precision rotation mechanism that holds and spins the spool above the load cell. Buy them directly from the official Bambu Lab EU store.
 
-- [Driven Support Shaft Assembly](https://www.atome3d.com/collections/bambu-lab-pieces-detachees-3d-france/products/bambu-lab-ams-support-darbre-dentrainement-driven-support-shaft-assembly)
-- [Active Support Shaft Assembly](https://www.atome3d.com/collections/bambu-lab-pieces-detachees-3d-france/products/bambu-lab-ams-support-actif-darbre-active-support-shaft-assembly)
-
-Optional — the basic 3D-printed gear works fine for most use cases.
+(An alternative source, atome3d.com, also stocks them — useful if you're outside the EU shipping zone.)
 
 ## Total cost summary
 
 | Configuration | Approx. cost |
 |---|---|
-| Electronics only | 30-35 € |
-| Electronics + 3D printing (own filament) | ~35-40 € |
-| Electronics + AMS parts upgrade | 50-60 € |
+| Electronics only (no AMS shafts) | 30-35 € |
+| Electronics + AMS shafts (recommended) | ~47 € |
+| Electronics + AMS shafts + 3D printing (own filament) | ~50 € |
 
 ## Where to source TigerTag NFC stickers
 

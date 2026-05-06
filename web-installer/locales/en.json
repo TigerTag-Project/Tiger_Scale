@@ -46,5 +46,10 @@
   "shopLoadDesc": "Wishiot 5 kg high-precision load cell with HX711 amplifier",
   "shopServoTitle": "Continuous Servo (FS90R)",
   "shopServoDesc": "Wishiot 360° continuous rotation, FS90R compatible",
-  "shopDisclosure": "<small>Full BOM and 3D-printable parts: <a href=\"https://github.com/TigerTag-Project/Tiger_Scale/blob/main/hardware/BOM.md\" style=\"color: var(--orange);\">hardware/BOM.md</a> · As an Amazon Associate, we earn from qualifying purchases.</small>"
+  "shopDisclosure": "<small>Full BOM and 3D-printable parts: <a href=\"https://github.com/TigerTag-Project/Tiger_Scale/blob/main/hardware/BOM.md\" style=\"color: var(--orange);\">hardware/BOM.md</a> · As an Amazon Associate, we earn from qualifying purchases.</small>",
+  "shopViewBambu": "Buy at Bambu Lab",
+  "shopActiveShaftTitle": "Active Support Shaft Assembly",
+  "shopActiveShaftDesc": "Bambu Lab AMS active shaft (drives the spool rotation)",
+  "shopDrivenShaftTitle": "Driven Support Shaft Assembly",
+  "shopDrivenShaftDesc": "Bambu Lab AMS driven shaft (spool follower)"
 }
