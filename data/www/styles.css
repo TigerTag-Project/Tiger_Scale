@@ -834,6 +834,61 @@ input::placeholder {
     background: #b91c1c;
 }
 
+/* ── RFID test panel additions ───────────────────────────────────────── */
+/* RFID panel stacks vertically (overrides .motor-test-panel row layout) */
+#rfidTestPanel {
+    flex-direction: column;
+    align-items: stretch;
+}
+#rfidTestPanel .motor-test-run-btn {
+    justify-content: center;
+}
+.rfid-reader-sel {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.rfid-reader-btn {
+    flex: 1;
+    padding: 7px 0;
+    border-radius: 10px;
+    border: 2px solid var(--line, #e5e7eb);
+    background: transparent;
+    color: var(--text, #1a1a1a);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color .15s, background .15s, color .15s;
+}
+.rfid-reader-btn.active {
+    border-color: var(--orange, #e67e22);
+    background: var(--orange, #e67e22);
+    color: #fff;
+}
+.rfid-reader-btn:hover:not(.active) {
+    border-color: var(--orange, #e67e22);
+    color: var(--orange, #e67e22);
+}
+.rfid-test-uid {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.88rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-align: center;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--bg, #f9f9f9);
+    border: 1px solid var(--line, #e5e7eb);
+    color: var(--text, #1a1a1a);
+    margin-bottom: 10px;
+    min-height: 36px;
+    word-break: break-all;
+}
+.rfid-test-uid.uid-detected {
+    color: var(--orange, #e67e22);
+    border-color: var(--orange, #e67e22);
+}
+
 .hidden {
     display: none !important;
 }

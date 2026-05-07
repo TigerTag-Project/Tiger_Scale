@@ -104,5 +104,7 @@
   "no": "No",
   "motorTest": "Motor test",
   "motorTestRun": "Run",
-  "motorTestStop": "Stop"
+  "motorTestStop": "Stop",
+  "rfidTest": "RFID test",
+  "rfidTestScan": "Scan"
 }

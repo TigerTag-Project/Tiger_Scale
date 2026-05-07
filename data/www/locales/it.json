@@ -103,5 +103,7 @@
   "no": "No",
   "motorTest": "Test motore",
   "motorTestRun": "Avvia",
-  "motorTestStop": "Ferma"
+  "motorTestStop": "Ferma",
+  "rfidTest": "Test RFID",
+  "rfidTestScan": "Scansiona"
 }

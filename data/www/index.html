@@ -164,6 +164,22 @@
                         <button class="segment-btn" data-val="2" onclick="setRfidCount(2)">2</button>
                     </div>
                 </div>
+                <!-- RFID test panel -->
+                <div class="motor-test-panel" id="rfidTestPanel">
+                    <div class="motor-test-header">
+                        <svg class="icon" style="flex-shrink:0"><use href="#icon-radio"></use></svg>
+                        <span data-i18n="rfidTest">RFID test</span>
+                    </div>
+                    <div class="rfid-reader-sel">
+                        <button class="rfid-reader-btn active" id="rfidReaderBtn1" onclick="setRfidTestReader(1)">Reader 1</button>
+                        <button class="rfid-reader-btn" id="rfidReaderBtn2" onclick="setRfidTestReader(2)">Reader 2</button>
+                    </div>
+                    <div class="rfid-test-uid" id="rfidTestUidDisplay">—</div>
+                    <button class="motor-test-run-btn" id="rfidTestRunBtn" onclick="toggleRfidTest()">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" id="rfidTestIcon"><polygon points="5,3 19,12 5,21"/></svg>
+                        <span id="rfidTestLabel">Scan</span>
+                    </button>
+                </div>
                 <div class="divider"></div>
                 <!-- Motor connected -->
                 <div class="setting-row">

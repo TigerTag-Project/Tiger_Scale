@@ -7,29 +7,29 @@
 //
 //   TABLE OF CONTENTS                            line range
 //   ────────────────────────────────────────────  ──────────
-//   §1  HARDWARE CONFIGURATION                                                     58–  109
-//   §2  OTA CONFIGURATION                                                         110–  128
-//   §3  FORWARD DECLARATIONS                                                      129–  203
-//   §4  WEIGHT ROUNDING                                                           204–  223
-//   §5  GLOBAL OBJECTS                                                            224–  237
-//   §6  CONFIGURATION VARIABLES                                                   238–  352
-//   §7  OLED DISPLAY                                                              353–  470
-//   §8  CLOUD PARSING                                                             471–  485
-//   §9  WIFI SETUP                                                                486–  744
-//   §10 LITTLEFS                                                                  745–  789
-//   §11 FIREBASE AUTHENTICATION                                                   790–  975
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          976– 1903
-//   §13 WEBSOCKET                                                                1904– 1940
-//   §14 WEIGHT FILTER HELPERS                                                    1941– 1955
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         1956– 1977
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1978– 2050
-//   §17 WEB SERVER                                                               2051– 2640
-//   §18 CLOUD COMMUNICATION                                                      2641– 2914
-//   §19 mDNS                                                                     2915– 2952
-//   §20 SCALE                                                                    2953– 3044
-//   §21 RFID                                                                     3045– 3424
-//   §22 OTA — Over-the-air firmware + filesystem update                          3425– 3793
-//   §23 SETUP & LOOP                                                             3794– 4127
+//   §1  HARDWARE CONFIGURATION                                                     58–  110
+//   §2  OTA CONFIGURATION                                                         111–  129
+//   §3  FORWARD DECLARATIONS                                                      130–  206
+//   §4  WEIGHT ROUNDING                                                           207–  226
+//   §5  GLOBAL OBJECTS                                                            227–  240
+//   §6  CONFIGURATION VARIABLES                                                   241–  359
+//   §7  OLED DISPLAY                                                              360–  477
+//   §8  CLOUD PARSING                                                             478–  492
+//   §9  WIFI SETUP                                                                493–  751
+//   §10 LITTLEFS                                                                  752–  796
+//   §11 FIREBASE AUTHENTICATION                                                   797–  982
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          983– 1910
+//   §13 WEBSOCKET                                                                1911– 1947
+//   §14 WEIGHT FILTER HELPERS                                                    1948– 1962
+//   §15 POST-SEND STATE RESET (shared by all send paths)                         1963– 1984
+//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1985– 2057
+//   §17 WEB SERVER                                                               2058– 2684
+//   §18 CLOUD COMMUNICATION                                                      2685– 2958
+//   §19 mDNS                                                                     2959– 2996
+//   §20 SCALE                                                                    2997– 3088
+//   §21 RFID                                                                     3089– 3498
+//   §22 OTA — Over-the-air firmware + filesystem update                          3499– 3867
+//   §23 SETUP & LOOP                                                             3868– 4227
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -92,6 +92,7 @@ const int      SERVO_STOP_US               = 1500;
 const int      SERVO_SEARCH_US             = 1700;
 const uint32_t RFID_SECOND_TAG_TIMEOUT_MS  = 6000;   // Faster fallback when 2nd tag is missing
 const uint32_t RFID_FIRST_TAG_PAUSE_MS     =  250;   // Short pause after first tag
+const float    RFID_ANTENNA_WAKE_WEIGHT_G  = 50.0f;  // Wake antennas above this weight; sleep below
 const float    AUTO_TARE_EMPTY_THRESHOLD_G =  8.0f;
 const uint32_t AUTO_TARE_STABLE_MS         =  1200;
 const uint32_t AUTO_TARE_TIMEOUT_MS        = 10000;  // 10 second safety timeout for auto-tare
@@ -146,6 +147,8 @@ void startServoSearch();
 void stopServoSearch();
 void updateServoWorkflow(float weight);
 String readRFIDFromReader(MFRC522 &reader, String &uidHexOut);
+String readRFIDUidOnly(MFRC522 &reader, String &uidHexOut);
+void   rfidAntennaSetAll(bool on);
 bool pushWeightToCloud(float w);
 bool hasAnyDetectedUid();
 bool hasTwoDifferentDetectedUids();
@@ -267,6 +270,10 @@ bool     servoHoldAfterRemoval    = false;  // Keep servo stopped while load is 
 bool     servoEnabled             = true;   // User-controlled ON/OFF (persisted in NVS)
 bool     servoTestActive          = false;  // Manual test mode — freezes workflow
 int      servoTestUs              = 1500;   // μs written during test
+bool     rfidAntennasOn           = true;   // Current antenna state (both readers)
+bool     rfidTestActive           = false;  // RFID hardware test mode
+uint8_t  rfidTestReader           = 1;      // Reader under test (1 or 2)
+String   rfidTestLastUidHex       = "";     // Last UID seen during RFID test
 uint8_t  hwRfidCount             = 2;      // Number of RC522 readers physically connected (1 or 2)
 bool     hwMotorConnected        = true;   // Whether the servo is physically wired
 uint32_t lastAutoPushSkipLogMs   = 0;
@@ -2561,6 +2568,43 @@ void setupWebServer() {
         }
     );
 
+    // ── RFID hardware test ── GET returns state; POST starts/stops reader scan ──
+    server.on("/api/rfid/test", HTTP_GET, [](AsyncWebServerRequest *request){
+        String uid  = rfidTestLastUidHex.length() > 0
+                    ? "\"" + rfidTestLastUidHex + "\""
+                    : "null";
+        String resp = "{\"active\":"  + String(rfidTestActive ? "true" : "false") +
+                      ",\"reader\":"  + String(rfidTestReader) +
+                      ",\"uid\":"     + uid + "}";
+        request->send(200, "application/json", resp);
+    });
+    server.on("/api/rfid/test", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL,
+        [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
+            StaticJsonDocument<64> doc;
+            if (deserializeJson(doc, data, len)) {
+                request->send(400, "application/json", "{\"error\":\"bad json\"}"); return;
+            }
+            bool stop = doc["stop"] | false;
+            if (stop) {
+                rfidTestActive     = false;
+                rfidTestLastUidHex = "";
+                Serial.println("[RFID TEST] stopped");
+                request->send(200, "application/json", "{\"active\":false}");
+                return;
+            }
+            uint8_t r = doc["reader"] | 1;
+            if (r < 1 || r > 2) r = 1;
+            if (r > hwRfidCount)  r = hwRfidCount;
+            rfidTestReader     = r;
+            rfidTestLastUidHex = "";
+            rfidTestActive     = true;
+            if (!rfidAntennasOn) rfidAntennaSetAll(true);
+            Serial.printf("[RFID TEST] started reader=%d\n", rfidTestReader);
+            String resp = "{\"active\":true,\"reader\":" + String(rfidTestReader) + "}";
+            request->send(200, "application/json", resp);
+        }
+    );
+
     // Weight push - shared implementation (ArduinoJson, merged handlers)
     server.on("/api/weight", HTTP_POST, [](AsyncWebServerRequest *r){}, NULL,
         [](AsyncWebServerRequest *r, uint8_t *d, size_t l, size_t i, size_t t){
@@ -3408,6 +3452,36 @@ String readRFIDFromReader(MFRC522 &reader, String &uidHexOut) {
     return decStr;
 }
 
+// Lightweight UID-only read — no TigerTag page read, no metadata.  Used by RFID hardware test.
+String readRFIDUidOnly(MFRC522 &reader, String &uidHexOut) {
+    if (!reader.PICC_IsNewCardPresent() || !reader.PICC_ReadCardSerial()) return "";
+    String hexStr; hexStr.reserve(reader.uid.size * 2);
+    for (byte i = 0; i < reader.uid.size; i++) {
+        byte b = reader.uid.uidByte[i];
+        if (b < 0x10) hexStr += '0';
+        hexStr += String(b, HEX);
+    }
+    hexStr.toUpperCase();
+    uidHexOut = hexStr;
+    reader.PICC_HaltA();
+    reader.PCD_StopCrypto1();
+    return hexStr;
+}
+
+// Turn the 13.56 MHz antenna on/off on all connected readers.
+// Used to silence the readers when no load is on the scale (< RFID_ANTENNA_WAKE_WEIGHT_G).
+void rfidAntennaSetAll(bool on) {
+    if (on) {
+        rfid1.PCD_AntennaOn();
+        if (hwRfidCount >= 2) rfid2.PCD_AntennaOn();
+    } else {
+        rfid1.PCD_AntennaOff();
+        if (hwRfidCount >= 2) rfid2.PCD_AntennaOff();
+    }
+    rfidAntennasOn = on;
+    Serial.printf("[RFID] Antennas %s (weight=%.0f g)\n", on ? "ON" : "OFF", currentWeight);
+}
+
 bool hasAnyDetectedUid() {
     return lastUID.length() > 0 || lastUID2.length() > 0;
 }
@@ -3919,7 +3993,19 @@ void loop() {
         pollOtaCommands();
     }
 
-    if (!rfidLockedForCurrentLoad && !autoTarePending) {
+    // ── RFID antenna sleep/wake ──────────────────────────────────────────────
+    // Silence the 13.56 MHz field when the platform is empty (< 50 g) and no
+    // active session is in progress.  Uses currentWeight from the previous
+    // cycle — 1-cycle latency is irrelevant for a sleep decision.
+    {
+        bool needAntennas = (currentWeight >= RFID_ANTENNA_WAKE_WEIGHT_G)
+                          || rfidLockedForCurrentLoad
+                          || (lastUID.length() > 0)
+                          || rfidTestActive;
+        if (needAntennas != rfidAntennasOn) rfidAntennaSetAll(needAntennas);
+    }
+
+    if (!rfidLockedForCurrentLoad && !autoTarePending && rfidAntennasOn) {
         // --- Step 1: poll both readers back-to-back (pure SPI, no HTTP) ---
         String uid1Hex, uid1 = readRFIDFromReader(rfid1, uid1Hex);
         String uid2Hex, uid2 = readRFIDFromReader(rfid2, uid2Hex);
@@ -3972,6 +4058,20 @@ void loop() {
         if (newUid1) fetchMetaFromApiByUid(uid1Key);
         if (newUid2 && uid2Key != uid1Key) fetchMetaFromApiByUid(uid2Key);
         #endif
+    }
+
+    // ── RFID hardware test mode ──────────────────────────────────────────────
+    // When active, force-poll the selected reader and store the raw UID for the
+    // web UI.  Bypasses the normal flow guards; accepts any UID length.
+    if (rfidTestActive) {
+        MFRC522& tr = (rfidTestReader == 2) ? rfid2 : rfid1;
+        if (!rfidAntennasOn) rfidAntennaSetAll(true);
+        String hexOut;
+        readRFIDUidOnly(tr, hexOut);
+        if (hexOut.length() > 0) {
+            rfidTestLastUidHex = hexOut;
+            Serial.printf("[RFID TEST] reader=%d uid=%s\n", rfidTestReader, hexOut.c_str());
+        }
     }
 
     float weight = readWeight();

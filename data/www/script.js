@@ -441,6 +441,8 @@ function applyHardwareConfig() {
     if (enChk) enChk.checked = !!hwConfig.motorEnabled;
     // Motor test panel — visible only when both connected + enabled
     updateMotorTestPanel();
+    // RFID test panel — hide reader 2 button if only 1 reader configured
+    updateRfidTestPanel();
 }
 
 async function saveHardwareConfig() {
@@ -458,6 +460,7 @@ function setRfidCount(n) {
     document.querySelectorAll('#rfidSegment .segment-btn').forEach(b => {
         b.classList.toggle('active', +b.dataset.val === n);
     });
+    updateRfidTestPanel();
     saveHardwareConfig();
 }
 
@@ -573,6 +576,93 @@ function _updateMotorTestBtn() {
     if (icon) icon.innerHTML = _motorTestRunning
         ? '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>'
         : '<polygon points="5,3 19,12 5,21"/>';
+}
+
+// ── RFID hardware test ────────────────────────────────────────────────────────
+let _rfidTestRunning = false;
+let _rfidTestReader  = 1;
+let _rfidTestPollId  = null;
+
+function setRfidTestReader(r) {
+    _rfidTestReader = r;
+    document.querySelectorAll('.rfid-reader-btn').forEach(b => {
+        b.classList.toggle('active', +b.id.replace('rfidReaderBtn', '') === r);
+    });
+    // If already scanning, restart on the new reader
+    if (_rfidTestRunning) {
+        stopRfidTest(() => startRfidTest());
+    }
+}
+
+function toggleRfidTest() {
+    if (_rfidTestRunning) stopRfidTest();
+    else startRfidTest();
+}
+
+function startRfidTest() {
+    fetch('/api/rfid/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reader: _rfidTestReader })
+    })
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(() => {
+        _rfidTestRunning = true;
+        _updateRfidTestBtn();
+        _rfidTestPollId = setInterval(_pollRfidTestUid, 600);
+    })
+    .catch(() => {});
+}
+
+function stopRfidTest(cb) {
+    clearInterval(_rfidTestPollId); _rfidTestPollId = null;
+    fetch('/api/rfid/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stop: true })
+    }).catch(() => {});
+    _rfidTestRunning = false;
+    _updateRfidTestBtn();
+    _setRfidUidDisplay('—', false);
+    if (cb) cb();
+}
+
+function _pollRfidTestUid() {
+    fetch('/api/rfid/test')
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(d => {
+            if (d.uid) _setRfidUidDisplay(d.uid, true);
+        })
+        .catch(() => {});
+}
+
+function _setRfidUidDisplay(text, detected) {
+    const el = document.getElementById('rfidTestUidDisplay');
+    if (!el) return;
+    el.textContent = text;
+    el.classList.toggle('uid-detected', !!detected);
+}
+
+function _updateRfidTestBtn() {
+    const btn   = document.getElementById('rfidTestRunBtn');
+    const label = document.getElementById('rfidTestLabel');
+    const icon  = document.getElementById('rfidTestIcon');
+    if (!btn) return;
+    btn.classList.toggle('running', _rfidTestRunning);
+    if (label) label.textContent = _rfidTestRunning ? t('motorTestStop') : t('rfidTestScan');
+    if (icon) icon.innerHTML = _rfidTestRunning
+        ? '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>'
+        : '<polygon points="5,3 19,12 5,21"/>';
+}
+
+// Hide reader 2 button when hwRfidCount === 1
+function updateRfidTestPanel() {
+    const btn2 = document.getElementById('rfidReaderBtn2');
+    if (btn2) btn2.style.display = (hwConfig.rfidCount >= 2) ? '' : 'none';
+    // Stop test if reader 2 was selected but count changed to 1
+    if (hwConfig.rfidCount < 2 && _rfidTestReader === 2) {
+        setRfidTestReader(1);
+    }
 }
 
 function updateSpoolStatus(detected, position) {
