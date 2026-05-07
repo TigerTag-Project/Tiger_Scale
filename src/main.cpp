@@ -12,24 +12,24 @@
 //   §3  FORWARD DECLARATIONS                                                      129–  203
 //   §4  WEIGHT ROUNDING                                                           204–  223
 //   §5  GLOBAL OBJECTS                                                            224–  237
-//   §6  CONFIGURATION VARIABLES                                                   238–  348
-//   §7  OLED DISPLAY                                                              349–  466
-//   §8  CLOUD PARSING                                                             467–  481
-//   §9  WIFI SETUP                                                                482–  740
-//   §10 LITTLEFS                                                                  741–  785
-//   §11 FIREBASE AUTHENTICATION                                                   786–  960
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          961– 1888
-//   §13 WEBSOCKET                                                                1889– 1925
-//   §14 WEIGHT FILTER HELPERS                                                    1926– 1940
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         1941– 1962
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1963– 2035
-//   §17 WEB SERVER                                                               2036– 2530
-//   §18 CLOUD COMMUNICATION                                                      2531– 2804
-//   §19 mDNS                                                                     2805– 2842
-//   §20 SCALE                                                                    2843– 2934
-//   §21 RFID                                                                     2935– 3301
-//   §22 OTA — Over-the-air firmware + filesystem update                          3302– 3670
-//   §23 SETUP & LOOP                                                             3671– 4002
+//   §6  CONFIGURATION VARIABLES                                                   238–  350
+//   §7  OLED DISPLAY                                                              351–  468
+//   §8  CLOUD PARSING                                                             469–  483
+//   §9  WIFI SETUP                                                                484–  742
+//   §10 LITTLEFS                                                                  743–  787
+//   §11 FIREBASE AUTHENTICATION                                                   788–  966
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          967– 1894
+//   §13 WEBSOCKET                                                                1895– 1931
+//   §14 WEIGHT FILTER HELPERS                                                    1932– 1946
+//   §15 POST-SEND STATE RESET (shared by all send paths)                         1947– 1968
+//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1969– 2041
+//   §17 WEB SERVER                                                               2042– 2583
+//   §18 CLOUD COMMUNICATION                                                      2584– 2857
+//   §19 mDNS                                                                     2858– 2895
+//   §20 SCALE                                                                    2896– 2987
+//   §21 RFID                                                                     2988– 3354
+//   §22 OTA — Over-the-air firmware + filesystem update                          3355– 3723
+//   §23 SETUP & LOOP                                                             3724– 4057
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -265,6 +265,8 @@ bool     rfidLockedForCurrentLoad = false;
 bool     servoLockedUntilAutotare = false;  // Servo locked after weight sent until auto-tare completes
 bool     servoHoldAfterRemoval    = false;  // Keep servo stopped while load is being removed
 bool     servoEnabled             = true;   // User-controlled ON/OFF (persisted in NVS)
+uint8_t  hwRfidCount             = 2;      // Number of RC522 readers physically connected (1 or 2)
+bool     hwMotorConnected        = true;   // Whether the servo is physically wired
 uint32_t lastAutoPushSkipLogMs   = 0;
 uint32_t firstUidDetectedMs      = 0;
 uint32_t firstUidPauseUntilMs    = 0;
@@ -831,6 +833,12 @@ bool firebaseSignIn() {
     firebaseTokenMs      = millis();
     firebaseAuth         = firebaseIdToken.length() > 0;
     Serial.printf("[FIREBASE] SignIn %s uid=%s\n", firebaseAuth ? "OK" : "FAIL", firebaseUid.c_str());
+    // Persist refreshToken so the next reboot uses token-refresh (faster, no password needed)
+    if (firebaseAuth && firebaseRefreshToken.length() > 0) {
+        prefs.begin("config", false);
+        prefs.putString("fbRefresh", firebaseRefreshToken);
+        prefs.end();
+    }
 
 #if ENABLE_LEGACY_API_BRIDGE
     if (firebaseAuth && firebaseUid.length() > 0 && apiKey.length() == 0) {
@@ -917,8 +925,6 @@ bool ensureFirebaseToken() {
                 // returns NoMemory for any practical buffer size when parsing
                 // two such large strings.  Extract the two fields manually —
                 // handles both compact ("key":"val") and spaced ("key": "val").
-                Serial.printf("[FIREBASE] resp len=%u head=%.120s\n",
-                              resp.length(), resp.c_str());
                 auto extractJsonStr = [](const String& json, const char* key) -> String {
                     String needle = String("\"") + key + "\"";
                     int s = json.indexOf(needle);
@@ -2299,26 +2305,34 @@ void setupWebServer() {
             // Attempt sign-in now
             bool signedIn = firebaseSignIn();
             StaticJsonDocument<192> rsp;
-            rsp["success"]        = true;
+            rsp["success"]        = signedIn;
             rsp["configured"]     = true;
             rsp["accountChanged"] = accountChanged;
             rsp["email"]          = firebaseEmail;
             rsp["auth"]           = signedIn;
             String s; serializeJson(rsp, s);
-            request->send(200, "application/json", s);
+            // Return 401 on bad credentials so the web UI can show the right error message
+            request->send(signedIn ? 200 : 401, "application/json", s);
         }
     );
 
-    server.on("/api/firebase/auth", HTTP_GET, [](AsyncWebServerRequest *request){
-        StaticJsonDocument<128> rsp;
-        rsp["configured"] = isFirebaseConfigured();
-        rsp["auth"]       = firebaseAuth;
-        rsp["email"]      = firebaseEmail;
-        String s; serializeJson(rsp, s);
-        request->send(200, "application/json", s);
+    server.on("/api/firebase/status", HTTP_GET, [](AsyncWebServerRequest *request){
+        bool cfg  = isFirebaseConfigured();
+        bool auth = firebaseAuth;
+        Serial.printf("[FIREBASE] GET /api/firebase/status -> cfg=%d auth=%d\n", cfg, auth);
+        // Build response without ArduinoJson — keeps it off the async task stack
+        char buf[128];
+        snprintf(buf, sizeof(buf),
+                 "{\"configured\":%s,\"auth\":%s,\"email\":\"%s\"}",
+                 cfg  ? "true" : "false",
+                 auth ? "true" : "false",
+                 firebaseEmail.c_str());
+        request->send(200, "application/json", buf);
     });
 
-    server.on("/api/firebase/auth", HTTP_DELETE, [](AsyncWebServerRequest *request){
+    // Sign-out endpoint — POST (DELETE routing is broken on this ESPAsyncWebServer build)
+    server.on("/api/firebase/logout", HTTP_POST, [](AsyncWebServerRequest *request){
+        Serial.println("[FIREBASE] POST /api/firebase/logout — signing out");
         firebaseEmail = ""; firebasePassword = "";
         firebaseIdToken = ""; firebaseRefreshToken = "";
         firebaseUid = ""; firebaseTokenMs = 0; firebaseAuth = false;
@@ -2326,6 +2340,7 @@ void setupWebServer() {
         prefs.remove("fbEmail"); prefs.remove("fbPass");
         prefs.remove("fbRefresh"); prefs.remove("fbUid");
         prefs.end();
+        Serial.println("[FIREBASE] logout — NVS cleared OK");
         request->send(200, "application/json", "{\"success\":true,\"configured\":false,\"auth\":false}");
     });
 
@@ -2438,6 +2453,7 @@ void setupWebServer() {
         request->send(200, "text/plain", "pong");
     });
 
+
     // Toggle servo motor ON/OFF (persisted in NVS)
     server.on("/api/servo-toggle", HTTP_POST, [](AsyncWebServerRequest *request){
         servoEnabled = !servoEnabled;
@@ -2450,6 +2466,43 @@ void setupWebServer() {
         String out; serializeJson(doc, out);
         request->send(200, "application/json", out);
     });
+
+    // Hardware config — GET returns current state; POST updates it (persisted in NVS)
+    server.on("/api/hw/config", HTTP_GET, [](AsyncWebServerRequest *request){
+        char buf[96];
+        snprintf(buf, sizeof(buf),
+                 "{\"rfidCount\":%u,\"motorConnected\":%s,\"motorEnabled\":%s}",
+                 hwRfidCount,
+                 hwMotorConnected ? "true" : "false",
+                 servoEnabled     ? "true" : "false");
+        request->send(200, "application/json", buf);
+    });
+    server.on("/api/hw/config", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL,
+        [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
+            StaticJsonDocument<128> doc;
+            if (deserializeJson(doc, data, len)) {
+                request->send(400, "application/json", "{\"error\":\"bad json\"}"); return;
+            }
+            if (doc.containsKey("rfidCount"))      hwRfidCount      = doc["rfidCount"].as<uint8_t>();
+            if (doc.containsKey("motorConnected"))  hwMotorConnected = doc["motorConnected"].as<bool>();
+            if (doc.containsKey("motorEnabled")) {
+                servoEnabled = doc["motorEnabled"].as<bool>();
+                if (!servoEnabled) stopServoSearch();
+            }
+            prefs.begin("config", false);
+            prefs.putUChar("hwRfidCnt",  hwRfidCount);
+            prefs.putBool("hwMotorConn", hwMotorConnected);
+            prefs.putBool("servoEnabled", servoEnabled);
+            prefs.end();
+            char buf[96];
+            snprintf(buf, sizeof(buf),
+                     "{\"rfidCount\":%u,\"motorConnected\":%s,\"motorEnabled\":%s}",
+                     hwRfidCount,
+                     hwMotorConnected ? "true" : "false",
+                     servoEnabled     ? "true" : "false");
+            request->send(200, "application/json", buf);
+        }
+    );
 
     // Weight push - shared implementation (ArduinoJson, merged handlers)
     server.on("/api/weight", HTTP_POST, [](AsyncWebServerRequest *r){}, NULL,
@@ -3691,7 +3744,9 @@ void setup() {
     firebaseRefreshToken = prefs.getString("fbRefresh", "");
     firebaseUid          = prefs.getString("fbUid",     "");
     calibrationFactor    = prefs.getFloat("calFactor", calibrationFactor);
-    servoEnabled         = prefs.getBool("servoEnabled", true);
+    servoEnabled         = prefs.getBool("servoEnabled",   true);
+    hwRfidCount          = prefs.getUChar("hwRfidCnt",     2);
+    hwMotorConnected     = prefs.getBool("hwMotorConn",    true);
     prefs.end();
 
     Serial.printf("[BOOT] Firebase configured: %s (mode=%s)\n",

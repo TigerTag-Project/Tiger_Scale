@@ -238,7 +238,7 @@ function updateFirebaseAuth() {
 }
 
 function deleteFirebaseAuth() {
-    fetch('/api/firebase/auth', { method: 'DELETE' })
+    fetch('/api/firebase/logout', { method: 'POST' })
     .then(r => r.ok ? r.json() : Promise.reject(r.status))
     .then(() => {
         const emailEl = document.getElementById('firebaseEmail');
@@ -841,6 +841,10 @@ function pollStatus() {
 // Prevents the modal from flashing on first load (before we know the actual state)
 let firebaseStatusKnown = false;
 
+// Firebase public Web API key — same key used by the firmware.
+// Intentionally public: https://firebase.google.com/docs/projects/api-keys
+const FIREBASE_WEB_API_KEY = 'AIzaSyCkxPTs_Cv0KVLqsZj-UKWWqIY0OtfVpnw';
+
 // Bridge page URL (Firebase Hosting target "cdn" -> site "tigertag-cdn")
 const AUTH_BRIDGE_URL = 'https://tigertag-cdn.web.app/scale-auth.html';
 const AUTH_BRIDGE_ORIGIN = 'https://tigertag-cdn.web.app';
@@ -874,9 +878,43 @@ function openAuthModal() {
 function setAuthError(msg) {
     const el = document.getElementById('authError');
     if (!el) return;
-    if (!msg) { el.style.display = 'none'; el.textContent = ''; return; }
+    if (!msg) { el.style.display = 'none'; el.textContent = ''; el.classList.remove('auth-info'); return; }
     el.textContent = msg;
+    el.classList.remove('auth-info');
     el.style.display = 'block';
+}
+function setAuthInfo(msg) {
+    const el = document.getElementById('authError');
+    if (!el) return;
+    if (!msg) { el.style.display = 'none'; el.textContent = ''; el.classList.remove('auth-info'); return; }
+    el.textContent = msg;
+    el.classList.add('auth-info');
+    el.style.display = 'block';
+}
+
+// ── Password reset — sends a Firebase reset email directly from the browser ──
+function sendPasswordReset() {
+    setAuthError('');
+    const email = (document.getElementById('loginEmail')?.value || '').trim();
+    if (!email) {
+        setAuthError(t('authEnterEmailFirst'));
+        return;
+    }
+    fetch(`https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${FIREBASE_WEB_API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestType: 'PASSWORD_RESET', email })
+    })
+    .then(r => r.json().then(j => ({ ok: r.ok, body: j })))
+    .then(({ ok, body }) => {
+        if (!ok) {
+            const code = body?.error?.message || '';
+            setAuthError(code === 'EMAIL_NOT_FOUND' ? t('authEmailNotFound') : t('alertFirebaseError'));
+            return;
+        }
+        setAuthInfo(t('authResetSent'));
+    })
+    .catch(() => setAuthError(t('authNetworkError')));
 }
 
 // ── Email / Password sign-in (uses existing /api/firebase/auth endpoint) ──
@@ -900,6 +938,7 @@ function signInWithEmail() {
             return;
         }
         setFirebaseConfigured(true);
+        if (body.email) setAccountInfo(body.email);
         hideAuthModal();
     })
     .catch(() => setAuthError(t('authNetworkError')));
@@ -963,8 +1002,11 @@ function signInWithGoogleBridge() {
 // ── Sign out - clears tokens on the device and re-opens the login modal ──
 function signOut() {
     if (!confirm(t('confirmSignOut'))) return;
-    fetch('/api/firebase/auth', { method: 'DELETE' })
-    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    fetch('/api/firebase/logout', { method: 'POST' })
+    .then(r => {
+        console.log('[signOut] logout status:', r.status, 'ok:', r.ok);
+        return r.ok ? r.json() : r.text().then(txt => Promise.reject('HTTP ' + r.status + ': ' + txt));
+    })
     .then(() => {
         // Clear persisted user info
         try { localStorage.removeItem('tt_displayName'); localStorage.removeItem('tt_email'); } catch (_) {}
@@ -986,9 +1028,10 @@ function signOut() {
         const mailLbl = document.getElementById('accountEmailLabel');
         if (mailLbl) mailLbl.textContent = '—';
         closeAccountPopover();
+        _authModalDismissed = false;   // always force modal open after explicit sign-out
         setFirebaseConfigured(false);
     })
-    .catch(() => alert(t('alertFirebaseError')));
+    .catch(err => { console.error('[signOut] error:', err); alert(t('alertFirebaseError')); });
 }
 
 // ── postMessage listener - receives tokens from the bridge ──

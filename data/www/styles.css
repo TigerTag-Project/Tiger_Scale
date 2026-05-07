@@ -1062,6 +1062,27 @@ input::placeholder {
     line-height: 1.4;
     text-align: left;
 }
+/* Success / info variant reuses the same element with an extra class */
+.auth-error.auth-info {
+    background: #f0fdf4;
+    color: #16a34a;
+}
+
+/* "Forgot password?" button — inline, right-aligned, minimal */
+.auth-forgot {
+    background: none;
+    border: none;
+    padding: 2px 0;
+    margin-top: 4px;
+    width: 100%;
+    text-align: right;
+    font-size: 12px;
+    color: var(--muted, #888);
+    cursor: pointer;
+    font-family: inherit;
+    transition: color .15s;
+}
+.auth-forgot:hover { color: var(--orange, #e67e22); }
 
 .auth-footer {
     margin-top: 16px;

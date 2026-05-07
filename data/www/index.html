@@ -102,7 +102,7 @@
                 </div>
             </div>
             <div class="divider"></div>
-            <button class="danger" onclick="signOut(); closeAccountPopover()">
+            <button class="danger" onclick="signOut()">
                 <svg class="btn-icon"><use href="#icon-log-out"></use></svg>
                 <span data-i18n="signOut">Sign out</span>
             </button>
@@ -376,6 +376,9 @@
 
             <input type="email" id="loginEmail" data-i18n-placeholder="authEmail" placeholder="Email address" autocomplete="username">
             <input type="password" id="loginPassword" data-i18n-placeholder="authPassword" placeholder="Password" autocomplete="current-password">
+            <button type="button" class="auth-forgot" onclick="sendPasswordReset()">
+                <span data-i18n="authForgot">Forgot password?</span>
+            </button>
 
             <button type="button" class="auth-btn auth-btn-primary" onclick="signInWithEmail()">
                 <span data-i18n="authSignIn">Sign in</span>
