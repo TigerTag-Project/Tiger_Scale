@@ -1118,6 +1118,7 @@ input::placeholder {
     right: 10px;
     top: 50%;
     transform: translateY(-50%);
+    z-index: 2;                  /* force au-dessus de l'input (overflow:clip) */
     width: 28px;
     height: 28px;
     padding: 0;
@@ -1131,7 +1132,12 @@ input::placeholder {
     align-items: center;
     justify-content: center;
 }
-.auth-pw-toggle:hover { color: var(--ink, #1a1a1a); }
+.auth-pw-toggle:hover {
+    color: var(--ink, #1a1a1a);
+    transform: translateY(-50%) !important;  /* neutralise translateY(-1px) global */
+    box-shadow: none !important;
+    background: none !important;
+}
 .pw-eye { width: 18px; height: 18px; display: block; }
 
 .auth-forgot {
