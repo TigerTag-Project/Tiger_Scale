@@ -1098,40 +1098,92 @@ input::placeholder {
     font-size: 13px;
 }
 
-/* Flag emoji language picker — top-left corner of the auth modal */
+/* Language dropdown — top-left corner of the auth modal */
 .auth-lang-flags {
     position: absolute;
     top: 12px;
     left: 14px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2px;
-    max-width: 130px;   /* 5 flags per row max */
+    z-index: 10;
 }
-.auth-lang-flag {
+
+/* Trigger button: flag + chevron */
+.auth-lang-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     background: none;
-    border: none;
-    padding: 2px 3px;
+    border: 1px solid var(--line, #e5e7eb);
+    border-radius: 7px;
+    padding: 4px 7px;
+    cursor: pointer;
     width: auto;
     min-height: unset;
-    font-size: 17px;
+    font-size: 16px;
     line-height: 1;
+    color: var(--ink, #1a1a1a);
+    transition: border-color .15s, background .15s;
+    box-shadow: none;
+}
+.auth-lang-trigger:hover {
+    border-color: var(--orange, #e67e22);
+    background: var(--soft, #f5f5f5);
+    transform: none;
+    box-shadow: none;
+}
+.auth-lang-trigger-chev {
+    font-size: 10px;
+    color: var(--muted, #888);
+    line-height: 1;
+    transition: transform .15s;
+}
+.auth-lang-flags.open .auth-lang-trigger-chev {
+    transform: rotate(180deg);
+}
+
+/* Dropdown list */
+.auth-lang-list {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 190px;
+    background: #fff;
+    border: 1px solid var(--line, #e5e7eb);
+    border-radius: 10px;
+    box-shadow: 0 8px 28px rgba(16,20,17,0.14);
+    list-style: none;
+    margin: 0;
+    padding: 5px;
+    z-index: 100;
+}
+.auth-lang-flags.open .auth-lang-list {
+    display: block;
+}
+.auth-lang-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 10px;
+    border-radius: 7px;
     cursor: pointer;
-    border-radius: 4px;
-    opacity: 0.35;
-    transition: opacity .15s, transform .12s;
-    box-shadow: none;
+    font-size: 13px;
+    color: var(--ink, #1a1a1a);
+    transition: background .12s;
 }
-.auth-lang-flag:hover {
-    opacity: 0.85;
-    transform: scale(1.18);
-    box-shadow: none;
+.auth-lang-item:hover {
+    background: var(--soft, #f5f5f5);
 }
-.auth-lang-flag.active {
-    opacity: 1;
+.auth-lang-item.active {
+    background: var(--soft, #f5f5f5);
+    font-weight: 700;
 }
-.auth-lang-flag.active:hover {
-    transform: scale(1.05);
+.auth-lang-item-flag {
+    font-size: 18px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.auth-lang-item-name {
+    flex: 1;
 }
 
 .auth-footer a {

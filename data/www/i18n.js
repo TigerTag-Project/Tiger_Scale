@@ -93,9 +93,13 @@
         // Sync modal select (kept for backwards compat, may be absent)
         const modalSel = document.getElementById('modalLangSelect');
         if (modalSel) modalSel.value = lang;
-        // Sync modal flag buttons
-        document.querySelectorAll('.auth-lang-flag[data-lang]').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.lang === lang);
+        // Sync modal lang dropdown
+        const triggerFlag = document.querySelector('#authLangTrigger .auth-lang-trigger-flag');
+        if (triggerFlag) triggerFlag.textContent = (LANGS[lang] || LANGS[DEFAULT_LANG]).flag;
+        document.querySelectorAll('.auth-lang-item[data-lang]').forEach(li => {
+            const active = li.dataset.lang === lang;
+            li.classList.toggle('active', active);
+            li.setAttribute('aria-selected', active ? 'true' : 'false');
         });
         // Legacy compat: keep .lang-btn[data-lang] active states in sync
         document.querySelectorAll('.lang-btn[data-lang]').forEach(b => {
@@ -186,19 +190,72 @@
     }
 
     function buildModalFlags() {
-        const container = document.getElementById('authLangFlags');
-        if (!container || container.childElementCount > 0) return;
+        const root = document.getElementById('authLangFlags');
+        if (!root || root.childElementCount > 0) return;
+
+        // Trigger button — shows current flag + chevron
+        const trigger = document.createElement('button');
+        trigger.type = 'button';
+        trigger.className = 'auth-lang-trigger';
+        trigger.setAttribute('aria-haspopup', 'listbox');
+        trigger.setAttribute('aria-expanded', 'false');
+        trigger.id = 'authLangTrigger';
+
+        const flagSpan = document.createElement('span');
+        flagSpan.className = 'auth-lang-trigger-flag';
+        flagSpan.textContent = (LANGS[state.lang] || LANGS[DEFAULT_LANG]).flag;
+
+        const chev = document.createElement('span');
+        chev.className = 'auth-lang-trigger-chev';
+        chev.setAttribute('aria-hidden', 'true');
+        chev.textContent = '▾';
+        trigger.appendChild(flagSpan);
+        trigger.appendChild(chev);
+
+        // Dropdown list
+        const list = document.createElement('ul');
+        list.className = 'auth-lang-list';
+        list.setAttribute('role', 'listbox');
+
         Object.keys(LANGS).forEach(code => {
             const info = LANGS[code];
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'auth-lang-flag' + (code === state.lang ? ' active' : '');
-            btn.dataset.lang = code;
-            btn.title = info.name;
-            btn.setAttribute('aria-label', info.name);
-            btn.textContent = info.flag;
-            btn.addEventListener('click', () => setLang(code));
-            container.appendChild(btn);
+            const li = document.createElement('li');
+            li.className = 'auth-lang-item' + (code === state.lang ? ' active' : '');
+            li.dataset.lang = code;
+            li.setAttribute('role', 'option');
+            li.setAttribute('aria-selected', code === state.lang ? 'true' : 'false');
+            li.tabIndex = 0;
+            li.innerHTML =
+                '<span class="auth-lang-item-flag">' + info.flag + '</span>' +
+                '<span class="auth-lang-item-name">' + info.name + '</span>';
+            li.addEventListener('click', () => { setLang(code); closeModal(); });
+            li.addEventListener('keydown', e => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLang(code); closeModal(); }
+            });
+            list.appendChild(li);
+        });
+
+        root.appendChild(trigger);
+        root.appendChild(list);
+
+        const openModal  = () => {
+            root.classList.add('open');
+            trigger.setAttribute('aria-expanded', 'true');
+            document.addEventListener('click', onOutside, true);
+            document.addEventListener('keydown', onEsc);
+        };
+        const closeModal = () => {
+            root.classList.remove('open');
+            trigger.setAttribute('aria-expanded', 'false');
+            document.removeEventListener('click', onOutside, true);
+            document.removeEventListener('keydown', onEsc);
+        };
+        const onOutside = e => { if (!root.contains(e.target)) closeModal(); };
+        const onEsc     = e => { if (e.key === 'Escape') closeModal(); };
+
+        trigger.addEventListener('click', e => {
+            e.stopPropagation();
+            root.classList.contains('open') ? closeModal() : openModal();
         });
     }
 
