@@ -956,18 +956,29 @@ input::placeholder {
 
 .auth-modal {
     max-width: 380px;
-    position: relative;
     text-align: center;
-    padding: 36px 32px 32px;
+    padding: 24px 32px 32px;
 }
 
-/* Close button — top-right corner of the auth modal */
+/* ── Modal header: 3-column grid — lang | logo | close ── */
+.auth-modal-header {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    margin-bottom: 20px;
+}
+/* lang picker stays left */
+.auth-modal-header .auth-lang-flags { justify-self: start; }
+/* logo is perfectly centred regardless of side widths */
+.auth-modal-header .auth-logo       { justify-self: center; }
+/* close button sits in the right column, flush right */
+.auth-modal-header .auth-close-btn  { justify-self: end; }
+
+/* Close button */
 .auth-close-btn {
-    position: absolute;
-    top: 14px;
-    right: 14px;
     width: 32px;
     height: 32px;
+    min-height: unset;
     padding: 4px;
     border: none;
     background: transparent;
@@ -979,30 +990,32 @@ input::placeholder {
     justify-content: center;
     transition: background .15s, color .15s;
     flex-shrink: 0;
+    box-shadow: none;
 }
 .auth-close-btn:hover {
     background: rgba(0,0,0,0.06);
     color: var(--ink, #1a1a1a);
+    transform: none;
+    box-shadow: none;
 }
 .auth-close-btn svg {
     width: 18px;
     height: 18px;
 }
 
+/* Logo */
 .auth-logo {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 76px;
-    height: 76px;
-    margin-bottom: 20px;
-    border-radius: 22px;
+    width: 68px;
+    height: 68px;
+    border-radius: 20px;
     background: #101411;
     box-shadow: 0 4px 16px rgba(0,0,0,0.18);
 }
-
 .auth-logo img {
-    width: 48px;
+    width: 44px;
     height: auto;
     filter: invert(1);
 }
@@ -1098,11 +1111,9 @@ input::placeholder {
     font-size: 13px;
 }
 
-/* Language dropdown — top-left corner of the auth modal */
+/* Language dropdown — left cell of .auth-modal-header grid */
 .auth-lang-flags {
-    position: absolute;
-    top: 12px;
-    left: 14px;
+    position: relative;
     z-index: 10;
 }
 

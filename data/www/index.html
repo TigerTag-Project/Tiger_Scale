@@ -353,13 +353,18 @@
     <!-- ── Modal: Firebase login ── -->
     <div id="firebaseLoginModal" class="modal modal-blocking" style="display:none" aria-hidden="true">
         <div class="modal-content auth-modal" role="dialog" aria-labelledby="authTitle">
-            <div class="auth-lang-flags" id="authLangFlags"></div>
-            <button class="auth-close-btn" onclick="dismissAuthModal()" aria-label="Fermer">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-            </button>
-            <div class="auth-logo"><img src="img/logo-tigertag.svg" alt="TigerTag"></div>
+
+            <!-- ── Modal header: lang picker | logo | close ── -->
+            <div class="auth-modal-header">
+                <div class="auth-lang-flags" id="authLangFlags"></div>
+                <div class="auth-logo"><img src="img/logo-tigertag.svg" alt="TigerTag"></div>
+                <button class="auth-close-btn" onclick="dismissAuthModal()" aria-label="Fermer">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+
             <h2 class="auth-title" id="authTitle" data-i18n="authTitle">Welcome to your TigerScale</h2>
             <p class="auth-sub" data-i18n="authSub">Sign in to sync your spools with the TigerTag cloud.</p>
 
