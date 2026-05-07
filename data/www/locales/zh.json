@@ -109,5 +109,7 @@
   "rfidReaderLeft": "左",
   "rfidSide": "读取器侧",
   "rfidReaderRight": "右",
+  "containerWeight": "容器",
+  "stopWorkflow": "Stop",
   "rfidClear": "清除 UID"
 }

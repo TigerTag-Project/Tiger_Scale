@@ -236,6 +236,30 @@ body {
     font-size: 13px;
     font-weight: 700;
 }
+.container-weight-row {
+    margin-top: 6px;
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-weight: 600;
+}
+.workflow-stop-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    padding: 8px 18px;
+    border-radius: 999px;
+    border: none;
+    background: #fee2e2;
+    color: #dc2626;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.workflow-stop-btn:hover {
+    background: #fca5a5;
+}
 
 .card {
     margin-bottom: 12px;

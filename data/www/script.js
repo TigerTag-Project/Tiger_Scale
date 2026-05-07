@@ -1008,6 +1008,20 @@ function applyStatusSnapshot(s) {
         setTextIfChanged(upEl, formatHMS(secs));
     }
     
+    // Workflow phase — show/hide stop button
+    if (typeof s.wfPhase !== 'undefined') {
+        const stopBtn = document.getElementById('workflowStopBtn');
+        if (stopBtn) stopBtn.classList.toggle('hidden', !s.wfPhase);
+    }
+    // Container weight — show when fetched (>= 0)
+    if (typeof s.containerWeight !== 'undefined') {
+        const row = document.getElementById('containerWeightRow');
+        const val = document.getElementById('containerWeightVal');
+        const known = (s.containerWeight >= 0);
+        if (row) row.classList.toggle('hidden', !known);
+        if (val && known) setTextIfChanged(val, String(s.containerWeight));
+    }
+
     // Send to cloud status
     if (typeof s.sendToCloud !== 'undefined') {
         const v = String(s.sendToCloud || '').trim();
@@ -1025,6 +1039,14 @@ function applyStatusSnapshot(s) {
             setSendState(t('sendIn') + ' ' + v + 's', 'rgba(255,255,255,0.2)');
         }
     }
+}
+
+function stopWorkflow() {
+    fetch('/api/workflow/stop', { method: 'POST' }).catch(() => {});
+    const stopBtn = document.getElementById('workflowStopBtn');
+    if (stopBtn) stopBtn.classList.add('hidden');
+    const row = document.getElementById('containerWeightRow');
+    if (row) row.classList.add('hidden');
 }
 
 function pollStatus() {

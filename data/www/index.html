@@ -129,7 +129,14 @@
                 <span class="weight-unit">g</span>
             </div>
             <div class="tag-id" id="uid" data-i18n="waiting">En attente...</div>
+            <div id="containerWeightRow" class="container-weight-row hidden">
+                <span data-i18n="containerWeight">Container</span>: <span id="containerWeightVal">—</span> g
+            </div>
             <div id="sendState" class="send-status hidden"></div>
+            <button id="workflowStopBtn" class="workflow-stop-btn hidden" onclick="stopWorkflow()">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+                <span data-i18n="stopWorkflow">Stop</span>
+            </button>
         </div>
 
         <!-- ── Tare ── -->

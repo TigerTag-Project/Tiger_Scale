@@ -7,29 +7,30 @@
 //
 //   TABLE OF CONTENTS                            line range
 //   ────────────────────────────────────────────  ──────────
-//   §1  HARDWARE CONFIGURATION                                                     58–  110
-//   §2  OTA CONFIGURATION                                                         111–  129
-//   §3  FORWARD DECLARATIONS                                                      130–  206
-//   §4  WEIGHT ROUNDING                                                           207–  226
-//   §5  GLOBAL OBJECTS                                                            227–  240
-//   §6  CONFIGURATION VARIABLES                                                   241–  360
-//   §7  OLED DISPLAY                                                              361–  478
-//   §8  CLOUD PARSING                                                             479–  493
-//   §9  WIFI SETUP                                                                494–  752
-//   §10 LITTLEFS                                                                  753–  797
-//   §11 FIREBASE AUTHENTICATION                                                   798–  983
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          984– 1884
-//   §13 WEBSOCKET                                                                1885– 1921
-//   §14 WEIGHT FILTER HELPERS                                                    1922– 1936
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         1937– 1958
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1959– 2031
-//   §17 WEB SERVER                                                               2032– 2672
-//   §18 CLOUD COMMUNICATION                                                      2673– 2946
-//   §19 mDNS                                                                     2947– 2984
-//   §20 SCALE                                                                    2985– 3076
-//   §21 RFID                                                                     3077– 3455
-//   §22 OTA — Over-the-air firmware + filesystem update                          3456– 3824
-//   §23 SETUP & LOOP                                                             3825– 4194
+//   §1  HARDWARE CONFIGURATION                                                     58–  112
+//   §2  OTA CONFIGURATION                                                         113–  131
+//   §3  FORWARD DECLARATIONS                                                      132–  209
+//   §4  WEIGHT ROUNDING                                                           210–  229
+//   §5  GLOBAL OBJECTS                                                            230–  243
+//   §6  CONFIGURATION VARIABLES                                                   244–  369
+//   §7  OLED DISPLAY                                                              370–  487
+//   §8  CLOUD PARSING                                                             488–  502
+//   §9  WIFI SETUP                                                                503–  761
+//   §10 LITTLEFS                                                                  762–  806
+//   §11 FIREBASE AUTHENTICATION                                                   807–  992
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          993– 1893
+//   §13 WEBSOCKET                                                                1894– 1930
+//   §14 WEIGHT FILTER HELPERS                                                    1931– 1945
+//   §15 POST-SEND STATE RESET (shared by all send paths)                         1946– 1967
+//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1968– 2040
+//   §17 WEB SERVER                                                               2041– 2701
+//   §18 CLOUD COMMUNICATION                                                      2702– 2878
+//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                2879– 3000
+//   §20 mDNS                                                                     3001– 3038
+//   §21 SCALE                                                                    3039– 3130
+//   §22 RFID                                                                     3131– 3459
+//   §23 OTA — Over-the-air firmware + filesystem update                          3460– 3828
+//   §24 SETUP & LOOP                                                             3829– 4200
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -96,6 +97,8 @@ const float    RFID_ANTENNA_WAKE_WEIGHT_G  = 50.0f;  // Wake antennas above this
 const float    AUTO_TARE_EMPTY_THRESHOLD_G =  8.0f;
 const uint32_t AUTO_TARE_STABLE_MS         =  1200;
 const uint32_t AUTO_TARE_TIMEOUT_MS        = 10000;  // 10 second safety timeout for auto-tare
+const uint32_t SPOOL_SCAN_DURATION_MS = 6000;  // 1 full spool turn at SERVO_SEARCH_US
+const uint32_t NO_MOTOR_UID_WAIT_MS   = 2000;  // passive UID wait when motor disabled
 
 #if ENABLE_LEGACY_API_BRIDGE
 const char* TIGERTAG_CLOUD_FN_URL    = "https://us-central1-tigertag-connect.cloudfunctions.net/setSpoolWeightByRfid";
@@ -146,6 +149,7 @@ void setupServo();
 void startServoSearch();
 void stopServoSearch();
 void updateServoWorkflow(float weight);
+void handleWeighWorkflow(float w);
 String readRFIDFromReader(MFRC522 &reader, String &uidHexOut);
 String readRFIDUidOnly(MFRC522 &reader, String &uidHexOut);
 void   rfidAntennaSetAll(bool on);
@@ -262,6 +266,12 @@ String   lastConnectedSSID       = "";      // Track WiFi network to detect chan
 bool     cloudOK                 = false;
 bool     servoSearching          = false;
 bool     servoPausedForCalibration = false;
+// ── Weigh workflow state machine ──────────────────────────────────────────
+enum WorkflowPhase : uint8_t { WF_IDLE=0, WF_SCANNING, WF_STABLE_WAIT, WF_SENDING };
+WorkflowPhase wfPhase            = WF_IDLE;
+uint32_t      wfScanStartMs      = 0;
+float         wfContainerWeight  = 0.0f;
+bool          wfContainerFetched = false;
 bool     autoTarePending         = false;
 bool     loadPresent             = false;
 bool     rfidLockedForCurrentLoad = false;
@@ -2148,7 +2158,7 @@ void setupWebServer() {
 
     // Status - uses ArduinoJson
     server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request){
-        StaticJsonDocument<512> doc;
+        StaticJsonDocument<640> doc;
         doc["weight"]            = roundWeight(currentWeight);
         doc["rawWeight"]         = (float)((int)(currentWeight * 100)) / 100.0f;
         doc["uid"]               = lastUID;
@@ -2180,6 +2190,13 @@ void setupWebServer() {
         else if (sendPhase == "success") stc = "success";
         else if (sendPhase == "error")   stc = "error";
         doc["sendToCloud"] = stc;
+        // Workflow phase for web UI stop button
+        const char* wfPhaseStr = (wfPhase == WF_SCANNING)    ? "scanning"
+                                : (wfPhase == WF_STABLE_WAIT) ? "stable_wait"
+                                : (wfPhase == WF_SENDING)     ? "sending"
+                                : "";
+        doc["wfPhase"]        = wfPhaseStr;
+        doc["containerWeight"] = wfContainerFetched ? (int)wfContainerWeight : -1;
         String out; serializeJson(doc, out);
         request->send(200, "application/json", out);
     });
@@ -2549,6 +2566,19 @@ void setupWebServer() {
         }
     );
 
+    // ── Workflow stop — kills current weigh workflow, stops servo, clears UIDs ──
+    server.on("/api/workflow/stop", HTTP_POST, [](AsyncWebServerRequest *request){
+        wfPhase = WF_IDLE;
+        stopServoSearch();
+        lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
+        firstUidDetectedMs = 0; firstUidPauseUntilMs = 0;
+        stableSinceMs = 0; stableCandidate = NAN;
+        wfContainerWeight = 0.0f; wfContainerFetched = false;
+        sendPhase = ""; sendCountdown = -1;
+        Serial.println("[WF] Stopped via API");
+        request->send(200, "application/json", "{\"status\":\"stopped\"}");
+    });
+
     // ── RFID hardware test ── GET returns state; POST starts/stops dual-reader scan ──
     server.on("/api/rfid/test", HTTP_GET, [](AsyncWebServerRequest *request){
         String uidL = rfidTestLastUidLeft.length()  > 0 ? "\"" + rfidTestLastUidLeft  + "\"" : "null";
@@ -2847,105 +2877,130 @@ bool fetchMetaFromApiByUid(const String& uid) {
 }
 #endif
 
-void handleAutoPush(float w) {
+// ============================================================================
+// §19 — WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)
+// ============================================================================
+void handleWeighWorkflow(float w) {
     const uint32_t now = millis();
 
-    if ((sendPhase == "success" || sendPhase == "error") && (now - sendPhaseLastChangeMs > 1500)) {
+    // Dismiss success/error banner after 1.5 s
+    if ((sendPhase == "success" || sendPhase == "error") &&
+        (now - sendPhaseLastChangeMs > 1500)) {
         sendPhase = ""; sendCountdown = -1;
     }
 
-    if (w < MIN_WEIGHT_TO_SEND_G || !firebaseAuth
-        || !hasAnyDetectedUid() || !WiFi.isConnected()) {
-        if (now - lastAutoPushSkipLogMs > 3000) {
-            #if DEBUG_VERBOSE_LOGS
-            Serial.printf("[AutoPush] waiting: w=%.2f firebase=%s uid=%s wifi=%s\n",
-                          w, firebaseAuth ? "OK" : "NOT_AUTH",
-                          hasAnyDetectedUid() ? "OK" : "MISSING",
-                          WiFi.isConnected() ? "OK" : "DOWN");
-            #endif
-            lastAutoPushSkipLogMs = now;
+    // ── IDLE ─────────────────────────────────────────────────────────────────
+    if (wfPhase == WF_IDLE) {
+        if (w >= MIN_WEIGHT_TO_SEND_G
+            && firebaseAuth
+            && WiFi.isConnected()
+            && !rfidLockedForCurrentLoad
+            && !autoTarePending) {
+            wfPhase            = WF_SCANNING;
+            wfScanStartMs      = now;
+            wfContainerWeight  = 0.0f;
+            wfContainerFetched = false;
+            stableCandidate    = NAN;
+            stableSinceMs      = 0;
+            sendPhase          = "countdown";
+            sendCountdown      = (int)((SPOOL_SCAN_DURATION_MS + 999) / 1000);
+            Serial.println("[WF] IDLE → SCANNING");
         }
-        sendPhase = ""; sendCountdown = -1;
-        stableSinceMs = 0; stableCandidate = NAN;
         return;
     }
 
-    if (isnan(stableCandidate)) {
-        stableCandidate = w;
-        stableSinceMs   = now;
-        sendPhase       = "countdown";
-        sendCountdown   = ((int)STABLE_WINDOW_MS + 999) / 1000;
-    }
+    // ── SCANNING ─────────────────────────────────────────────────────────────
+    if (wfPhase == WF_SCANNING) {
+        if (w < MIN_WEIGHT_TO_SEND_G) {
+            wfPhase = WF_IDLE; sendPhase = ""; sendCountdown = -1;
+            Serial.println("[WF] SCANNING → IDLE (weight dropped)");
+            return;
+        }
+        uint32_t scanDuration = (servoEnabled && hwMotorConnected)
+                               ? SPOOL_SCAN_DURATION_MS : NO_MOTOR_UID_WAIT_MS;
 
-    if (fabs(w - stableCandidate) > STABLE_EPSILON_G) {
-        stableCandidate = w;
-        stableSinceMs   = now;
-        sendPhase       = "countdown";
-        sendCountdown   = ((int)STABLE_WINDOW_MS + 999) / 1000;
+        // Fetch container weight as soon as 1st UID is known (avoids double-fetch at send)
+        if (!wfContainerFetched && lastUID.length() > 0) {
+            wfContainerWeight  = readInventoryContainerWeight(lastUID);
+            wfContainerFetched = true;
+            Serial.printf("[WF] Container fetched: %.1f g\n", wfContainerWeight);
+        }
+
+        // Update countdown display
+        int secsLeft = (int)((int32_t)(scanDuration - (now - wfScanStartMs) + 999) / 1000);
+        if (secsLeft < 0) secsLeft = 0;
+        if (secsLeft != sendCountdown) sendCountdown = secsLeft;
+
+        if (now - wfScanStartMs >= scanDuration) {
+            stopServoSearch();
+            if (lastUID.length() == 0) {
+                wfPhase = WF_IDLE; sendPhase = ""; sendCountdown = -1;
+                Serial.println("[WF] SCANNING → IDLE (no UID)");
+            } else {
+                wfPhase = WF_STABLE_WAIT;
+                sendCountdown = (int)((STABLE_WINDOW_MS + 999) / 1000);
+                Serial.printf("[WF] SCANNING → STABLE_WAIT uid=%s uid2=%s\n",
+                              lastUID.c_str(), lastUID2.c_str());
+            }
+        }
         return;
     }
 
-    uint32_t elapsed = now - stableSinceMs;
-
-    // IMMEDIATE SEND if 2 different tags detected (don't wait for stability)
-    bool twoTagsDetected = hasTwoDifferentDetectedUids();
-    if (!twoTagsDetected && elapsed < STABLE_WINDOW_MS) {
-        int newCount = ((int)(STABLE_WINDOW_MS - elapsed) + 999) / 1000;
-        if (newCount != sendCountdown) sendCountdown = newCount;
+    // ── STABLE_WAIT ───────────────────────────────────────────────────────────
+    if (wfPhase == WF_STABLE_WAIT) {
+        if (w < MIN_WEIGHT_TO_SEND_G) {
+            wfPhase = WF_IDLE; sendPhase = ""; sendCountdown = -1;
+            Serial.println("[WF] STABLE_WAIT → IDLE (weight dropped)");
+            return;
+        }
+        if (isnan(stableCandidate)) {
+            stableCandidate = w; stableSinceMs = now;
+        } else if (fabs(w - stableCandidate) > STABLE_EPSILON_G) {
+            stableCandidate = w; stableSinceMs = now;
+        }
+        int secsLeft = (int)((int32_t)(STABLE_WINDOW_MS - (now - stableSinceMs) + 999) / 1000);
+        if (secsLeft < 0) secsLeft = 0;
+        if (secsLeft != sendCountdown) sendCountdown = secsLeft;
+        if (now - stableSinceMs >= STABLE_WINDOW_MS) {
+            wfPhase = WF_SENDING;
+            Serial.printf("[WF] STABLE_WAIT → SENDING (stable=%.2f)\n", stableCandidate);
+        }
         return;
     }
 
-    // Apply cooldown and delta guard before sending
-    if (!isnan(lastPushedWeight)) {
-        if (fabs(w - lastPushedWeight) < RESEND_DELTA_G) return;
-        if (now - lastPushMs < RESEND_COOLDOWN_MS) return;
-    }
-
-    sendPhase = "send"; sendCountdown = 0;
-    displayMessage("Sending...", "Fab: " + gLastManufacturer, String(roundWeight(w)) + " g");
-
-    bool ok = pushWeightToCloud(w);
-    if (ok) {
-        float toDisplay = (gLastNetValid && !isnan(gLastNetWeight)) ? gLastNetWeight : w;
-        int   wInt      = roundWeight(toDisplay);
-
-        // Persist for delta/cooldown guard on next call
-        lastPushedWeight = toDisplay;
-        lastPushMs       = now;
-
-        gLastSentWeight   = w;
-        gLastCloudWeight  = toDisplay;
-        gCloudWeightSetMs = now;
-        currentWeight     = toDisplay;
-        Serial.printf("[CLOUD] Sent: %.2f g, Net: %.2f g\n", w, toDisplay);
-
-        // Compute weight_available per §5: read container_weight from Firestore and compute net
-        float weightAvailable = 0.0f;
-        if (lastUID.length() > 0) {
-            weightAvailable = computeWeightAvailable(w, lastUID);
-            Serial.printf("[FIRESTORE] uid=%s raw=%.2f weight_available=%.1f\n", lastUID.c_str(), w, weightAvailable);
+    // ── SENDING ───────────────────────────────────────────────────────────────
+    if (wfPhase == WF_SENDING) {
+        sendPhase = "send"; sendCountdown = 0;
+        displayMessage("Sending...", "Fab: " + gLastManufacturer,
+                       String(roundWeight(w)) + " g");
+        bool ok = pushWeightToCloud(w);
+        if (ok) {
+            float toDisplay = (gLastNetValid && !isnan(gLastNetWeight)) ? gLastNetWeight : w;
+            int   wInt      = roundWeight(toDisplay);
+            lastPushedWeight  = toDisplay;
+            lastPushMs        = now;
+            gLastSentWeight   = w;
+            gLastCloudWeight  = toDisplay;
+            gCloudWeightSetMs = now;
+            currentWeight     = toDisplay;
+            Serial.printf("[WF] SENT OK raw=%.2f net=%.2f\n", w, toDisplay);
+            resetAfterSuccessfulSend(wInt);
+            gLastNetValid = false;
+            sendPhase = "success"; sendPhaseLastChangeMs = millis(); sendCountdown = -1;
         } else {
-            Serial.println("[FIRESTORE] skipping weight write: no UID");
+            displayMessage("Sync failed", "Check WiFi/API", String(roundWeight(w)) + " g");
+            delay(2000);
+            currentOledState  = OLED_STATE_ERROR;
+            oledStateChangeMs = millis();
+            displayWeightWithState(w, lastUID, OLED_STATE_ERROR);
+            sendPhase = "error"; sendPhaseLastChangeMs = millis(); sendCountdown = -1;
         }
-
-        // Firestore write already done in pushWeightToCloud()
-
-        resetAfterSuccessfulSend(wInt);
-        gLastNetValid = false;
-
-        sendPhase = "success"; sendPhaseLastChangeMs = millis(); sendCountdown = -1;
-    } else {
-        displayMessage("Sync failed", "Check WiFi/API", String(roundWeight(w)) + " g");
-        delay(2000);
-        currentOledState  = OLED_STATE_ERROR;
-        oledStateChangeMs = millis();
-        displayWeightWithState(w, lastUID, OLED_STATE_ERROR);
-        sendPhase = "error"; sendPhaseLastChangeMs = millis(); sendCountdown = -1;
+        wfPhase = WF_IDLE;
     }
 }
 
 // ============================================================================
-// §19 — mDNS
+// §20 — mDNS
 // ============================================================================
 
 void startMDNS() {
@@ -2983,7 +3038,7 @@ void onWiFiEvent(WiFiEvent_t event) {
 }
 
 // ============================================================================
-// §20 — SCALE
+// §21 — SCALE
 // ============================================================================
 
 void setupScale() {
@@ -3075,7 +3130,7 @@ float readWeight() {
 }
 
 // ============================================================================
-// §21 — RFID
+// §22 — RFID
 // ============================================================================
 
 static String normalizeUidHex(const String& uid) {
@@ -3206,69 +3261,19 @@ bool processAutoTare(float weight) {
 }
 
 void updateServoWorkflow(float weight) {
-    if (!hwMotorConnected) return;   // motor not wired — nothing to do
-    if (servoTestActive)   return;   // test mode overrides workflow — don't interfere
+    if (!hwMotorConnected)     return;  // motor not wired
+    if (servoTestActive)       return;  // test mode overrides workflow
+    if (servoHoldAfterRemoval) { stopServoSearch(); return; }
+    if (servoLockedUntilAutotare) { stopServoSearch(); return; }
+    if (servoPausedForCalibration) { stopServoSearch(); return; }
+    if (fabs(weight) <= SERVO_WEIGHT_REMOVED_G) { stopServoSearch(); return; }
 
-    // HOLD: after removal event, keep servo stopped until scale is effectively empty
-    if (servoHoldAfterRemoval) {
+    // Servo follows workflow phase
+    if (wfPhase == WF_SCANNING && servoEnabled) {
+        startServoSearch();
+    } else {
         stopServoSearch();
-        return;
     }
-
-    // STOP: Servo locked after weight sent — wait for auto-tare completion
-    if (servoLockedUntilAutotare) {
-        stopServoSearch();
-        return;
-    }
-
-    // STOP: Tags detected — servo paused until auto-tare completes
-    if (lastUID.length() > 0 && lastUID2.length() == 0 && !rfidLockedForCurrentLoad) {
-        uint32_t now = millis();
-        if (firstUidPauseUntilMs == 0) {
-            firstUidPauseUntilMs = now + RFID_FIRST_TAG_PAUSE_MS;
-            stopServoSearch();
-            return;
-        }
-        if (now < firstUidPauseUntilMs) {
-            stopServoSearch();
-            return;
-        }
-        if (firstUidDetectedMs > 0 &&
-            (now - firstUidDetectedMs) < RFID_SECOND_TAG_TIMEOUT_MS &&
-            weight >= SERVO_MIN_SPIN_WEIGHT_G) {
-            startServoSearch();
-            return;
-        }
-        stopServoSearch();
-        return;
-    }
-    if (lastUID.length() > 0) {
-        stopServoSearch();
-        return;
-    }
-
-    // Emergency stop if weight is empty
-    if (fabs(weight) <= SERVO_WEIGHT_REMOVED_G) {
-        stopServoSearch();
-        if (servoPausedForCalibration) {
-            servoPausedForCalibration = false;
-        }
-        return;
-    }
-
-    if (servoPausedForCalibration) {
-        stopServoSearch();
-        return;
-    }
-
-    // Only activate servo if weight is significant (>= 150g)
-    if (weight < SERVO_MIN_SPIN_WEIGHT_G) {
-        stopServoSearch();
-        return;
-    }
-
-    // Servo runs while waiting for weight to be sent
-    startServoSearch();
 }
 
 static String toHex2(uint8_t v) {
@@ -3454,7 +3459,7 @@ static bool isLikelyTigerTagUidHex(const String& uidHex) {
 }
 
 // ============================================================================
-// §22 — OTA — Over-the-air firmware + filesystem update
+// §23 — OTA — Over-the-air firmware + filesystem update
 // ============================================================================
 //
 // Two complementary trigger paths share the same core (`otaApply`):
@@ -3823,7 +3828,7 @@ void pollOtaCommands() {
 }
 
 // ============================================================================
-// §23 — SETUP & LOOP
+// §24 — SETUP & LOOP
 // ============================================================================
 
 void setup() {
@@ -3991,7 +3996,7 @@ void loop() {
             }
             currentOledState = OLED_STATE_UID_DETECTED;
             oledStateChangeMs = millis();
-            stopServoSearch();
+            if (wfPhase != WF_SCANNING) stopServoSearch();  // Don't interrupt scan window
             Serial.println("[RFID] UID1: " + uid1Hex);
         }
 
@@ -4005,7 +4010,7 @@ void loop() {
             }
             currentOledState = OLED_STATE_UID_DETECTED;
             oledStateChangeMs = millis();
-            stopServoSearch();
+            if (wfPhase != WF_SCANNING) stopServoSearch();  // Don't interrupt scan window
             Serial.println("[RFID] UID2: " + uid2Hex);
         }
 
@@ -4124,6 +4129,8 @@ void loop() {
             firstUidDetectedMs = 0;
             firstUidPauseUntilMs = 0;
             lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
+            wfPhase = WF_IDLE;
+            wfContainerWeight = 0.0f; wfContainerFetched = false;
             currentOledState = OLED_STATE_IDLE;
             Serial.println("[CYCLE] Forced unlock after low-weight timeout");
         }
@@ -4188,7 +4195,7 @@ void loop() {
         lastFbBroadcastMs = millis();
     }
 
-    if (!autoTarePending) handleAutoPush(weight);
+    if (!autoTarePending) handleWeighWorkflow(weight);
 
     delay(10);
 }

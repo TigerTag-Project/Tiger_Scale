@@ -110,5 +110,7 @@
   "rfidReaderLeft": "Left",
   "rfidSide": "Reader side",
   "rfidReaderRight": "Right",
+  "containerWeight": "Container",
+  "stopWorkflow": "Stop",
   "rfidClear": "Clear UID"
 }
