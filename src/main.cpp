@@ -23,13 +23,13 @@
 //   §14 WEIGHT FILTER HELPERS                                                    1932– 1946
 //   §15 POST-SEND STATE RESET (shared by all send paths)                         1947– 1968
 //   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1969– 2041
-//   §17 WEB SERVER                                                               2042– 2583
-//   §18 CLOUD COMMUNICATION                                                      2584– 2857
-//   §19 mDNS                                                                     2858– 2895
-//   §20 SCALE                                                                    2896– 2987
-//   §21 RFID                                                                     2988– 3354
-//   §22 OTA — Over-the-air firmware + filesystem update                          3355– 3723
-//   §23 SETUP & LOOP                                                             3724– 4057
+//   §17 WEB SERVER                                                               2042– 2593
+//   §18 CLOUD COMMUNICATION                                                      2594– 2867
+//   §19 mDNS                                                                     2868– 2905
+//   §20 SCALE                                                                    2906– 2997
+//   §21 RFID                                                                     2998– 3376
+//   §22 OTA — Over-the-air firmware + filesystem update                          3377– 3745
+//   §23 SETUP & LOOP                                                             3746– 4079
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -2484,7 +2484,17 @@ void setupWebServer() {
                 request->send(400, "application/json", "{\"error\":\"bad json\"}"); return;
             }
             if (doc.containsKey("rfidCount"))      hwRfidCount      = doc["rfidCount"].as<uint8_t>();
-            if (doc.containsKey("motorConnected"))  hwMotorConnected = doc["motorConnected"].as<bool>();
+            if (doc.containsKey("motorConnected")) {
+                hwMotorConnected = doc["motorConnected"].as<bool>();
+                if (!hwMotorConnected) {
+                    // Motor physically removed — stop search, detach PWM, pull pin LOW
+                    servoSearching = false;
+                    if (spoolServo.attached()) spoolServo.detach();
+                    pinMode(SERVO_PIN, OUTPUT);
+                    digitalWrite(SERVO_PIN, LOW);
+                    Serial.println("[SERVO] hwMotorConnected set false — detached, pin LOW");
+                }
+            }
             if (doc.containsKey("motorEnabled")) {
                 servoEnabled = doc["motorEnabled"].as<bool>();
                 if (!servoEnabled) stopServoSearch();
@@ -3033,6 +3043,15 @@ void setupRFID() {
 }
 
 void setupServo() {
+    if (!hwMotorConnected) {
+        // Motor not wired — keep pin low, never attach PWM
+        pinMode(SERVO_PIN, OUTPUT);
+        digitalWrite(SERVO_PIN, LOW);
+        servoSearching = false;
+        Serial.println("[SERVO] hwMotorConnected=false — skipping attach, pin held LOW");
+        return;
+    }
+
     // Ensure GPIO 26 is completely clean before attaching servo
     pinMode(SERVO_PIN, OUTPUT);
     digitalWrite(SERVO_PIN, LOW);
@@ -3051,6 +3070,7 @@ void setupServo() {
 }
 
 void startServoSearch() {
+    if (!hwMotorConnected) return;   // motor not wired — never send pulses
     if (!servoEnabled) return;
     if (servoSearching) return;
 
@@ -3135,6 +3155,8 @@ bool processAutoTare(float weight) {
 }
 
 void updateServoWorkflow(float weight) {
+    if (!hwMotorConnected) return;   // motor not wired — nothing to do
+
     // HOLD: after removal event, keep servo stopped until scale is effectively empty
     if (servoHoldAfterRemoval) {
         stopServoSearch();
