@@ -513,8 +513,16 @@ function updateMotorTestPanel() {
 
 function setMotorTestSpeed(level) {
     _motorTestSpeed = level;
-    document.querySelectorAll('.motor-speed-btn').forEach(b => {
-        b.classList.toggle('active', +b.dataset.speed === level);
+    // Sync slider position + CSS gradient fill
+    const slider = document.getElementById('motorSpeedSlider');
+    if (slider) {
+        slider.value = level;
+        slider.style.setProperty('--val', level);
+    }
+    // Color active tick dot
+    document.querySelectorAll('.motor-speed-ticks span').forEach((s, i) => {
+        s.style.color = (i + 1 === level) ? 'var(--orange, #e67e22)' : '';
+        s.style.setProperty('--dot', (i + 1 <= level) ? 'var(--orange, #e67e22)' : 'var(--line, #e5e7eb)');
     });
     if (_motorTestRunning) {
         fetch('/api/servo/test', {

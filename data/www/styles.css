@@ -731,34 +731,80 @@ input::placeholder {
     width: 100%;
 }
 .motor-test-speeds {
+    flex: 1;
     display: flex;
-    gap: 6px;
-    flex: 1;
+    flex-direction: column;
+    gap: 4px;
 }
-.motor-speed-btn {
-    flex: 1;
-    height: 36px;
+
+/* ── Slider track & thumb ── */
+.motor-speed-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(
+        to right,
+        var(--orange, #e67e22) 0%,
+        var(--orange, #e67e22) calc((var(--val, 2) - 1) / 4 * 100%),
+        var(--line, #e5e7eb)   calc((var(--val, 2) - 1) / 4 * 100%),
+        var(--line, #e5e7eb)   100%
+    );
+    outline: none;
+    cursor: pointer;
     min-height: unset;
+    border: none;
+    box-shadow: none;
     padding: 0;
-    font-size: 14px;
-    font-weight: 700;
-    background: #fff;
-    border: 1.5px solid var(--line, #e5e7eb);
-    border-radius: 8px;
-    color: var(--muted);
-    box-shadow: none;
-    transition: background .12s, color .12s, border-color .12s, transform .1s;
 }
-.motor-speed-btn.active {
+.motor-speed-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
     background: var(--orange, #e67e22);
-    border-color: var(--orange, #e67e22);
-    color: #fff;
+    border: 3px solid #fff;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.18);
+    cursor: pointer;
+    transition: transform .12s;
 }
-.motor-speed-btn:hover:not(.active) {
-    border-color: var(--orange, #e67e22);
-    color: var(--orange, #e67e22);
-    transform: none;
-    box-shadow: none;
+.motor-speed-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--orange, #e67e22);
+    border: 3px solid #fff;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.18);
+    cursor: pointer;
+}
+.motor-speed-slider:active::-webkit-slider-thumb { transform: scale(1.2); }
+
+/* ── Tick marks + labels ── */
+.motor-speed-ticks {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 2px;
+    position: relative;
+}
+.motor-speed-ticks span {
+    position: relative;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted, #9ca3af);
+    text-align: center;
+    width: 20px;
+    margin: 0 -10px;
+    user-select: none;
+}
+.motor-speed-ticks span::before {
+    content: '';
+    display: block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--line, #e5e7eb);
+    margin: 0 auto 2px;
 }
 .motor-test-run-btn {
     display: flex;
