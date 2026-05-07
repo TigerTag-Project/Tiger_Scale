@@ -18,19 +18,19 @@
 //   §9  WIFI SETUP                                                                504–  762
 //   §10 LITTLEFS                                                                  763–  807
 //   §11 FIREBASE AUTHENTICATION                                                   808–  993
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          994– 1894
-//   §13 WEBSOCKET                                                                1895– 1931
-//   §14 WEIGHT FILTER HELPERS                                                    1932– 1946
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         1947– 1968
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1969– 2041
-//   §17 WEB SERVER                                                               2042– 2702
-//   §18 CLOUD COMMUNICATION                                                      2703– 2879
-//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                2880– 3004
-//   §20 mDNS                                                                     3005– 3042
-//   §21 SCALE                                                                    3043– 3134
-//   §22 RFID                                                                     3135– 3463
-//   §23 OTA — Over-the-air firmware + filesystem update                          3464– 3832
-//   §24 SETUP & LOOP                                                             3833– 4204
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          994– 1897
+//   §13 WEBSOCKET                                                                1898– 1934
+//   §14 WEIGHT FILTER HELPERS                                                    1935– 1949
+//   §15 POST-SEND STATE RESET (shared by all send paths)                         1950– 1971
+//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1972– 2044
+//   §17 WEB SERVER                                                               2045– 2705
+//   §18 CLOUD COMMUNICATION                                                      2706– 2883
+//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                2884– 3008
+//   §20 mDNS                                                                     3009– 3046
+//   §21 SCALE                                                                    3047– 3138
+//   §22 RFID                                                                     3139– 3467
+//   §23 OTA — Over-the-air firmware + filesystem update                          3468– 3836
+//   §24 SETUP & LOOP                                                             3837– 4208
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -1197,9 +1197,12 @@ float readInventoryContainerWeight(const String& uid, float* outMeasureGr) {
 
     Serial.printf("[CONTAINER] Using doc: %s\n", usedDocPath.c_str());
 
-    StaticJsonDocument<1024> doc;
-    if (deserializeJson(doc, resp)) {
-        Serial.printf("[CONTAINER] JSON parse failed\n");
+    // Firestore REST docs can have 40+ fields wrapped in typed objects → ~4KB parsed.
+    // Use DynamicJsonDocument on the heap to avoid stack overflow and NoMemory errors.
+    DynamicJsonDocument doc(6144);
+    DeserializationError jerr = deserializeJson(doc, resp);
+    if (jerr) {
+        Serial.printf("[CONTAINER] JSON parse failed: %s (resp len=%d)\n", jerr.c_str(), resp.length());
         return 0.0f;
     }
 
@@ -2761,7 +2764,8 @@ bool sendSingleUidToCloud(const String& uid, float w, const char* sourceLabel) {
 }
 
 static void parseCloudSpoolMeta(const String& resp) {
-    StaticJsonDocument<1024> doc;
+    // Flat inventory doc can have 40+ fields → needs more than 1024 bytes
+    DynamicJsonDocument doc(4096);
     if (deserializeJson(doc, resp)) return;
 
     auto pick = [&](const char* a, const char* b, const char* c, const char* d) -> String {
