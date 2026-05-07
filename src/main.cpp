@@ -18,19 +18,19 @@
 //   §9  WIFI SETUP                                                                504–  762
 //   §10 LITTLEFS                                                                  763–  807
 //   §11 FIREBASE AUTHENTICATION                                                   808–  993
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          994– 1897
-//   §13 WEBSOCKET                                                                1898– 1934
-//   §14 WEIGHT FILTER HELPERS                                                    1935– 1949
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         1950– 1971
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1972– 2044
-//   §17 WEB SERVER                                                               2045– 2705
-//   §18 CLOUD COMMUNICATION                                                      2706– 2883
-//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                2884– 3008
-//   §20 mDNS                                                                     3009– 3046
-//   §21 SCALE                                                                    3047– 3138
-//   §22 RFID                                                                     3139– 3467
-//   §23 OTA — Over-the-air firmware + filesystem update                          3468– 3836
-//   §24 SETUP & LOOP                                                             3837– 4208
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          994– 1900
+//   §13 WEBSOCKET                                                                1901– 1937
+//   §14 WEIGHT FILTER HELPERS                                                    1938– 1952
+//   §15 POST-SEND STATE RESET (shared by all send paths)                         1953– 1974
+//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1975– 2047
+//   §17 WEB SERVER                                                               2048– 2708
+//   §18 CLOUD COMMUNICATION                                                      2709– 2886
+//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                2887– 3011
+//   §20 mDNS                                                                     3012– 3049
+//   §21 SCALE                                                                    3050– 3141
+//   §22 RFID                                                                     3142– 3470
+//   §23 OTA — Over-the-air firmware + filesystem update                          3471– 3839
+//   §24 SETUP & LOOP                                                             3840– 4211
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -1172,7 +1172,11 @@ float readInventoryContainerWeight(const String& uid, float* outMeasureGr) {
     auto fetchInventoryDoc = [&](const String& id) -> int {
         HTTPClient http;
         String docPath = "users/" + firebaseUid + "/inventory/" + id;
-        String url = "https://firestore.googleapis.com/v1/projects/tigertag-connect/databases/(default)/documents/" + docPath;
+        // Use field mask to fetch ONLY container_weight + measure_gr — keeps response
+        // tiny (~200 B) and avoids NoMemory when parsing a 50-field inventory document.
+        String url = "https://firestore.googleapis.com/v1/projects/tigertag-connect/databases/(default)/documents/"
+                     + docPath
+                     + "?mask.fieldPaths=container_weight&mask.fieldPaths=measure_gr";
         Serial.printf("[CONTAINER] GET %s\n", docPath.c_str());
         if (!http.begin(url)) {
             Serial.printf("[CONTAINER] http.begin failed\n");
@@ -1197,9 +1201,8 @@ float readInventoryContainerWeight(const String& uid, float* outMeasureGr) {
 
     Serial.printf("[CONTAINER] Using doc: %s\n", usedDocPath.c_str());
 
-    // Firestore REST docs can have 40+ fields wrapped in typed objects → ~4KB parsed.
-    // Use DynamicJsonDocument on the heap to avoid stack overflow and NoMemory errors.
-    DynamicJsonDocument doc(6144);
+    // Field-masked response has only 2 fields → ~200 bytes, StaticJsonDocument<512> is plenty.
+    StaticJsonDocument<512> doc;
     DeserializationError jerr = deserializeJson(doc, resp);
     if (jerr) {
         Serial.printf("[CONTAINER] JSON parse failed: %s (resp len=%d)\n", jerr.c_str(), resp.length());
