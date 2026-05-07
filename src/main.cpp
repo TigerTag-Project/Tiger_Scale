@@ -18,18 +18,18 @@
 //   §9  WIFI SETUP                                                                494–  752
 //   §10 LITTLEFS                                                                  753–  797
 //   §11 FIREBASE AUTHENTICATION                                                   798–  983
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          984– 1911
-//   §13 WEBSOCKET                                                                1912– 1948
-//   §14 WEIGHT FILTER HELPERS                                                    1949– 1963
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         1964– 1985
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1986– 2058
-//   §17 WEB SERVER                                                               2059– 2699
-//   §18 CLOUD COMMUNICATION                                                      2700– 2973
-//   §19 mDNS                                                                     2974– 3011
-//   §20 SCALE                                                                    3012– 3103
-//   §21 RFID                                                                     3104– 3513
-//   §22 OTA — Over-the-air firmware + filesystem update                          3514– 3882
-//   §23 SETUP & LOOP                                                             3883– 4254
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          984– 1884
+//   §13 WEBSOCKET                                                                1885– 1921
+//   §14 WEIGHT FILTER HELPERS                                                    1922– 1936
+//   §15 POST-SEND STATE RESET (shared by all send paths)                         1937– 1958
+//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1959– 2031
+//   §17 WEB SERVER                                                               2032– 2672
+//   §18 CLOUD COMMUNICATION                                                      2673– 2946
+//   §19 mDNS                                                                     2947– 2984
+//   §20 SCALE                                                                    2985– 3076
+//   §21 RFID                                                                     3077– 3455
+//   §22 OTA — Over-the-air firmware + filesystem update                          3456– 3824
+//   §23 SETUP & LOOP                                                             3825– 4194
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -1155,33 +1155,6 @@ float readInventoryContainerWeight(const String& uid, float* outMeasureGr) {
 
     // Canonical UID format for Firestore inventory paths: HEX uppercase
     String uidForLookup = normalizeUidHex(uid);
-
-    // Check if uid is in decimal format (all digits)
-    bool isDecimal = true;
-    for (int i = 0; i < uid.length(); i++) {
-        if (!isdigit(uid[i])) {
-            isDecimal = false;
-            break;
-        }
-    }
-
-    // If decimal, convert to hexadecimal
-    if (isDecimal && uid.length() > 0) {
-        unsigned long long uidDec = 0;
-        // Parse decimal string to number
-        for (int i = 0; i < uid.length(); i++) {
-            uidDec = uidDec * 10 + (uid[i] - '0');
-        }
-        // Convert to hex string (uppercase, no leading zeros)
-        char hexBuf[32];
-        snprintf(hexBuf, sizeof(hexBuf), "%llX", uidDec);
-        uidForLookup = String(hexBuf);
-        Serial.printf("[CONTAINER] Converted decimal %s -> hex %s\n", uid.c_str(), uidForLookup.c_str());
-    }
-
-    // Canonical path policy:
-    // 1) Try decimal UID doc first (same path used for writes)
-    // 2) Fallback to HEX doc only if decimal doc is missing
     String resp = "";
     int code = -1;
     String usedDocPath = "";
@@ -3105,37 +3078,9 @@ float readWeight() {
 // §21 — RFID
 // ============================================================================
 
-static String u64ToDec(uint64_t v) {
-    if (v == 0) return String("0");
-    char buf[21]; buf[20] = '\0'; int i = 20;
-    while (v > 0 && i > 0) {
-        uint64_t q = v / 10ULL;
-        buf[--i] = '0' + (uint8_t)(v - q * 10ULL);
-        v = q;
-    }
-    return String(&buf[i]);
-}
-
 static String normalizeUidHex(const String& uid) {
     String s = uid;
     s.trim();
-    if (s.length() == 0) return s;
-
-    bool isDecimal = true;
-    for (int i = 0; i < s.length(); i++) {
-        if (!isdigit(s[i])) { isDecimal = false; break; }
-    }
-
-    if (isDecimal) {
-        unsigned long long uidDec = 0ULL;
-        for (int i = 0; i < s.length(); i++) {
-            uidDec = uidDec * 10ULL + (unsigned long long)(s[i] - '0');
-        }
-        char hexBuf[32];
-        snprintf(hexBuf, sizeof(hexBuf), "%llX", uidDec);
-        return String(hexBuf);
-    }
-
     s.toUpperCase();
     return s;
 }
@@ -3402,10 +3347,10 @@ static String resolveMaterialNameOnlineFirst(uint32_t idMaterial) {
     return name;
 }
 
-void dumpTigerTagPages(MFRC522 &reader, const String& uidDec) {
+void dumpTigerTagPages(MFRC522 &reader, const String& uidHex) {
 #if DEBUG_RFID_DUMP
     Serial.println("[TAG] ----- DUMP START -----");
-    Serial.println("[TAG] UID DEC: " + uidDec);
+    Serial.println("[TAG] UID HEX: " + uidHex);
     byte buf[18]; byte sz;
     for (byte start = 0x04; start <= 0x18; start += 4) {
         sz = sizeof(buf);
@@ -3422,7 +3367,7 @@ void dumpTigerTagPages(MFRC522 &reader, const String& uidDec) {
     }
     Serial.println("[TAG] ----- DUMP END -----");
 #else
-    (void)reader; (void)uidDec;
+    (void)reader; (void)uidHex;
 #endif
 }
 
@@ -3430,18 +3375,15 @@ String readRFIDFromReader(MFRC522 &reader, String &uidHexOut) {
     if (!reader.PICC_IsNewCardPresent() || !reader.PICC_ReadCardSerial()) return "";
 
     String hexStr; hexStr.reserve(reader.uid.size * 2);
-    uint64_t decVal = 0ULL;
     for (byte i = 0; i < reader.uid.size; i++) {
         byte b = reader.uid.uidByte[i];
         if (b < 0x10) hexStr += '0';
         hexStr += String(b, HEX);
-        decVal = (decVal << 8) | b;
     }
     hexStr.toUpperCase();
     uidHexOut = hexStr;
-    String decStr = u64ToDec(decVal);
 
-    dumpTigerTagPages(reader, decStr);
+    dumpTigerTagPages(reader, hexStr);
 
     // Read TigerTag page data via SPI
     // IDs are on the tag; names are looked up from TigerTag DB (GitHub)
@@ -3457,14 +3399,14 @@ String readRFIDFromReader(MFRC522 &reader, String &uidHexOut) {
         gLastColor        = mapColorName(r, g, b) + " #" + toHex2(r) + toHex2(g) + toHex2(b);
 
         Serial.printf("[TAG] uid=%s -> Fab=%s Mat=%s Col=%s\n",
-                      decStr.c_str(), gLastManufacturer.c_str(), gLastMaterial.c_str(), gLastColor.c_str());
+                      hexStr.c_str(), gLastManufacturer.c_str(), gLastMaterial.c_str(), gLastColor.c_str());
     } else {
         gLastManufacturer = "--"; gLastMaterial = "--"; gLastColor = "--";
     }
 
     reader.PICC_HaltA();
     reader.PCD_StopCrypto1();
-    return decStr;
+    return hexStr;
 }
 
 // Lightweight UID-only read — no TigerTag page read, no metadata.  Used by RFID hardware test.
@@ -4023,56 +3965,54 @@ void loop() {
 
     if (!rfidLockedForCurrentLoad && !autoTarePending && rfidAntennasOn && !rfidTestActive) {
         // --- Step 1: poll both readers back-to-back (pure SPI, no HTTP) ---
-        String uid1Hex, uid1 = readRFIDFromReader(rfid1, uid1Hex);
-        String uid2Hex, uid2 = readRFIDFromReader(rfid2, uid2Hex);
-        String uid1Key = uid1Hex.length() ? uid1Hex : normalizeUidHex(uid1);
-        String uid2Key = uid2Hex.length() ? uid2Hex : normalizeUidHex(uid2);
+        String uid1Hex; readRFIDFromReader(rfid1, uid1Hex);
+        String uid2Hex; readRFIDFromReader(rfid2, uid2Hex);
 
         // Ignore short/non-TigerTag UIDs in automatic weighing flow.
-        if (uid1Key.length() > 0 && !isLikelyTigerTagUidHex(uid1Key)) {
-            Serial.printf("[RFID] Ignored short UID1: %s\n", uid1Key.c_str());
-            uid1Key = ""; uid1Hex = ""; uid1 = "";
+        if (uid1Hex.length() > 0 && !isLikelyTigerTagUidHex(uid1Hex)) {
+            Serial.printf("[RFID] Ignored short UID1: %s\n", uid1Hex.c_str());
+            uid1Hex = "";
         }
-        if (uid2Key.length() > 0 && !isLikelyTigerTagUidHex(uid2Key)) {
-            Serial.printf("[RFID] Ignored short UID2: %s\n", uid2Key.c_str());
-            uid2Key = ""; uid2Hex = ""; uid2 = "";
+        if (uid2Hex.length() > 0 && !isLikelyTigerTagUidHex(uid2Hex)) {
+            Serial.printf("[RFID] Ignored short UID2: %s\n", uid2Hex.c_str());
+            uid2Hex = "";
         }
 
         // --- Step 2: store new UIDs ---
-        bool newUid1 = uid1Key.length() > 0 && uid1Key != lastUID && uid1Key != lastUID2;
-        bool newUid2 = uid2Key.length() > 0 && uid2Key != lastUID && uid2Key != lastUID2;
+        bool newUid1 = uid1Hex.length() > 0 && uid1Hex != lastUID && uid1Hex != lastUID2;
+        bool newUid2 = uid2Hex.length() > 0 && uid2Hex != lastUID && uid2Hex != lastUID2;
 
         if (newUid1) {
             if (lastUID.length() == 0) {
-                lastUID = uid1Key; lastUIDHex = uid1Hex;
+                lastUID = uid1Hex; lastUIDHex = uid1Hex;
                 if (firstUidDetectedMs == 0) firstUidDetectedMs = millis();
             } else {
-                lastUID2 = uid1Key; lastUID2Hex = uid1Hex;
+                lastUID2 = uid1Hex; lastUID2Hex = uid1Hex;
             }
             currentOledState = OLED_STATE_UID_DETECTED;
             oledStateChangeMs = millis();
-            stopServoSearch();  // Stop servo when tag detected
-            Serial.println("[RFID] UID1: " + uid1Key + " / " + uid1Hex);
+            stopServoSearch();
+            Serial.println("[RFID] UID1: " + uid1Hex);
         }
 
         if (newUid2) {
             if (lastUID.length() == 0) {
-                lastUID = uid2Key; lastUIDHex = uid2Hex;
+                lastUID = uid2Hex; lastUIDHex = uid2Hex;
                 lastUID2 = ""; lastUID2Hex = "";
                 if (firstUidDetectedMs == 0) firstUidDetectedMs = millis();
             } else {
-                lastUID2 = uid2Key; lastUID2Hex = uid2Hex;
+                lastUID2 = uid2Hex; lastUID2Hex = uid2Hex;
             }
             currentOledState = OLED_STATE_UID_DETECTED;
             oledStateChangeMs = millis();
-            stopServoSearch();  // Stop servo when tag detected
-            Serial.println("[RFID] UID2: " + uid2Key + " / " + uid2Hex);
+            stopServoSearch();
+            Serial.println("[RFID] UID2: " + uid2Hex);
         }
 
         #if ENABLE_LEGACY_API_BRIDGE
         // --- Step 3: HTTP metadata fetch from legacy cloud function ---
-        if (newUid1) fetchMetaFromApiByUid(uid1Key);
-        if (newUid2 && uid2Key != uid1Key) fetchMetaFromApiByUid(uid2Key);
+        if (newUid1) fetchMetaFromApiByUid(uid1Hex);
+        if (newUid2 && uid2Hex != uid1Hex) fetchMetaFromApiByUid(uid2Hex);
         #endif
     }
 
