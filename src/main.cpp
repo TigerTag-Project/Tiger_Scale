@@ -17,19 +17,19 @@
 //   §8  CLOUD PARSING                                                             469–  483
 //   §9  WIFI SETUP                                                                484–  742
 //   §10 LITTLEFS                                                                  743–  787
-//   §11 FIREBASE AUTHENTICATION                                                   788–  966
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          967– 1894
-//   §13 WEBSOCKET                                                                1895– 1931
-//   §14 WEIGHT FILTER HELPERS                                                    1932– 1946
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         1947– 1968
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1969– 2041
-//   §17 WEB SERVER                                                               2042– 2593
-//   §18 CLOUD COMMUNICATION                                                      2594– 2867
-//   §19 mDNS                                                                     2868– 2905
-//   §20 SCALE                                                                    2906– 2997
-//   §21 RFID                                                                     2998– 3376
-//   §22 OTA — Over-the-air firmware + filesystem update                          3377– 3745
-//   §23 SETUP & LOOP                                                             3746– 4079
+//   §11 FIREBASE AUTHENTICATION                                                   788–  973
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          974– 1901
+//   §13 WEBSOCKET                                                                1902– 1938
+//   §14 WEIGHT FILTER HELPERS                                                    1939– 1953
+//   §15 POST-SEND STATE RESET (shared by all send paths)                         1954– 1975
+//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1976– 2048
+//   §17 WEB SERVER                                                               2049– 2600
+//   §18 CLOUD COMMUNICATION                                                      2601– 2874
+//   §19 mDNS                                                                     2875– 2912
+//   §20 SCALE                                                                    2913– 3004
+//   §21 RFID                                                                     3005– 3383
+//   §22 OTA — Over-the-air firmware + filesystem update                          3384– 3752
+//   §23 SETUP & LOOP                                                             3753– 4086
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -821,9 +821,16 @@ bool firebaseSignIn() {
         firebaseAuth = false;
         return false;
     }
-    StaticJsonDocument<768> doc;
-    if (deserializeJson(doc, resp)) {
-        Serial.println("[FIREBASE] SignIn JSON parse error");
+    // Firebase JWT response is ~2 KB — use a filter to parse only the 3 fields we need
+    // (StaticJsonDocument<768> was too small and caused silent parse failure)
+    StaticJsonDocument<64> filter;
+    filter["idToken"]      = true;
+    filter["refreshToken"] = true;
+    filter["localId"]      = true;
+    DynamicJsonDocument doc(1792);
+    DeserializationError err = deserializeJson(doc, resp, DeserializationOption::Filter(filter));
+    if (err) {
+        Serial.printf("[FIREBASE] SignIn JSON parse error: %s\n", err.c_str());
         firebaseAuth = false;
         return false;
     }
