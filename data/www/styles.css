@@ -1015,7 +1015,7 @@ input::placeholder {
     box-shadow: 0 4px 16px rgba(0,0,0,0.18);
 }
 .auth-logo img {
-    width: 62px;
+    width: 80px;
     height: auto;
     filter: invert(1);
 }
