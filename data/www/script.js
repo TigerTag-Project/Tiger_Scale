@@ -892,6 +892,18 @@ function setAuthInfo(msg) {
     el.style.display = 'block';
 }
 
+// ── Password visibility toggle ──
+function togglePasswordVisibility() {
+    const input = document.getElementById('loginPassword');
+    const eyeShow = document.querySelector('.pw-eye-show');
+    const eyeHide = document.querySelector('.pw-eye-hide');
+    if (!input) return;
+    const isHidden = input.type === 'password';
+    input.type = isHidden ? 'text' : 'password';
+    if (eyeShow) eyeShow.style.display = isHidden ? 'none' : '';
+    if (eyeHide) eyeHide.style.display = isHidden ? '' : 'none';
+}
+
 // ── Password reset — sends a Firebase reset email directly from the browser ──
 function sendPasswordReset() {
     setAuthError('');

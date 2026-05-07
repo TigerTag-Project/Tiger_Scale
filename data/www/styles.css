@@ -1102,6 +1102,38 @@ input::placeholder {
 }
 
 /* "Forgot password?" — sits below "No account yet?" footer, same muted style */
+/* ── Password show/hide toggle ── */
+.auth-pw-wrap {
+    position: relative;
+    display: block;
+    width: 100%;
+}
+.auth-pw-wrap input {
+    width: 100%;
+    padding-right: 42px;  /* space for the eye button */
+    box-sizing: border-box;
+}
+.auth-pw-toggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: none;
+    border: none;
+    box-shadow: none;
+    min-height: unset;
+    cursor: pointer;
+    color: var(--muted, #9ca3af);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.auth-pw-toggle:hover { color: var(--ink, #1a1a1a); }
+.pw-eye { width: 18px; height: 18px; display: block; }
+
 .auth-forgot {
     background: none;
     border: none;
