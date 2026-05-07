@@ -1179,6 +1179,7 @@ input::placeholder {
     cursor: pointer;
     font-size: 13px;
     color: var(--ink, #1a1a1a);
+    text-align: left;
     transition: background .12s;
 }
 .auth-lang-item:hover {
