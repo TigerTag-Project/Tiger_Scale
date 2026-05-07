@@ -73,7 +73,7 @@
   "alertFirebaseDeleted": "Firebase credentials deleted",
   "alertFirebaseError": "Firebase error",
   "authTitle": "Welcome to your TigerScale",
-  "authSub": "Sign in to sync your spools with the TigerTag cloud.",
+  "authSub": "Connect your TigerScale to the TigerTag ecosystem.",
   "authGoogleBtn": "Continue with Google",
   "authOr": "or",
   "authSignIn": "Sign in",

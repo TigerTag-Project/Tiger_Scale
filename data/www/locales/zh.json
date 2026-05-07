@@ -72,7 +72,7 @@
   "alertFirebaseDeleted": "Firebase 凭据已删除",
   "alertFirebaseError": "Firebase 错误",
   "authTitle": "欢迎使用您的 TigerScale",
-  "authSub": "登录后将您的线轴同步到 TigerTag 云端。",
+  "authSub": "将您的 TigerScale 连接到 TigerTag 生态系统。",
   "authGoogleBtn": "使用 Google 继续",
   "authOr": "或",
   "authSignIn": "登录",

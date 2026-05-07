@@ -73,7 +73,7 @@
   "alertFirebaseDeleted": "Identifiants Firebase supprimes",
   "alertFirebaseError": "Erreur Firebase",
   "authTitle": "Bienvenue sur votre TigerScale",
-  "authSub": "Connectez-vous pour synchroniser vos bobines avec le cloud TigerTag.",
+  "authSub": "Connectez votre TigerScale à l'écosystème TigerTag.",
   "authGoogleBtn": "Continuer avec Google",
   "authOr": "ou",
   "authSignIn": "Se connecter",
