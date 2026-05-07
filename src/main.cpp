@@ -29,7 +29,7 @@
 //   §20 SCALE                                                                    3004– 3095
 //   §21 RFID                                                                     3096– 3505
 //   §22 OTA — Over-the-air firmware + filesystem update                          3506– 3874
-//   §23 SETUP & LOOP                                                             3875– 4241
+//   §23 SETUP & LOOP                                                             3875– 4243
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -4078,7 +4078,9 @@ void loop() {
             rfidTestLastUidLeft = hexL;
             Serial.printf("[RFID TEST] Left uid=%s\n", hexL.c_str());
         }
-        if (hwRfidCount >= 2) {
+        // Always poll rfid1 (Right) too — safe even if not initialized (returns false)
+        // This lets the UI auto-detect which physical reader is connected
+        {
             String hexR;
             readRFIDUidOnly(rfid1, hexR);  // rfid1 = physically Right
             if (hexR.length() > 0) {

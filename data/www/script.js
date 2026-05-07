@@ -656,9 +656,9 @@ function _updateRfidTestBtn() {
 }
 
 function updateRfidTestPanel() {
-    const rightRow = document.getElementById('rfidRightRow');
-    if (rightRow) rightRow.style.display = (hwConfig.rfidCount >= 2) ? '' : 'none';
-    if (hwConfig.rfidCount < 2 && _rfidTestRunning) stopRfidTest();
+    // Both rows always visible — firmware polls both readers;
+    // whichever is physically connected will light up with a UID.
+    if (_rfidTestRunning && !hwConfig.rfidCount) stopRfidTest();
 }
 
 function updateSpoolStatus(detected, position) {
