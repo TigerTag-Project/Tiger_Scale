@@ -4073,7 +4073,7 @@ void loop() {
     // When active, force-poll the selected reader and store the raw UID for the
     // web UI.  Bypasses the normal flow guards; accepts any UID length.
     if (rfidTestActive) {
-        MFRC522& tr = (rfidTestReader == 2) ? rfid2 : rfid1;
+        MFRC522& tr = (rfidTestReader == 2) ? rfid1 : rfid2;
         if (!rfidAntennasOn) rfidAntennaSetAll(true);
         String hexOut;
         readRFIDUidOnly(tr, hexOut);
