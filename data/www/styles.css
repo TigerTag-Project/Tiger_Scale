@@ -719,8 +719,9 @@ input::placeholder {
     z-index: 1000;
     padding: 18px;
     background: rgba(16, 20, 17, 0.62);
-    align-items: center;
+    align-items: flex-start;   /* prevents top-crop on short viewports */
     justify-content: center;
+    overflow-y: auto;          /* overlay scrolls when content > viewport */
 }
 
 .modal.show {
@@ -728,6 +729,7 @@ input::placeholder {
 }
 
 .modal-content {
+    margin: auto;              /* re-centers vertically when space is available */
     width: min(420px, 100%);
     padding: 28px;
     border-radius: 8px;
@@ -958,6 +960,24 @@ input::placeholder {
     max-width: 380px;
     text-align: center;
     padding: 24px 32px 32px;
+}
+
+/* ── Auth modal — compact on small/short screens ── */
+@media (max-height: 680px), (max-width: 420px) {
+    .auth-modal {
+        padding: 16px 20px 20px;
+    }
+    .auth-modal-header {
+        margin-bottom: 10px;
+    }
+    .auth-logo {
+        width: 72px;
+        height: 72px;
+        border-radius: 20px;
+    }
+    .auth-logo img {
+        width: 58px;
+    }
 }
 
 /* ── Modal header: 3-column grid — lang | logo | close ── */
