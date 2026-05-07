@@ -1008,14 +1008,14 @@ input::placeholder {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 76px;
-    height: 76px;
-    border-radius: 22px;
+    width: 96px;
+    height: 96px;
+    border-radius: 26px;
     background: #101411;
     box-shadow: 0 4px 16px rgba(0,0,0,0.18);
 }
 .auth-logo img {
-    width: 48px;
+    width: 62px;
     height: auto;
     filter: invert(1);
 }
