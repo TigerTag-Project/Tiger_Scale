@@ -17,15 +17,15 @@
     'use strict';
 
     const LANGS = {
-        en:      { name: 'English',              short: 'EN'    },
-        fr:      { name: 'Français',             short: 'FR'    },
-        de:      { name: 'Deutsch',              short: 'DE'    },
-        es:      { name: 'Español',              short: 'ES'    },
-        it:      { name: 'Italiano',             short: 'IT'    },
-        pl:      { name: 'Polski',               short: 'PL'    },
-        pt:      { name: 'Português (Brasil)',   short: 'PT-BR' },
-        'pt-pt': { name: 'Português (Portugal)', short: 'PT'    },
-        zh:      { name: '中文 (简体)',            short: 'ZH'    }
+        en:      { name: 'English',              short: 'EN',    flag: '🇬🇧' },
+        fr:      { name: 'Français',             short: 'FR',    flag: '🇫🇷' },
+        de:      { name: 'Deutsch',              short: 'DE',    flag: '🇩🇪' },
+        es:      { name: 'Español',              short: 'ES',    flag: '🇪🇸' },
+        it:      { name: 'Italiano',             short: 'IT',    flag: '🇮🇹' },
+        pl:      { name: 'Polski',               short: 'PL',    flag: '🇵🇱' },
+        pt:      { name: 'Português (Brasil)',   short: 'PT-BR', flag: '🇧🇷' },
+        'pt-pt': { name: 'Português (Portugal)', short: 'PT',    flag: '🇵🇹' },
+        zh:      { name: '中文 (简体)',            short: 'ZH',    flag: '🇨🇳' }
     };
     const DEFAULT_LANG  = 'en';
     const FALLBACK_LANG = 'en';
@@ -90,9 +90,13 @@
         document.querySelectorAll('.lang-item').forEach(li => {
             li.classList.toggle('active', li.dataset.lang === state.lang);
         });
-        // Sync modal select
+        // Sync modal select (kept for backwards compat, may be absent)
         const modalSel = document.getElementById('modalLangSelect');
         if (modalSel) modalSel.value = lang;
+        // Sync modal flag buttons
+        document.querySelectorAll('.auth-lang-flag[data-lang]').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.lang === lang);
+        });
         // Legacy compat: keep .lang-btn[data-lang] active states in sync
         document.querySelectorAll('.lang-btn[data-lang]').forEach(b => {
             b.classList.toggle('active', b.dataset.lang === state.lang);
@@ -181,6 +185,23 @@
         trigger.addEventListener('click', e => { e.stopPropagation(); root.classList.contains('open') ? close() : open(); });
     }
 
+    function buildModalFlags() {
+        const container = document.getElementById('authLangFlags');
+        if (!container || container.childElementCount > 0) return;
+        Object.keys(LANGS).forEach(code => {
+            const info = LANGS[code];
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'auth-lang-flag' + (code === state.lang ? ' active' : '');
+            btn.dataset.lang = code;
+            btn.title = info.name;
+            btn.setAttribute('aria-label', info.name);
+            btn.textContent = info.flag;
+            btn.addEventListener('click', () => setLang(code));
+            container.appendChild(btn);
+        });
+    }
+
     async function init() {
         // Always preload the fallback language so a translation-miss doesn't show
         // raw key strings while we're fetching the active locale.
@@ -190,6 +211,7 @@
         state.lang = lang;
         global.currentLang = lang;
         buildSwitcher();
+        buildModalFlags();
         applyTranslations();
     }
 
