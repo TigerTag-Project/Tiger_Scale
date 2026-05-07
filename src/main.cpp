@@ -12,24 +12,24 @@
 //   §3  FORWARD DECLARATIONS                                                      130–  206
 //   §4  WEIGHT ROUNDING                                                           207–  226
 //   §5  GLOBAL OBJECTS                                                            227–  240
-//   §6  CONFIGURATION VARIABLES                                                   241–  359
-//   §7  OLED DISPLAY                                                              360–  477
-//   §8  CLOUD PARSING                                                             478–  492
-//   §9  WIFI SETUP                                                                493–  751
-//   §10 LITTLEFS                                                                  752–  796
-//   §11 FIREBASE AUTHENTICATION                                                   797–  982
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          983– 1910
-//   §13 WEBSOCKET                                                                1911– 1947
-//   §14 WEIGHT FILTER HELPERS                                                    1948– 1962
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         1963– 1984
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1985– 2057
-//   §17 WEB SERVER                                                               2058– 2691
-//   §18 CLOUD COMMUNICATION                                                      2692– 2965
-//   §19 mDNS                                                                     2966– 3003
-//   §20 SCALE                                                                    3004– 3095
-//   §21 RFID                                                                     3096– 3505
-//   §22 OTA — Over-the-air firmware + filesystem update                          3506– 3874
-//   §23 SETUP & LOOP                                                             3875– 4243
+//   §6  CONFIGURATION VARIABLES                                                   241–  360
+//   §7  OLED DISPLAY                                                              361–  478
+//   §8  CLOUD PARSING                                                             479–  493
+//   §9  WIFI SETUP                                                                494–  752
+//   §10 LITTLEFS                                                                  753–  797
+//   §11 FIREBASE AUTHENTICATION                                                   798–  983
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          984– 1911
+//   §13 WEBSOCKET                                                                1912– 1948
+//   §14 WEIGHT FILTER HELPERS                                                    1949– 1963
+//   §15 POST-SEND STATE RESET (shared by all send paths)                         1964– 1985
+//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1986– 2058
+//   §17 WEB SERVER                                                               2059– 2699
+//   §18 CLOUD COMMUNICATION                                                      2700– 2973
+//   §19 mDNS                                                                     2974– 3011
+//   §20 SCALE                                                                    3012– 3103
+//   §21 RFID                                                                     3104– 3513
+//   §22 OTA — Over-the-air firmware + filesystem update                          3514– 3882
+//   §23 SETUP & LOOP                                                             3883– 4254
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -275,6 +275,7 @@ bool     rfidTestActive           = false;  // RFID hardware test mode
 String   rfidTestLastUidLeft      = "";     // Last UID — left  reader (rfid2)
 String   rfidTestLastUidRight     = "";     // Last UID — right reader (rfid1)
 uint8_t  hwRfidCount             = 2;      // Number of RC522 readers physically connected (1 or 2)
+uint8_t  hwRfidSide              = 0;      // When count==1: 0=left (rfid2), 1=right (rfid1)
 bool     hwMotorConnected        = true;   // Whether the servo is physically wired
 uint32_t lastAutoPushSkipLogMs   = 0;
 uint32_t firstUidDetectedMs      = 0;
@@ -2485,10 +2486,11 @@ void setupWebServer() {
 
     // Hardware config — GET returns current state; POST updates it (persisted in NVS)
     server.on("/api/hw/config", HTTP_GET, [](AsyncWebServerRequest *request){
-        char buf[96];
+        char buf[128];
         snprintf(buf, sizeof(buf),
-                 "{\"rfidCount\":%u,\"motorConnected\":%s,\"motorEnabled\":%s}",
+                 "{\"rfidCount\":%u,\"rfidSide\":\"%s\",\"motorConnected\":%s,\"motorEnabled\":%s}",
                  hwRfidCount,
+                 hwRfidSide == 1 ? "right" : "left",
                  hwMotorConnected ? "true" : "false",
                  servoEnabled     ? "true" : "false");
         request->send(200, "application/json", buf);
@@ -2499,7 +2501,11 @@ void setupWebServer() {
             if (deserializeJson(doc, data, len)) {
                 request->send(400, "application/json", "{\"error\":\"bad json\"}"); return;
             }
-            if (doc.containsKey("rfidCount"))      hwRfidCount      = doc["rfidCount"].as<uint8_t>();
+            if (doc.containsKey("rfidCount"))  hwRfidCount = doc["rfidCount"].as<uint8_t>();
+            if (doc.containsKey("rfidSide")) {
+                const char* side = doc["rfidSide"] | "left";
+                hwRfidSide = (strcmp(side, "right") == 0) ? 1 : 0;
+            }
             if (doc.containsKey("motorConnected")) {
                 hwMotorConnected = doc["motorConnected"].as<bool>();
                 if (!hwMotorConnected) {
@@ -2516,14 +2522,16 @@ void setupWebServer() {
                 if (!servoEnabled) stopServoSearch();
             }
             prefs.begin("config", false);
-            prefs.putUChar("hwRfidCnt",  hwRfidCount);
-            prefs.putBool("hwMotorConn", hwMotorConnected);
+            prefs.putUChar("hwRfidCnt",   hwRfidCount);
+            prefs.putUChar("hwRfidSide",  hwRfidSide);
+            prefs.putBool("hwMotorConn",  hwMotorConnected);
             prefs.putBool("servoEnabled", servoEnabled);
             prefs.end();
-            char buf[96];
+            char buf[128];
             snprintf(buf, sizeof(buf),
-                     "{\"rfidCount\":%u,\"motorConnected\":%s,\"motorEnabled\":%s}",
+                     "{\"rfidCount\":%u,\"rfidSide\":\"%s\",\"motorConnected\":%s,\"motorEnabled\":%s}",
                      hwRfidCount,
+                     hwRfidSide == 1 ? "right" : "left",
                      hwMotorConnected ? "true" : "false",
                      servoEnabled     ? "true" : "false");
             request->send(200, "application/json", buf);
@@ -3897,6 +3905,7 @@ void setup() {
     calibrationFactor    = prefs.getFloat("calFactor", calibrationFactor);
     servoEnabled         = prefs.getBool("servoEnabled",   true);
     hwRfidCount          = prefs.getUChar("hwRfidCnt",     2);
+    hwRfidSide           = prefs.getUChar("hwRfidSide",    0);
     hwMotorConnected     = prefs.getBool("hwMotorConn",    true);
     prefs.end();
 
@@ -4072,17 +4081,19 @@ void loop() {
     // web UI.  Bypasses the normal flow guards; accepts any UID length.
     if (rfidTestActive) {
         if (!rfidAntennasOn) rfidAntennaSetAll(true);
-        String hexL;
-        readRFIDUidOnly(rfid2, hexL);   // rfid2 = physically Left
-        if (hexL.length() > 0) {
-            rfidTestLastUidLeft = hexL;
-            Serial.printf("[RFID TEST] Left uid=%s\n", hexL.c_str());
+        bool doLeft  = (hwRfidCount >= 2) || (hwRfidSide == 0);
+        bool doRight = (hwRfidCount >= 2) || (hwRfidSide == 1);
+        if (doLeft) {
+            String hexL;
+            readRFIDUidOnly(rfid2, hexL);   // rfid2 = physically Left
+            if (hexL.length() > 0) {
+                rfidTestLastUidLeft = hexL;
+                Serial.printf("[RFID TEST] Left uid=%s\n", hexL.c_str());
+            }
         }
-        // Always poll rfid1 (Right) too — safe even if not initialized (returns false)
-        // This lets the UI auto-detect which physical reader is connected
-        {
+        if (doRight) {
             String hexR;
-            readRFIDUidOnly(rfid1, hexR);  // rfid1 = physically Right
+            readRFIDUidOnly(rfid1, hexR);   // rfid1 = physically Right
             if (hexR.length() > 0) {
                 rfidTestLastUidRight = hexR;
                 Serial.printf("[RFID TEST] Right uid=%s\n", hexR.c_str());

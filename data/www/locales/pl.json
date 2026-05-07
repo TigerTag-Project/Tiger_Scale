@@ -107,6 +107,7 @@
   "rfidTest": "Test RFID",
   "rfidTestScan": "Skanuj",
   "rfidReaderLeft": "Lewy",
+  "rfidSide": "Strona czytnika",
   "rfidReaderRight": "Prawy",
   "rfidClear": "Wyczyść UID"
 }

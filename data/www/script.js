@@ -413,7 +413,7 @@ function updateServoToggleBtn(enabled) {
 }
 
 // ========== HARDWARE CONFIG ==========
-let hwConfig = { rfidCount: 1, motorConnected: false, motorEnabled: false };
+let hwConfig = { rfidCount: 1, rfidSide: 'left', motorConnected: false, motorEnabled: false };
 
 async function fetchHardwareConfig() {
     try {
@@ -426,9 +426,15 @@ async function fetchHardwareConfig() {
 }
 
 function applyHardwareConfig() {
-    // RFID segment
+    // RFID count segment
     document.querySelectorAll('#rfidSegment .segment-btn').forEach(b => {
         b.classList.toggle('active', +b.dataset.val === hwConfig.rfidCount);
+    });
+    // RFID side selector — visible only when count == 1
+    const sideRow = document.getElementById('rfidSideRow');
+    if (sideRow) sideRow.style.display = (hwConfig.rfidCount === 1) ? '' : 'none';
+    document.querySelectorAll('#rfidSideSegment .segment-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.val === hwConfig.rfidSide);
     });
     // Motor connected toggle
     const connChk = document.getElementById('motorConnectedCheck');
@@ -459,6 +465,17 @@ function setRfidCount(n) {
     hwConfig.rfidCount = n;
     document.querySelectorAll('#rfidSegment .segment-btn').forEach(b => {
         b.classList.toggle('active', +b.dataset.val === n);
+    });
+    const sideRow = document.getElementById('rfidSideRow');
+    if (sideRow) sideRow.style.display = (n === 1) ? '' : 'none';
+    updateRfidTestPanel();
+    saveHardwareConfig();
+}
+
+function setRfidSide(side) {
+    hwConfig.rfidSide = side;
+    document.querySelectorAll('#rfidSideSegment .segment-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.val === side);
     });
     updateRfidTestPanel();
     saveHardwareConfig();
@@ -656,9 +673,18 @@ function _updateRfidTestBtn() {
 }
 
 function updateRfidTestPanel() {
-    // Both rows always visible — firmware polls both readers;
-    // whichever is physically connected will light up with a UID.
-    if (_rfidTestRunning && !hwConfig.rfidCount) stopRfidTest();
+    const leftRow  = document.getElementById('rfidLeftRow');
+    const rightRow = document.getElementById('rfidRightRow');
+    if (hwConfig.rfidCount >= 2) {
+        // 2 readers: show both
+        if (leftRow)  leftRow.style.display  = '';
+        if (rightRow) rightRow.style.display = '';
+    } else {
+        // 1 reader: show only the configured side
+        if (leftRow)  leftRow.style.display  = (hwConfig.rfidSide === 'left')  ? '' : 'none';
+        if (rightRow) rightRow.style.display = (hwConfig.rfidSide === 'right') ? '' : 'none';
+    }
+    if (!hwConfig.rfidCount && _rfidTestRunning) stopRfidTest();
 }
 
 function updateSpoolStatus(detected, position) {
@@ -966,8 +992,9 @@ function applyStatusSnapshot(s) {
 
     // Hardware config fields (rfidCount, motorConnected) if ESP32 exposes them
     let hwUpdated = false;
-    if (typeof s.rfidCount !== 'undefined')      { hwConfig.rfidCount = Number(s.rfidCount);          hwUpdated = true; }
-    if (typeof s.motorConnected !== 'undefined') { hwConfig.motorConnected = !!s.motorConnected;       hwUpdated = true; }
+    if (typeof s.rfidCount      !== 'undefined') { hwConfig.rfidCount      = Number(s.rfidCount);    hwUpdated = true; }
+    if (typeof s.rfidSide       !== 'undefined') { hwConfig.rfidSide       = s.rfidSide;              hwUpdated = true; }
+    if (typeof s.motorConnected !== 'undefined') { hwConfig.motorConnected = !!s.motorConnected;      hwUpdated = true; }
     if (hwUpdated) applyHardwareConfig();
 
     // Spool detection
