@@ -108,5 +108,6 @@
   "rfidTest": "RFID test",
   "rfidTestScan": "Scan",
   "rfidReaderLeft": "Left",
-  "rfidReaderRight": "Right"
+  "rfidReaderRight": "Right",
+  "rfidClear": "Clear UID"
 }

@@ -637,10 +637,21 @@ function _pollRfidTestUid() {
 }
 
 function _setRfidUidDisplay(text, detected) {
-    const el = document.getElementById('rfidTestUidDisplay');
+    const el  = document.getElementById('rfidTestUidDisplay');
+    const clr = document.getElementById('rfidClearBtn');
     if (!el) return;
     el.textContent = text;
     el.classList.toggle('uid-detected', !!detected);
+    if (clr) clr.style.display = detected ? '' : 'none';
+}
+
+function clearRfidScan() {
+    fetch('/api/rfid/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reset: true })
+    }).catch(() => {});
+    _setRfidUidDisplay('—', false);
 }
 
 function _updateRfidTestBtn() {

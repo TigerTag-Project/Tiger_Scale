@@ -869,6 +869,38 @@ input::placeholder {
     border-color: var(--orange, #e67e22);
     color: var(--orange, #e67e22);
 }
+.rfid-uid-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+.rfid-uid-row .rfid-test-uid {
+    flex: 1;
+    margin-bottom: 0;
+}
+.rfid-clear-btn {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: 1px solid var(--line, #e5e7eb);
+    background: transparent;
+    color: var(--muted, #6b7280);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background .15s, color .15s, border-color .15s;
+}
+.rfid-clear-btn:hover {
+    background: #fee2e2;
+    color: #dc2626;
+    border-color: #fca5a5;
+    transform: none;
+    box-shadow: none;
+}
 .rfid-test-uid {
     font-family: 'Courier New', Courier, monospace;
     font-size: 0.88rem;

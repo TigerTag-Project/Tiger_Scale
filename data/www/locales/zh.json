@@ -107,5 +107,6 @@
   "rfidTest": "RFID 测试",
   "rfidTestScan": "扫描",
   "rfidReaderLeft": "左",
-  "rfidReaderRight": "右"
+  "rfidReaderRight": "右",
+  "rfidClear": "清除 UID"
 }

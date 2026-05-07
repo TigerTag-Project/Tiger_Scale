@@ -23,13 +23,13 @@
 //   §14 WEIGHT FILTER HELPERS                                                    1948– 1962
 //   §15 POST-SEND STATE RESET (shared by all send paths)                         1963– 1984
 //   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1985– 2057
-//   §17 WEB SERVER                                                               2058– 2684
-//   §18 CLOUD COMMUNICATION                                                      2685– 2958
-//   §19 mDNS                                                                     2959– 2996
-//   §20 SCALE                                                                    2997– 3088
-//   §21 RFID                                                                     3089– 3498
-//   §22 OTA — Over-the-air firmware + filesystem update                          3499– 3867
-//   §23 SETUP & LOOP                                                             3868– 4227
+//   §17 WEB SERVER                                                               2058– 2693
+//   §18 CLOUD COMMUNICATION                                                      2694– 2967
+//   §19 mDNS                                                                     2968– 3005
+//   §20 SCALE                                                                    3006– 3097
+//   §21 RFID                                                                     3098– 3507
+//   §22 OTA — Over-the-air firmware + filesystem update                          3508– 3876
+//   §23 SETUP & LOOP                                                             3877– 4236
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -2584,7 +2584,16 @@ void setupWebServer() {
             if (deserializeJson(doc, data, len)) {
                 request->send(400, "application/json", "{\"error\":\"bad json\"}"); return;
             }
-            bool stop = doc["stop"] | false;
+            bool stop  = doc["stop"]  | false;
+            bool reset = doc["reset"] | false;
+            if (reset) {
+                rfidTestLastUidHex = "";
+                Serial.println("[RFID TEST] UID cleared");
+                String resp = "{\"active\":" + String(rfidTestActive ? "true" : "false") +
+                              ",\"reader\":"  + String(rfidTestReader) + ",\"uid\":null}";
+                request->send(200, "application/json", resp);
+                return;
+            }
             if (stop) {
                 rfidTestActive     = false;
                 rfidTestLastUidHex = "";
@@ -4005,7 +4014,7 @@ void loop() {
         if (needAntennas != rfidAntennasOn) rfidAntennaSetAll(needAntennas);
     }
 
-    if (!rfidLockedForCurrentLoad && !autoTarePending && rfidAntennasOn) {
+    if (!rfidLockedForCurrentLoad && !autoTarePending && rfidAntennasOn && !rfidTestActive) {
         // --- Step 1: poll both readers back-to-back (pure SPI, no HTTP) ---
         String uid1Hex, uid1 = readRFIDFromReader(rfid1, uid1Hex);
         String uid2Hex, uid2 = readRFIDFromReader(rfid2, uid2Hex);
