@@ -439,6 +439,8 @@ function applyHardwareConfig() {
     // Motor enabled toggle
     const enChk = document.getElementById('motorEnabledCheck');
     if (enChk) enChk.checked = !!hwConfig.motorEnabled;
+    // Motor test panel — visible only when both connected + enabled
+    updateMotorTestPanel();
 }
 
 async function saveHardwareConfig() {
@@ -469,7 +471,9 @@ function onMotorConnectedChange() {
         const enChk = document.getElementById('motorEnabledCheck');
         if (enChk) enChk.checked = false;
         updateServoToggleBtn(false);
+        stopMotorTest();
     }
+    updateMotorTestPanel();
     saveHardwareConfig();
 }
 
@@ -477,6 +481,8 @@ function onMotorEnabledChange() {
     const chk = document.getElementById('motorEnabledCheck');
     hwConfig.motorEnabled = !!(chk && chk.checked);
     updateServoToggleBtn(hwConfig.motorEnabled);
+    if (!hwConfig.motorEnabled) stopMotorTest();
+    updateMotorTestPanel();
     // Also call servo toggle endpoint so ESP32 state stays in sync
     fetch('/api/servo-toggle', { method: 'POST' })
     .then(r => r.ok ? r.json() : Promise.reject())
@@ -487,6 +493,78 @@ function onMotorEnabledChange() {
         if (c) c.checked = hwConfig.motorEnabled;
     });
     saveHardwareConfig();
+}
+
+// ── Motor test ────────────────────────────────────────────────
+// Speed levels → microseconds for a continuous rotation servo
+// 1500 = stop, >1500 = forward, 2000 = full speed
+const MOTOR_SPEED_US = { 1: 1530, 2: 1580, 3: 1650, 4: 1750, 5: 1900 };
+let _motorTestRunning = false;
+let _motorTestSpeed   = 2;
+
+function updateMotorTestPanel() {
+    const panel = document.getElementById('motorTestPanel');
+    if (!panel) return;
+    const show = !!(hwConfig.motorConnected && hwConfig.motorEnabled);
+    panel.style.display = show ? '' : 'none';
+    if (!show && _motorTestRunning) stopMotorTest();
+    _updateMotorTestBtn();  // sync label/icon (no data-i18n on label — managed here only)
+}
+
+function setMotorTestSpeed(level) {
+    _motorTestSpeed = level;
+    document.querySelectorAll('.motor-speed-btn').forEach(b => {
+        b.classList.toggle('active', +b.dataset.speed === level);
+    });
+    if (_motorTestRunning) {
+        fetch('/api/servo/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ us: MOTOR_SPEED_US[level] })
+        }).catch(() => {});
+    }
+}
+
+function toggleMotorTest() {
+    if (_motorTestRunning) stopMotorTest();
+    else startMotorTest();
+}
+
+function startMotorTest() {
+    const us = MOTOR_SPEED_US[_motorTestSpeed] || 1650;
+    fetch('/api/servo/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ us })
+    })
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(() => {
+        _motorTestRunning = true;
+        _updateMotorTestBtn();
+    })
+    .catch(() => {});
+}
+
+function stopMotorTest() {
+    fetch('/api/servo/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stop: true })
+    }).catch(() => {});
+    _motorTestRunning = false;
+    _updateMotorTestBtn();
+}
+
+function _updateMotorTestBtn() {
+    const btn   = document.getElementById('motorTestRunBtn');
+    const label = document.getElementById('motorTestLabel');
+    const icon  = document.getElementById('motorTestIcon');
+    if (!btn) return;
+    btn.classList.toggle('running', _motorTestRunning);
+    if (label) label.textContent = _motorTestRunning ? t('motorTestStop') : t('motorTestRun');
+    if (icon) icon.innerHTML = _motorTestRunning
+        ? '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>'
+        : '<polygon points="5,3 19,12 5,21"/>';
 }
 
 function updateSpoolStatus(detected, position) {

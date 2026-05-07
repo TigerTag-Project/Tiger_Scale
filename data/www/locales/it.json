@@ -100,5 +100,8 @@
   "spoolDetected": "Bobina rilevata",
   "spoolPosition": "Posizione",
   "yes": "Sì",
-  "no": "No"
+  "no": "No",
+  "motorTest": "Test motore",
+  "motorTestRun": "Avvia",
+  "motorTestStop": "Ferma"
 }

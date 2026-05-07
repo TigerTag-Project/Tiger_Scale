@@ -100,5 +100,8 @@
   "spoolDetected": "Szpula wykryta",
   "spoolPosition": "Pozycja",
   "yes": "Tak",
-  "no": "Nie"
+  "no": "Nie",
+  "motorTest": "Test silnika",
+  "motorTestRun": "Uruchom",
+  "motorTestStop": "Zatrzymaj"
 }

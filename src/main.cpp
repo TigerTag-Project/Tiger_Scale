@@ -12,24 +12,24 @@
 //   §3  FORWARD DECLARATIONS                                                      129–  203
 //   §4  WEIGHT ROUNDING                                                           204–  223
 //   §5  GLOBAL OBJECTS                                                            224–  237
-//   §6  CONFIGURATION VARIABLES                                                   238–  350
-//   §7  OLED DISPLAY                                                              351–  468
-//   §8  CLOUD PARSING                                                             469–  483
-//   §9  WIFI SETUP                                                                484–  742
-//   §10 LITTLEFS                                                                  743–  787
-//   §11 FIREBASE AUTHENTICATION                                                   788–  973
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          974– 1901
-//   §13 WEBSOCKET                                                                1902– 1938
-//   §14 WEIGHT FILTER HELPERS                                                    1939– 1953
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         1954– 1975
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1976– 2048
-//   §17 WEB SERVER                                                               2049– 2600
-//   §18 CLOUD COMMUNICATION                                                      2601– 2874
-//   §19 mDNS                                                                     2875– 2912
-//   §20 SCALE                                                                    2913– 3004
-//   §21 RFID                                                                     3005– 3383
-//   §22 OTA — Over-the-air firmware + filesystem update                          3384– 3752
-//   §23 SETUP & LOOP                                                             3753– 4086
+//   §6  CONFIGURATION VARIABLES                                                   238–  352
+//   §7  OLED DISPLAY                                                              353–  470
+//   §8  CLOUD PARSING                                                             471–  485
+//   §9  WIFI SETUP                                                                486–  744
+//   §10 LITTLEFS                                                                  745–  789
+//   §11 FIREBASE AUTHENTICATION                                                   790–  975
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          976– 1903
+//   §13 WEBSOCKET                                                                1904– 1940
+//   §14 WEIGHT FILTER HELPERS                                                    1941– 1955
+//   §15 POST-SEND STATE RESET (shared by all send paths)                         1956– 1977
+//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1978– 2050
+//   §17 WEB SERVER                                                               2051– 2640
+//   §18 CLOUD COMMUNICATION                                                      2641– 2914
+//   §19 mDNS                                                                     2915– 2952
+//   §20 SCALE                                                                    2953– 3044
+//   §21 RFID                                                                     3045– 3424
+//   §22 OTA — Over-the-air firmware + filesystem update                          3425– 3793
+//   §23 SETUP & LOOP                                                             3794– 4127
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -265,6 +265,8 @@ bool     rfidLockedForCurrentLoad = false;
 bool     servoLockedUntilAutotare = false;  // Servo locked after weight sent until auto-tare completes
 bool     servoHoldAfterRemoval    = false;  // Keep servo stopped while load is being removed
 bool     servoEnabled             = true;   // User-controlled ON/OFF (persisted in NVS)
+bool     servoTestActive          = false;  // Manual test mode — freezes workflow
+int      servoTestUs              = 1500;   // μs written during test
 uint8_t  hwRfidCount             = 2;      // Number of RC522 readers physically connected (1 or 2)
 bool     hwMotorConnected        = true;   // Whether the servo is physically wired
 uint32_t lastAutoPushSkipLogMs   = 0;
@@ -2521,6 +2523,44 @@ void setupWebServer() {
         }
     );
 
+    // ── Motor test: POST /api/servo/test  { "us": 1700 }  or  { "stop": true } ──
+    server.on("/api/servo/test", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL,
+        [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
+            if (!hwMotorConnected || !servoEnabled) {
+                request->send(403, "application/json", "{\"error\":\"motor not available\"}");
+                return;
+            }
+            StaticJsonDocument<64> doc;
+            if (deserializeJson(doc, data, len)) {
+                request->send(400, "application/json", "{\"error\":\"bad json\"}"); return;
+            }
+            bool stop = doc["stop"] | false;
+            if (stop) {
+                servoTestActive = false;
+                servoTestUs     = 1500;
+                servoSearching  = false;
+                if (spoolServo.attached()) spoolServo.writeMicroseconds(1500);
+                Serial.println("[SERVO TEST] stopped");
+                request->send(200, "application/json", "{\"active\":false,\"us\":1500}");
+                return;
+            }
+            int us = doc["us"] | 1500;
+            us = constrain(us, 1000, 2000);
+            servoTestUs     = us;
+            servoTestActive = true;
+            servoSearching  = true;   // keep state consistent
+            if (!spoolServo.attached()) {
+                spoolServo.setPeriodHertz(50);
+                spoolServo.attach(SERVO_PIN, 1000, 2000);
+            }
+            spoolServo.writeMicroseconds(us);
+            Serial.printf("[SERVO TEST] active us=%d\n", us);
+            char buf[48];
+            snprintf(buf, sizeof(buf), "{\"active\":true,\"us\":%d}", us);
+            request->send(200, "application/json", buf);
+        }
+    );
+
     // Weight push - shared implementation (ArduinoJson, merged handlers)
     server.on("/api/weight", HTTP_POST, [](AsyncWebServerRequest *r){}, NULL,
         [](AsyncWebServerRequest *r, uint8_t *d, size_t l, size_t i, size_t t){
@@ -3163,6 +3203,7 @@ bool processAutoTare(float weight) {
 
 void updateServoWorkflow(float weight) {
     if (!hwMotorConnected) return;   // motor not wired — nothing to do
+    if (servoTestActive)   return;   // test mode overrides workflow — don't interfere
 
     // HOLD: after removal event, keep servo stopped until scale is effectively empty
     if (servoHoldAfterRemoval) {

@@ -100,5 +100,8 @@
   "spoolDetected": "Spule erkannt",
   "spoolPosition": "Position",
   "yes": "Ja",
-  "no": "Nein"
+  "no": "Nein",
+  "motorTest": "Motortest",
+  "motorTestRun": "Starten",
+  "motorTestStop": "Stoppen"
 }

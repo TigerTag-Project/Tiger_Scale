@@ -186,6 +186,24 @@
                         <span class="ios-switch-track"></span>
                     </label>
                 </div>
+                <!-- Motor test panel (visible only if motor connected + enabled) -->
+                <div class="motor-test-panel" id="motorTestPanel" style="display:none">
+                    <div class="motor-test-header">
+                        <svg class="icon" style="flex-shrink:0"><use href="#icon-rotate-cw"></use></svg>
+                        <span data-i18n="motorTest">Motor test</span>
+                    </div>
+                    <div class="motor-test-speeds">
+                        <button class="motor-speed-btn" data-speed="1" onclick="setMotorTestSpeed(1)">1</button>
+                        <button class="motor-speed-btn active" data-speed="2" onclick="setMotorTestSpeed(2)">2</button>
+                        <button class="motor-speed-btn" data-speed="3" onclick="setMotorTestSpeed(3)">3</button>
+                        <button class="motor-speed-btn" data-speed="4" onclick="setMotorTestSpeed(4)">4</button>
+                        <button class="motor-speed-btn" data-speed="5" onclick="setMotorTestSpeed(5)">5</button>
+                    </div>
+                    <button class="motor-test-run-btn" id="motorTestRunBtn" onclick="toggleMotorTest()">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" id="motorTestIcon"><polygon points="5,3 19,12 5,21"/></svg>
+                        <span id="motorTestLabel">Run</span>
+                    </button>
+                </div>
                 <div class="divider"></div>
                 <!-- Spool detection info (read-only, updated from /api/status) -->
                 <div class="setting-row">

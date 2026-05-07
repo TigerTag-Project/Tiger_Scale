@@ -100,5 +100,8 @@
   "spoolDetected": "检测到料盘",
   "spoolPosition": "位置",
   "yes": "是",
-  "no": "否"
+  "no": "否",
+  "motorTest": "电机测试",
+  "motorTestRun": "运行",
+  "motorTestStop": "停止"
 }

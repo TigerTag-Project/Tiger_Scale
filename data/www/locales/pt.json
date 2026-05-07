@@ -100,5 +100,8 @@
   "spoolDetected": "Carretel detectado",
   "spoolPosition": "Posição",
   "yes": "Sim",
-  "no": "Não"
+  "no": "Não",
+  "motorTest": "Teste do motor",
+  "motorTestRun": "Iniciar",
+  "motorTestStop": "Parar"
 }

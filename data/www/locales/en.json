@@ -101,5 +101,8 @@
   "spoolDetected": "Spool detected",
   "spoolPosition": "Position",
   "yes": "Yes",
-  "no": "No"
+  "no": "No",
+  "motorTest": "Motor test",
+  "motorTestRun": "Run",
+  "motorTestStop": "Stop"
 }
