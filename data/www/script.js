@@ -430,9 +430,7 @@ function applyHardwareConfig() {
     document.querySelectorAll('#rfidSegment .segment-btn').forEach(b => {
         b.classList.toggle('active', +b.dataset.val === hwConfig.rfidCount);
     });
-    // RFID side selector — visible only when count == 1
-    const sideRow = document.getElementById('rfidSideRow');
-    if (sideRow) sideRow.style.display = (hwConfig.rfidCount === 1) ? '' : 'none';
+    // RFID side segment active state
     document.querySelectorAll('#rfidSideSegment .segment-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.val === hwConfig.rfidSide);
     });
@@ -466,8 +464,6 @@ function setRfidCount(n) {
     document.querySelectorAll('#rfidSegment .segment-btn').forEach(b => {
         b.classList.toggle('active', +b.dataset.val === n);
     });
-    const sideRow = document.getElementById('rfidSideRow');
-    if (sideRow) sideRow.style.display = (n === 1) ? '' : 'none';
     updateRfidTestPanel();
     saveHardwareConfig();
 }
@@ -673,14 +669,17 @@ function _updateRfidTestBtn() {
 }
 
 function updateRfidTestPanel() {
+    const sideRow  = document.getElementById('rfidSideRow');
     const leftRow  = document.getElementById('rfidLeftRow');
     const rightRow = document.getElementById('rfidRightRow');
     if (hwConfig.rfidCount >= 2) {
-        // 2 readers: show both
+        // 2 readers: hide selector, show both rows
+        if (sideRow)  sideRow.style.display  = 'none';
         if (leftRow)  leftRow.style.display  = '';
         if (rightRow) rightRow.style.display = '';
     } else {
-        // 1 reader: show only the configured side
+        // 1 reader: show selector, show only the configured side row
+        if (sideRow)  sideRow.style.display  = '';
         if (leftRow)  leftRow.style.display  = (hwConfig.rfidSide === 'left')  ? '' : 'none';
         if (rightRow) rightRow.style.display = (hwConfig.rfidSide === 'right') ? '' : 'none';
     }

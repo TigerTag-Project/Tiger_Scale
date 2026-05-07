@@ -164,22 +164,18 @@
                         <button class="segment-btn" data-val="2" onclick="setRfidCount(2)">2</button>
                     </div>
                 </div>
-                <!-- RFID side selector — visible only when rfidCount = 1 -->
-                <div class="setting-row" id="rfidSideRow" style="display:none">
-                    <div class="setting-row-label">
-                        <svg class="icon"><use href="#icon-radio"></use></svg>
-                        <span data-i18n="rfidSide">Reader side</span>
-                    </div>
-                    <div class="segment-control" id="rfidSideSegment">
-                        <button class="segment-btn active" data-val="left" onclick="setRfidSide('left')" data-i18n="rfidReaderLeft">Left</button>
-                        <button class="segment-btn"        data-val="right" onclick="setRfidSide('right')" data-i18n="rfidReaderRight">Right</button>
-                    </div>
-                </div>
                 <!-- RFID test panel -->
                 <div class="motor-test-panel" id="rfidTestPanel">
                     <div class="motor-test-header">
                         <svg class="icon" style="flex-shrink:0"><use href="#icon-radio"></use></svg>
                         <span data-i18n="rfidTest">RFID test</span>
+                    </div>
+                    <!-- Side selector — visible only when rfidCount = 1 -->
+                    <div id="rfidSideRow" style="display:none">
+                        <div class="segment-control" id="rfidSideSegment">
+                            <button class="segment-btn active" data-val="left" onclick="setRfidSide('left')" data-i18n="rfidReaderLeft">Left</button>
+                            <button class="segment-btn"        data-val="right" onclick="setRfidSide('right')" data-i18n="rfidReaderRight">Right</button>
+                        </div>
                     </div>
                     <!-- Left reader row -->
                     <div class="rfid-reader-row" id="rfidLeftRow">

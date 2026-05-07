@@ -843,6 +843,15 @@ input::placeholder {
 #rfidTestPanel .motor-test-run-btn {
     justify-content: center;
 }
+#rfidSideRow {
+    margin-bottom: 10px;
+}
+#rfidSideRow .segment-control {
+    width: 100%;
+}
+#rfidSideRow .segment-btn {
+    flex: 1;
+}
 .rfid-reader-row {
     display: flex;
     align-items: center;
