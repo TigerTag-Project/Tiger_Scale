@@ -1055,7 +1055,7 @@ int getWiFiSignalDbm() {
 // Read inventory/{uid} and extract twin_tag_uid if present
 // Returns true if doc exists and reads twin_tag_uid into outTwinUid (empty if no twin)
 bool readInventoryDocTwinTag(const String& uid, String& outTwinUid) {
-    if (firebaseIdToken.length() == 0 || uid.length() == 0) return false;
+    if (firebaseIdToken.length() == 0 || firebaseUid.length() == 0 || uid.length() == 0) return false;
 
     String uidHex = normalizeUidHex(uid);
     outTwinUid = "";
