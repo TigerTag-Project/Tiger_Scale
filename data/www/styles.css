@@ -1068,21 +1068,41 @@ input::placeholder {
     color: #16a34a;
 }
 
-/* "Forgot password?" button — inline, right-aligned, minimal */
+/* Password row: label left + "Forgot password?" right — GitHub / Stripe pattern */
+.auth-field-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 12px;
+    margin-bottom: 6px;
+}
+.auth-field-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink, #1a1a1a);
+    margin-bottom: 0;  /* override global label { margin-bottom: 8px } */
+    display: inline;   /* override global label { display: block } */
+}
 .auth-forgot {
     background: none;
     border: none;
-    padding: 2px 0;
-    margin-top: 4px;
-    width: 100%;
-    text-align: right;
+    padding: 0;
+    width: auto;          /* override global button { width:100% } */
+    min-height: unset;    /* override global button { min-height:48px } */
     font-size: 12px;
+    font-weight: 500;
     color: var(--muted, #888);
     cursor: pointer;
     font-family: inherit;
     transition: color .15s;
+    line-height: 1;
+    box-shadow: none;
 }
-.auth-forgot:hover { color: var(--orange, #e67e22); }
+.auth-forgot:hover {
+    color: var(--orange, #e67e22);
+    transform: none;
+    box-shadow: none;
+}
 
 .auth-footer {
     margin-top: 16px;

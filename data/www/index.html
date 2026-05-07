@@ -375,10 +375,11 @@
             <div class="auth-divider"><span data-i18n="authOr">or</span></div>
 
             <input type="email" id="loginEmail" data-i18n-placeholder="authEmail" placeholder="Email address" autocomplete="username">
-            <input type="password" id="loginPassword" data-i18n-placeholder="authPassword" placeholder="Password" autocomplete="current-password">
-            <button type="button" class="auth-forgot" onclick="sendPasswordReset()">
-                <span data-i18n="authForgot">Forgot password?</span>
-            </button>
+            <div class="auth-field-header">
+                <label class="auth-field-label" for="loginPassword" data-i18n="authPassword">Password</label>
+                <button type="button" class="auth-forgot" onclick="sendPasswordReset()" data-i18n="authForgot">Forgot password?</button>
+            </div>
+            <input type="password" id="loginPassword" placeholder="" autocomplete="current-password">
 
             <button type="button" class="auth-btn auth-btn-primary" onclick="signInWithEmail()">
                 <span data-i18n="authSignIn">Sign in</span>
