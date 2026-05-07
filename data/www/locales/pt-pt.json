@@ -105,5 +105,7 @@
   "motorTestRun": "Iniciar",
   "motorTestStop": "Parar",
   "rfidTest": "Teste RFID",
-  "rfidTestScan": "Digitalizar"
+  "rfidTestScan": "Digitalizar",
+  "rfidReaderLeft": "Esquerda",
+  "rfidReaderRight": "Direita"
 }

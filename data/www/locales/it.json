@@ -105,5 +105,7 @@
   "motorTestRun": "Avvia",
   "motorTestStop": "Ferma",
   "rfidTest": "Test RFID",
-  "rfidTestScan": "Scansiona"
+  "rfidTestScan": "Scansiona",
+  "rfidReaderLeft": "Sinistra",
+  "rfidReaderRight": "Destra"
 }

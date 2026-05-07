@@ -105,5 +105,7 @@
   "motorTestRun": "运行",
   "motorTestStop": "停止",
   "rfidTest": "RFID 测试",
-  "rfidTestScan": "扫描"
+  "rfidTestScan": "扫描",
+  "rfidReaderLeft": "左",
+  "rfidReaderRight": "右"
 }
