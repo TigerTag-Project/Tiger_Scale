@@ -170,15 +170,25 @@
                         <svg class="icon" style="flex-shrink:0"><use href="#icon-radio"></use></svg>
                         <span data-i18n="rfidTest">RFID test</span>
                     </div>
-                    <div class="rfid-reader-sel">
-                        <button class="rfid-reader-btn active" id="rfidReaderBtn1" onclick="setRfidTestReader(1)" data-i18n="rfidReaderLeft">Reader Left</button>
-                        <button class="rfid-reader-btn" id="rfidReaderBtn2" onclick="setRfidTestReader(2)" data-i18n="rfidReaderRight">Reader Right</button>
+                    <!-- Left reader row — always shown -->
+                    <div class="rfid-reader-row">
+                        <span class="rfid-reader-row-label" data-i18n="rfidReaderLeft">Left</span>
+                        <div class="rfid-uid-wrap">
+                            <div class="rfid-test-uid" id="rfidTestUidLeft">—</div>
+                            <button class="rfid-clear-btn" id="rfidClearBtnLeft" onclick="clearRfidUid('left')" style="display:none" data-i18n-title="rfidClear" aria-label="Clear">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                        </div>
                     </div>
-                    <div class="rfid-uid-wrap">
-                        <div class="rfid-test-uid" id="rfidTestUidDisplay">—</div>
-                        <button class="rfid-clear-btn" id="rfidClearBtn" onclick="clearRfidScan()" style="display:none" data-i18n-title="rfidClear" aria-label="Clear">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        </button>
+                    <!-- Right reader row — shown only when rfidCount = 2 -->
+                    <div class="rfid-reader-row" id="rfidRightRow" style="display:none">
+                        <span class="rfid-reader-row-label" data-i18n="rfidReaderRight">Right</span>
+                        <div class="rfid-uid-wrap">
+                            <div class="rfid-test-uid" id="rfidTestUidRight">—</div>
+                            <button class="rfid-clear-btn" id="rfidClearBtnRight" onclick="clearRfidUid('right')" style="display:none" data-i18n-title="rfidClear" aria-label="Clear">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                        </div>
                     </div>
                     <button class="motor-test-run-btn" id="rfidTestRunBtn" onclick="toggleRfidTest()">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" id="rfidTestIcon"><polygon points="5,3 19,12 5,21"/></svg>

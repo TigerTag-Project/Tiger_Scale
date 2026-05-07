@@ -843,31 +843,24 @@ input::placeholder {
 #rfidTestPanel .motor-test-run-btn {
     justify-content: center;
 }
-.rfid-reader-sel {
+.rfid-reader-row {
     display: flex;
+    align-items: center;
     gap: 8px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
-.rfid-reader-btn {
+.rfid-reader-row-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--muted, #6b7280);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    width: 34px;
+    flex-shrink: 0;
+}
+.rfid-reader-row .rfid-uid-wrap {
     flex: 1;
-    padding: 7px 0;
-    border-radius: 10px;
-    border: 2px solid var(--line, #e5e7eb);
-    background: transparent;
-    color: var(--text, #1a1a1a);
-    font-size: 0.82rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: border-color .15s, background .15s, color .15s;
-}
-.rfid-reader-btn.active {
-    border-color: var(--orange, #e67e22);
-    background: var(--orange, #e67e22);
-    color: #fff;
-}
-.rfid-reader-btn:hover:not(.active) {
-    border-color: var(--orange, #e67e22);
-    color: var(--orange, #e67e22);
+    margin-bottom: 0;
 }
 .rfid-uid-wrap {
     position: relative;

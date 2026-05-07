@@ -23,13 +23,13 @@
 //   §14 WEIGHT FILTER HELPERS                                                    1948– 1962
 //   §15 POST-SEND STATE RESET (shared by all send paths)                         1963– 1984
 //   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1985– 2057
-//   §17 WEB SERVER                                                               2058– 2693
-//   §18 CLOUD COMMUNICATION                                                      2694– 2967
-//   §19 mDNS                                                                     2968– 3005
-//   §20 SCALE                                                                    3006– 3097
-//   §21 RFID                                                                     3098– 3507
-//   §22 OTA — Over-the-air firmware + filesystem update                          3508– 3876
-//   §23 SETUP & LOOP                                                             3877– 4236
+//   §17 WEB SERVER                                                               2058– 2691
+//   §18 CLOUD COMMUNICATION                                                      2692– 2965
+//   §19 mDNS                                                                     2966– 3003
+//   §20 SCALE                                                                    3004– 3095
+//   §21 RFID                                                                     3096– 3505
+//   §22 OTA — Over-the-air firmware + filesystem update                          3506– 3874
+//   §23 SETUP & LOOP                                                             3875– 4241
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -272,8 +272,8 @@ bool     servoTestActive          = false;  // Manual test mode — freezes work
 int      servoTestUs              = 1500;   // μs written during test
 bool     rfidAntennasOn           = true;   // Current antenna state (both readers)
 bool     rfidTestActive           = false;  // RFID hardware test mode
-uint8_t  rfidTestReader           = 1;      // Reader under test (1 or 2)
-String   rfidTestLastUidHex       = "";     // Last UID seen during RFID test
+String   rfidTestLastUidLeft      = "";     // Last UID — left  reader (rfid2)
+String   rfidTestLastUidRight     = "";     // Last UID — right reader (rfid1)
 uint8_t  hwRfidCount             = 2;      // Number of RC522 readers physically connected (1 or 2)
 bool     hwMotorConnected        = true;   // Whether the servo is physically wired
 uint32_t lastAutoPushSkipLogMs   = 0;
@@ -2568,14 +2568,13 @@ void setupWebServer() {
         }
     );
 
-    // ── RFID hardware test ── GET returns state; POST starts/stops reader scan ──
+    // ── RFID hardware test ── GET returns state; POST starts/stops dual-reader scan ──
     server.on("/api/rfid/test", HTTP_GET, [](AsyncWebServerRequest *request){
-        String uid  = rfidTestLastUidHex.length() > 0
-                    ? "\"" + rfidTestLastUidHex + "\""
-                    : "null";
-        String resp = "{\"active\":"  + String(rfidTestActive ? "true" : "false") +
-                      ",\"reader\":"  + String(rfidTestReader) +
-                      ",\"uid\":"     + uid + "}";
+        String uidL = rfidTestLastUidLeft.length()  > 0 ? "\"" + rfidTestLastUidLeft  + "\"" : "null";
+        String uidR = rfidTestLastUidRight.length() > 0 ? "\"" + rfidTestLastUidRight + "\"" : "null";
+        String resp = "{\"active\":"    + String(rfidTestActive ? "true" : "false") +
+                      ",\"uid_left\":"  + uidL +
+                      ",\"uid_right\":" + uidR + "}";
         request->send(200, "application/json", resp);
     });
     server.on("/api/rfid/test", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL,
@@ -2587,30 +2586,29 @@ void setupWebServer() {
             bool stop  = doc["stop"]  | false;
             bool reset = doc["reset"] | false;
             if (reset) {
-                rfidTestLastUidHex = "";
-                Serial.println("[RFID TEST] UID cleared");
+                rfidTestLastUidLeft  = "";
+                rfidTestLastUidRight = "";
+                Serial.println("[RFID TEST] UIDs cleared");
                 String resp = "{\"active\":" + String(rfidTestActive ? "true" : "false") +
-                              ",\"reader\":"  + String(rfidTestReader) + ",\"uid\":null}";
+                              ",\"uid_left\":null,\"uid_right\":null}";
                 request->send(200, "application/json", resp);
                 return;
             }
             if (stop) {
-                rfidTestActive     = false;
-                rfidTestLastUidHex = "";
+                rfidTestActive       = false;
+                rfidTestLastUidLeft  = "";
+                rfidTestLastUidRight = "";
                 Serial.println("[RFID TEST] stopped");
                 request->send(200, "application/json", "{\"active\":false}");
                 return;
             }
-            uint8_t r = doc["reader"] | 1;
-            if (r < 1 || r > 2) r = 1;
-            if (r > hwRfidCount)  r = hwRfidCount;
-            rfidTestReader     = r;
-            rfidTestLastUidHex = "";
-            rfidTestActive     = true;
+            // Start: clear both UIDs and activate
+            rfidTestLastUidLeft  = "";
+            rfidTestLastUidRight = "";
+            rfidTestActive       = true;
             if (!rfidAntennasOn) rfidAntennaSetAll(true);
-            Serial.printf("[RFID TEST] started reader=%d\n", rfidTestReader);
-            String resp = "{\"active\":true,\"reader\":" + String(rfidTestReader) + "}";
-            request->send(200, "application/json", resp);
+            Serial.println("[RFID TEST] started (dual reader)");
+            request->send(200, "application/json", "{\"active\":true}");
         }
     );
 
@@ -4070,16 +4068,23 @@ void loop() {
     }
 
     // ── RFID hardware test mode ──────────────────────────────────────────────
-    // When active, force-poll the selected reader and store the raw UID for the
+    // When active, poll both readers simultaneously and store raw UIDs for the
     // web UI.  Bypasses the normal flow guards; accepts any UID length.
     if (rfidTestActive) {
-        MFRC522& tr = (rfidTestReader == 2) ? rfid1 : rfid2;
         if (!rfidAntennasOn) rfidAntennaSetAll(true);
-        String hexOut;
-        readRFIDUidOnly(tr, hexOut);
-        if (hexOut.length() > 0) {
-            rfidTestLastUidHex = hexOut;
-            Serial.printf("[RFID TEST] reader=%d uid=%s\n", rfidTestReader, hexOut.c_str());
+        String hexL;
+        readRFIDUidOnly(rfid2, hexL);   // rfid2 = physically Left
+        if (hexL.length() > 0) {
+            rfidTestLastUidLeft = hexL;
+            Serial.printf("[RFID TEST] Left uid=%s\n", hexL.c_str());
+        }
+        if (hwRfidCount >= 2) {
+            String hexR;
+            readRFIDUidOnly(rfid1, hexR);  // rfid1 = physically Right
+            if (hexR.length() > 0) {
+                rfidTestLastUidRight = hexR;
+                Serial.printf("[RFID TEST] Right uid=%s\n", hexR.c_str());
+            }
         }
     }
 
