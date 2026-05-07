@@ -964,7 +964,7 @@ input::placeholder {
 .auth-modal-header {
     display: grid;
     grid-template-columns: 1fr auto 1fr;
-    align-items: center;
+    align-items: start;
     margin-bottom: 20px;
 }
 /* lang picker stays left */
@@ -1008,14 +1008,14 @@ input::placeholder {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 68px;
-    height: 68px;
-    border-radius: 20px;
+    width: 76px;
+    height: 76px;
+    border-radius: 22px;
     background: #101411;
     box-shadow: 0 4px 16px rgba(0,0,0,0.18);
 }
 .auth-logo img {
-    width: 44px;
+    width: 48px;
     height: auto;
     filter: invert(1);
 }
