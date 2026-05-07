@@ -7,30 +7,30 @@
 //
 //   TABLE OF CONTENTS                            line range
 //   ────────────────────────────────────────────  ──────────
-//   §1  HARDWARE CONFIGURATION                                                     58–  112
-//   §2  OTA CONFIGURATION                                                         113–  131
-//   §3  FORWARD DECLARATIONS                                                      132–  209
-//   §4  WEIGHT ROUNDING                                                           210–  229
-//   §5  GLOBAL OBJECTS                                                            230–  243
-//   §6  CONFIGURATION VARIABLES                                                   244–  369
-//   §7  OLED DISPLAY                                                              370–  487
-//   §8  CLOUD PARSING                                                             488–  502
-//   §9  WIFI SETUP                                                                503–  761
-//   §10 LITTLEFS                                                                  762–  806
-//   §11 FIREBASE AUTHENTICATION                                                   807–  992
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          993– 1893
-//   §13 WEBSOCKET                                                                1894– 1930
-//   §14 WEIGHT FILTER HELPERS                                                    1931– 1945
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         1946– 1967
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1968– 2040
-//   §17 WEB SERVER                                                               2041– 2701
-//   §18 CLOUD COMMUNICATION                                                      2702– 2878
-//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                2879– 3000
-//   §20 mDNS                                                                     3001– 3038
-//   §21 SCALE                                                                    3039– 3130
-//   §22 RFID                                                                     3131– 3459
-//   §23 OTA — Over-the-air firmware + filesystem update                          3460– 3828
-//   §24 SETUP & LOOP                                                             3829– 4200
+//   §1  HARDWARE CONFIGURATION                                                     59–  113
+//   §2  OTA CONFIGURATION                                                         114–  132
+//   §3  FORWARD DECLARATIONS                                                      133–  210
+//   §4  WEIGHT ROUNDING                                                           211–  230
+//   §5  GLOBAL OBJECTS                                                            231–  244
+//   §6  CONFIGURATION VARIABLES                                                   245–  370
+//   §7  OLED DISPLAY                                                              371–  488
+//   §8  CLOUD PARSING                                                             489–  503
+//   §9  WIFI SETUP                                                                504–  762
+//   §10 LITTLEFS                                                                  763–  807
+//   §11 FIREBASE AUTHENTICATION                                                   808–  993
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          994– 1894
+//   §13 WEBSOCKET                                                                1895– 1931
+//   §14 WEIGHT FILTER HELPERS                                                    1932– 1946
+//   §15 POST-SEND STATE RESET (shared by all send paths)                         1947– 1968
+//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1969– 2041
+//   §17 WEB SERVER                                                               2042– 2702
+//   §18 CLOUD COMMUNICATION                                                      2703– 2879
+//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                2880– 3004
+//   §20 mDNS                                                                     3005– 3042
+//   §21 SCALE                                                                    3043– 3134
+//   §22 RFID                                                                     3135– 3463
+//   §23 OTA — Over-the-air firmware + filesystem update                          3464– 3832
+//   §24 SETUP & LOOP                                                             3833– 4204
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -2931,7 +2931,9 @@ void handleWeighWorkflow(float w) {
         if (secsLeft < 0) secsLeft = 0;
         if (secsLeft != sendCountdown) sendCountdown = secsLeft;
 
-        if (now - wfScanStartMs >= scanDuration) {
+        // Early exit: both UIDs already captured — no need to finish the full turn
+        bool bothUidsReady = (lastUID.length() > 0 && lastUID2.length() > 0);
+        if (bothUidsReady || now - wfScanStartMs >= scanDuration) {
             stopServoSearch();
             if (lastUID.length() == 0) {
                 wfPhase = WF_IDLE; sendPhase = ""; sendCountdown = -1;
@@ -2939,8 +2941,9 @@ void handleWeighWorkflow(float w) {
             } else {
                 wfPhase = WF_STABLE_WAIT;
                 sendCountdown = (int)((STABLE_WINDOW_MS + 999) / 1000);
-                Serial.printf("[WF] SCANNING → STABLE_WAIT uid=%s uid2=%s\n",
-                              lastUID.c_str(), lastUID2.c_str());
+                Serial.printf("[WF] SCANNING → STABLE_WAIT uid=%s uid2=%s (%s)\n",
+                              lastUID.c_str(), lastUID2.c_str(),
+                              bothUidsReady ? "both tags" : "timeout");
             }
         }
         return;
