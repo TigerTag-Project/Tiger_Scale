@@ -17,20 +17,20 @@
 //   §8  CLOUD PARSING                                                             489–  503
 //   §9  WIFI SETUP                                                                504–  762
 //   §10 LITTLEFS                                                                  763–  807
-//   §11 FIREBASE AUTHENTICATION                                                   808–  993
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                          994– 1900
-//   §13 WEBSOCKET                                                                1901– 1937
-//   §14 WEIGHT FILTER HELPERS                                                    1938– 1952
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         1953– 1974
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1975– 2047
-//   §17 WEB SERVER                                                               2048– 2708
-//   §18 CLOUD COMMUNICATION                                                      2709– 2886
-//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                2887– 3011
-//   §20 mDNS                                                                     3012– 3049
-//   §21 SCALE                                                                    3050– 3141
-//   §22 RFID                                                                     3142– 3470
-//   §23 OTA — Over-the-air firmware + filesystem update                          3471– 3839
-//   §24 SETUP & LOOP                                                             3840– 4211
+//   §11 FIREBASE AUTHENTICATION                                                   808– 1000
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1001– 1907
+//   §13 WEBSOCKET                                                                1908– 1944
+//   §14 WEIGHT FILTER HELPERS                                                    1945– 1959
+//   §15 POST-SEND STATE RESET (shared by all send paths)                         1960– 1981
+//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1982– 2054
+//   §17 WEB SERVER                                                               2055– 2715
+//   §18 CLOUD COMMUNICATION                                                      2716– 2893
+//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                2894– 3018
+//   §20 mDNS                                                                     3019– 3056
+//   §21 SCALE                                                                    3057– 3148
+//   §22 RFID                                                                     3149– 3477
+//   §23 OTA — Over-the-air firmware + filesystem update                          3478– 3846
+//   §24 SETUP & LOOP                                                             3847– 4218
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -860,10 +860,11 @@ bool firebaseSignIn() {
     firebaseTokenMs      = millis();
     firebaseAuth         = firebaseIdToken.length() > 0;
     Serial.printf("[FIREBASE] SignIn %s uid=%s\n", firebaseAuth ? "OK" : "FAIL", firebaseUid.c_str());
-    // Persist refreshToken so the next reboot uses token-refresh (faster, no password needed)
+    // Persist refreshToken + UID so next reboot uses token-refresh and has the UID
     if (firebaseAuth && firebaseRefreshToken.length() > 0) {
         prefs.begin("config", false);
         prefs.putString("fbRefresh", firebaseRefreshToken);
+        if (firebaseUid.length() > 0) prefs.putString("fbUid", firebaseUid);
         prefs.end();
     }
 
@@ -966,21 +967,27 @@ bool ensureFirebaseToken() {
                 };
                 String newIdToken      = extractJsonStr(resp, "id_token");
                 String newRefreshToken = extractJsonStr(resp, "refresh_token");
-                Serial.printf("[FIREBASE] parsed idLen=%u rtLen=%u\n",
-                              newIdToken.length(), newRefreshToken.length());
+                String newUserId       = extractJsonStr(resp, "user_id");  // UID from refresh response
+                Serial.printf("[FIREBASE] parsed idLen=%u rtLen=%u uid=%s\n",
+                              newIdToken.length(), newRefreshToken.length(), newUserId.c_str());
                 if (newIdToken.length() > 0) {
                     firebaseIdToken      = newIdToken;
                     if (newRefreshToken.length() > 0)
                         firebaseRefreshToken = newRefreshToken;
+                    // Persist the UID if the refresh gave us one (fixes empty firebaseUid bug)
+                    if (newUserId.length() > 0 && firebaseUid.length() == 0)
+                        firebaseUid = newUserId;
                     firebaseTokenMs      = millis();
                     firebaseAuth         = true;
-                    // Persist the (possibly rotated) refresh token so the next
-                    // reboot re-authenticates without user interaction.
+                    // Persist refresh token + UID so next reboot has everything
                     prefs.begin("config", false);
                     prefs.putString("fbRefresh", firebaseRefreshToken);
+                    if (firebaseUid.length() > 0)
+                        prefs.putString("fbUid", firebaseUid);
                     prefs.end();
-                    Serial.printf("[FIREBASE] Token refresh OK idLen=%u rtLen=%u\n",
-                                  firebaseIdToken.length(), firebaseRefreshToken.length());
+                    Serial.printf("[FIREBASE] Token refresh OK idLen=%u rtLen=%u uid=%s\n",
+                                  firebaseIdToken.length(), firebaseRefreshToken.length(),
+                                  firebaseUid.c_str());
                     return true;
                 }
                 Serial.println("[FIREBASE] Token refresh 200 but id_token empty");
@@ -1158,8 +1165,8 @@ String readRackName(const String& rackId) {
 // Returns container_weight in grams, or 0.0 if not found
 // Also optionally returns measure_gr if caller provides pointer
 float readInventoryContainerWeight(const String& uid, float* outMeasureGr) {
-    if (firebaseIdToken.length() == 0 || uid.length() == 0) {
-        Serial.printf("[CONTAINER] skipped: no token or uid\n");
+    if (firebaseIdToken.length() == 0 || firebaseUid.length() == 0 || uid.length() == 0) {
+        Serial.printf("[CONTAINER] skipped: no token/uid/firebaseUid\n");
         return 0.0f;
     }
 
