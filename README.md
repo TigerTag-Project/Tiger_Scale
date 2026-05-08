@@ -72,11 +72,11 @@ Detailed instructions: **[docs/INSTALLATION.md](docs/INSTALLATION.md)**
 
 | Component | Where to buy | ~Price |
 |---|---|---|
-| ESP32 DevKit (30 pin) | Amazon, AliExpress | 8 € |
-| 2× RC522 RFID readers | Amazon | 6 € |
-| HX711 + 5 kg load cell | Amazon | 7 € |
-| SSD1306 128×64 OLED I²C | Amazon | 4 € |
-| FS90R continuous servo | Amazon | 5 € |
+| ESP32 DevKit (KEYESTUDIO ESP32-WROOM-32) | [amzn.to/4dhJV3u](https://amzn.to/4dhJV3u) | 8 € |
+| 2× RC522 RFID readers (×5 set) | [amzn.to/47mqpQt](https://amzn.to/47mqpQt) | 6 € |
+| HX711 + 5 kg load cell (Wishiot kit) | [amzn.to/3KZIOLl](https://amzn.to/3KZIOLl) | 7 € |
+| SSD1306 128×64 OLED I²C (ELEGOO 0.96") | [amzn.to/3Rul05f](https://amzn.to/3Rul05f) | 4 € |
+| FS90R continuous servo (Wishiot 360°) | [amzn.to/4tRzpGZ](https://amzn.to/4tRzpGZ) | 5 € |
 | 3D-printed enclosure | [hardware/3d-models/](hardware/3d-models/) | filament cost |
 | **Total** | | **~30 €** |
 
