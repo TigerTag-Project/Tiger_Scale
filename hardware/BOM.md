@@ -8,8 +8,8 @@ Total cost : **~30 € for the electronics** + cost of 3D-printed parts (typical
 
 | Component | ~Price | Where to buy |
 |---|---|---|
-| **ESP32 Development Board** (Binghe ESP32-WROOM-32, CH340, USB-C) | 8 € | [amzn.to/4hlnITL](https://amzn.to/4hlnITL) |
-| **OLED Display Module** (ELEGOO 0.96" 128×64 I²C self-luminous) | 4 € | [amzn.to/47gIf7j](https://amzn.to/47gIf7j) |
+| **ESP32 Development Board** (KEYESTUDIO ESP32-WROOM-32, WiFi + Bluetooth) | 8 € | [amzn.to/4dhJV3u](https://amzn.to/4dhJV3u) |
+| **OLED Display Module** (ELEGOO 0.96" 128×64 I²C self-luminous) | 4 € | [amzn.to/3Rul05f](https://amzn.to/3Rul05f) |
 | **RFID Reader Module RC522** (13.56 MHz, SPI) — needs **2** | 6 € (×5 set) | [amzn.to/47mqpQt](https://amzn.to/47mqpQt) |
 | **Dupont Jumper Wires** (ELEGOO 120 pcs 28 AWG 20 cm M-M, M-F, F-F) | 6 € | [amzn.to/42QEdB9](https://amzn.to/42QEdB9) |
 | **Load Cell 5 kg + HX711 amplifier** (Wishiot kit) | 7 € | [amzn.to/3KZIOLl](https://amzn.to/3KZIOLl) |
