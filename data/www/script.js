@@ -767,10 +767,14 @@ document.addEventListener('DOMContentLoaded', function() {
 function applyStatusSnapshot(s) {
     if (!s || typeof s !== 'object') return;
     
-    // Weight
+    // Weight — 300ms poll: flash opacity briefly on each change
     if (typeof s.weight !== 'undefined' && currentWeight !== s.weight) {
         currentWeight = s.weight;
         setTextIfChanged(weightEl, String(s.weight));
+        if (weightEl) {
+            weightEl.style.opacity = '0.45';
+            setTimeout(function(){ weightEl.style.opacity = '1'; }, 120);
+        }
     }
     
     // UID
@@ -1012,7 +1016,7 @@ window.onload = () => {
 
     // Start polling
     pollStatus();
-    setInterval(pollStatus, 1000);
+    setInterval(pollStatus, 300);
 
     // Register Service Worker for PWA
     if ('serviceWorker' in navigator) {
