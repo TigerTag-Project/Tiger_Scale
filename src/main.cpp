@@ -18,19 +18,19 @@
 //   §9  WIFI SETUP                                                                544–  802
 //   §10 LITTLEFS                                                                  803–  847
 //   §11 FIREBASE AUTHENTICATION                                                   848– 1041
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1042– 1963
-//   §13 WEBSOCKET                                                                1964– 2000
-//   §14 WEIGHT FILTER HELPERS                                                    2001– 2015
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         2016– 2037
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2038– 2110
-//   §17 WEB SERVER                                                               2111– 2796
-//   §18 CLOUD COMMUNICATION                                                      2797– 2974
-//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                2975– 3160
-//   §20 mDNS                                                                     3161– 3198
-//   §21 SCALE                                                                    3199– 3290
-//   §22 RFID                                                                     3291– 3619
-//   §23 OTA — Over-the-air firmware + filesystem update                          3620– 3988
-//   §24 SETUP & LOOP                                                             3989– 4360
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1042– 1976
+//   §13 WEBSOCKET                                                                1977– 2013
+//   §14 WEIGHT FILTER HELPERS                                                    2014– 2028
+//   §15 POST-SEND STATE RESET (shared by all send paths)                         2029– 2050
+//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2051– 2123
+//   §17 WEB SERVER                                                               2124– 2809
+//   §18 CLOUD COMMUNICATION                                                      2810– 2987
+//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                2988– 3173
+//   §20 mDNS                                                                     3174– 3211
+//   §21 SCALE                                                                    3212– 3303
+//   §22 RFID                                                                     3304– 3632
+//   §23 OTA — Over-the-air firmware + filesystem update                          3633– 4001
+//   §24 SETUP & LOOP                                                             4002– 4373
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -1116,13 +1116,21 @@ bool readInventoryDocTwinTag(const String& uid, String& outTwinUid) {
 
     if (code != 200) return false;
 
-    StaticJsonDocument<256> doc;
-    if (deserializeJson(doc, resp)) return false;
+    // Masked response: ~310 bytes raw. The Firestore 'name' field alone is ~110 chars,
+    // so ArduinoJson needs ~480 bytes to store the parsed tree with string copies.
+    // Use DynamicJsonDocument to avoid silent NoMemory → empty twin.
+    DynamicJsonDocument doc(768);
+    if (deserializeJson(doc, resp)) {
+        netLog("TWIN_GET parse FAIL uid=" + uidHex + " respLen=" + String(resp.length()));
+        return false;
+    }
 
     JsonObject fields = doc["fields"];
     if (fields.containsKey("twin_tag_uid") && fields["twin_tag_uid"].containsKey("stringValue")) {
         outTwinUid = normalizeUidHex(fields["twin_tag_uid"]["stringValue"].as<String>());
-        netLog("TWIN_GET result=" + outTwinUid);
+        netLog("TWIN_GET result=" + outTwinUid + " for " + uidHex);
+    } else {
+        netLog("TWIN_GET no twin_tag_uid for " + uidHex);
     }
     return true;
 }
@@ -1912,7 +1920,9 @@ bool updateScaleLastSpool(const String& uid_a, const String& uid_b = "", float w
             serializeJson(doc_a, payload_a);
 
             int code_a = http.PATCH(payload_a);
+            String resp_a = http.getString();
             http.end();
+            netLog("PATCH_PAIR_A uid=" + uidAHex + " w=" + String(weight_available,1) + "g HTTP=" + String(code_a) + (code_a >= 200 && code_a < 300 ? " OK" : " ERR=" + resp_a.substring(0,100)));
 
             if (code_a < 200 || code_a >= 300) {
                 Serial.printf("[WEIGHT] twin A FAIL (%d)\n", code_a);
@@ -1941,7 +1951,9 @@ bool updateScaleLastSpool(const String& uid_a, const String& uid_b = "", float w
             serializeJson(doc_b, payload_b);
 
             int code_b = http.PATCH(payload_b);
+            String resp_b = http.getString();
             http.end();
+            netLog("PATCH_PAIR_B uid=" + uidBHex + " HTTP=" + String(code_b) + (code_b >= 200 && code_b < 300 ? " OK" : " ERR=" + resp_b.substring(0,100)));
 
             if (code_b < 200 || code_b >= 300) {
                 Serial.printf("[WEIGHT] twin B FAIL (%d)\n", code_b);
@@ -1952,6 +1964,7 @@ bool updateScaleLastSpool(const String& uid_a, const String& uid_b = "", float w
         if (success) {
             lastUID = uidAHex;
             lastUID2 = uidBHex;
+            netLog("PATCH_PAIR OK uid_a=" + uidAHex + " uid_b=" + uidBHex + " w=" + String(weight_available,1) + "g");
             Serial.printf("[WEIGHT] twin-pair update uid_a=%s uid_b=%s weight=%.1f OK\n", uidAHex.c_str(), uidBHex.c_str(), weight_available);
             sendScaleHeartbeat();
             return true;
