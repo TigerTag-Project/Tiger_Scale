@@ -18,19 +18,19 @@
 //   §9  WIFI SETUP                                                                544–  802
 //   §10 LITTLEFS                                                                  803–  847
 //   §11 FIREBASE AUTHENTICATION                                                   848– 1041
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1042– 1976
-//   §13 WEBSOCKET                                                                1977– 2013
-//   §14 WEIGHT FILTER HELPERS                                                    2014– 2028
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         2029– 2050
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2051– 2123
-//   §17 WEB SERVER                                                               2124– 2809
-//   §18 CLOUD COMMUNICATION                                                      2810– 2987
-//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                2988– 3173
-//   §20 mDNS                                                                     3174– 3211
-//   §21 SCALE                                                                    3212– 3303
-//   §22 RFID                                                                     3304– 3632
-//   §23 OTA — Over-the-air firmware + filesystem update                          3633– 4001
-//   §24 SETUP & LOOP                                                             4002– 4373
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1042– 1980
+//   §13 WEBSOCKET                                                                1981– 2017
+//   §14 WEIGHT FILTER HELPERS                                                    2018– 2032
+//   §15 POST-SEND STATE RESET (shared by all send paths)                         2033– 2054
+//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2055– 2127
+//   §17 WEB SERVER                                                               2128– 2813
+//   §18 CLOUD COMMUNICATION                                                      2814– 2996
+//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                2997– 3182
+//   §20 mDNS                                                                     3183– 3220
+//   §21 SCALE                                                                    3221– 3312
+//   §22 RFID                                                                     3313– 3641
+//   §23 OTA — Over-the-air firmware + filesystem update                          3642– 4010
+//   §24 SETUP & LOOP                                                             4011– 4382
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -1540,9 +1540,13 @@ float computeWeightAvailable(float raw_grams, const String& uid_a) {
 
     // Guardrail: if raw is clearly below container, this sample is likely invalid
     // (tag still detected but spool already removed / transient bad read).
+    // We still proceed with net=0g — the send is not blocked, just flagged.
     const float INVALID_BELOW_CONTAINER_MARGIN_G = 20.0f;
     if (container > 0.0f && raw_grams < (container - INVALID_BELOW_CONTAINER_MARGIN_G)) {
         gLastWeightCalcReliable = false;
+        netLog("WEIGHT_CALC INVALID raw=" + String(raw_grams,1)
+               + "g container=" + String(container,1)
+               + "g — tare mismatch? net will be 0g");
         Serial.printf("[WEIGHT_CALC] INVALID raw=%.2f below container=%.2f (margin=%.1f)\n",
                       raw_grams, container, INVALID_BELOW_CONTAINER_MARGIN_G);
     }
@@ -2929,9 +2933,14 @@ bool pushWeightToCloud(float w) {
     // Compute weight_available (net weight per §5 contract)
     float weightAvailable = computeWeightAvailable(w, lastUID);
     if (!gLastWeightCalcReliable) {
-        Serial.printf("[AutoPush] skipped: invalid weight sample (raw=%.2f container=%.2f)\n",
-                      w, gLastContainer);
-        return false;
+        // Log the anomaly but do NOT abort — net is already clamped to 0g by computeWeightAvailable.
+        // Proceeding lets TWIN_GET + PATCH run so the spool doc is updated (with 0g net weight).
+        // The user will see WEIGHT_CALC INVALID in /api/logs and can fix container_weight / tare.
+        netLog("WEIGHT_CALC WARNING raw=" + String(w,1)
+               + "g < container=" + String(gLastContainer,1)
+               + "g — sending net=" + String(weightAvailable,1) + "g");
+        Serial.printf("[AutoPush] WARNING: unreliable weight (raw=%.2f container=%.2f net=%.2f) — proceeding\n",
+                      w, gLastContainer, weightAvailable);
     }
     gLastNetWeight = weightAvailable;
     gLastNetValid  = true;
