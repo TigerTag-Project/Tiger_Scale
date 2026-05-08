@@ -12,25 +12,26 @@
 //   §3  FORWARD DECLARATIONS                                                      133–  211
 //   §4  WEIGHT ROUNDING                                                           212–  231
 //   §5  GLOBAL OBJECTS                                                            232–  245
-//   §6  CONFIGURATION VARIABLES                                                   246–  410
-//   §7  OLED DISPLAY                                                              411–  528
-//   §8  CLOUD PARSING                                                             529–  543
-//   §9  WIFI SETUP                                                                544–  802
-//   §10 LITTLEFS                                                                  803–  847
-//   §11 FIREBASE AUTHENTICATION                                                   848– 1041
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1042– 1993
-//   §13 WEBSOCKET                                                                1994– 2034
-//   §14 WEIGHT FILTER HELPERS                                                    2035– 2049
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         2050– 2071
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2072– 2144
-//   §17 WEB SERVER                                                               2145– 2830
-//   §18 CLOUD COMMUNICATION                                                      2831– 3013
-//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3014– 3199
-//   §20 mDNS                                                                     3200– 3237
-//   §21 SCALE                                                                    3238– 3329
-//   §22 RFID                                                                     3330– 3658
-//   §23 OTA — Over-the-air firmware + filesystem update                          3659– 4027
-//   §24 SETUP & LOOP                                                             4028– 4410
+//   §6  CONFIGURATION VARIABLES                                                   246–  424
+//   §7  OLED DISPLAY                                                              425–  542
+//   §8  CLOUD PARSING                                                             543–  557
+//   §9  WIFI SETUP                                                                558–  816
+//   §10 LITTLEFS                                                                  817–  861
+//   §11 FIREBASE AUTHENTICATION                                                   862– 1055
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1056– 2007
+//   §13 WEBSOCKET                                                                2008– 2048
+//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2049– 2077
+//   §15 WEIGHT FILTER HELPERS                                                    2078– 2092
+//   §16 POST-SEND STATE RESET (shared by all send paths)                         2093– 2114
+//   §17 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2115– 2187
+//   §18 WEB SERVER                                                               2188– 2873
+//   §19 CLOUD COMMUNICATION                                                      2874– 3056
+//   §20 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3057– 3270
+//   §21 mDNS                                                                     3271– 3308
+//   §22 SCALE                                                                    3309– 3400
+//   §23 RFID                                                                     3401– 3729
+//   §24 OTA — Over-the-air firmware + filesystem update                          3730– 4098
+//   §25 SETUP & LOOP                                                             4099– 4486
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -394,6 +395,20 @@ const uint32_t HEARTBEAT_INTERVAL_MS = 30000;
 volatile int sendCountdown      = -1;
 String       sendPhase          = "";
 uint32_t     sendPhaseLastChangeMs = 0;
+
+// ── Async cloud worker ───────────────────────────────────────────────────────
+// All Firestore HTTP calls are executed in cloudWorkerTask (core 0) so the
+// weight-display loop on core 1 is never stalled by a network round-trip.
+static volatile bool  gContainerFetchPending = false;
+static volatile bool  gContainerFetchDone    = false;
+static volatile float gContainerFetchResult  = 0.0f;
+static String         gContainerFetchUID     = "";
+
+static volatile bool  gCloudSendPending      = false;
+static volatile bool  gCloudSendDone         = false;
+static volatile bool  gCloudSendOk           = false;
+static float          gCloudSendWeight       = 0.0f;
+// ────────────────────────────────────────────────────────────────────────────
 
 // Auto-push stability tracking
 static float    lastPushedWeight = NAN;
@@ -2033,7 +2048,36 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
 }
 
 // ============================================================================
-// §14 — WEIGHT FILTER HELPERS
+// §14 — 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)
+// ============================================================================
+// Dispatches container-weight fetches and weight pushes to Firestore without
+// ever blocking the weight-display loop running on core 1.
+// Writes to volatile flags so the workflow state-machine on core 1 can poll
+// for completion each 250 ms tick without sleeping.
+
+static void cloudWorkerTask(void* /*param*/) {
+    for (;;) {
+        // ── Container fetch ──────────────────────────────────────────────────
+        if (gContainerFetchPending) {
+            String uid = gContainerFetchUID;          // local copy (thread-safe read)
+            float  cw  = readInventoryContainerWeight(uid);
+            gContainerFetchResult  = cw;
+            gContainerFetchPending = false;           // clear before Done for coherent state
+            gContainerFetchDone    = true;
+        }
+        // ── Cloud send ───────────────────────────────────────────────────────
+        if (gCloudSendPending) {
+            bool ok           = pushWeightToCloud(gCloudSendWeight);
+            gCloudSendOk      = ok;
+            gCloudSendPending = false;
+            gCloudSendDone    = true;
+        }
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+}
+
+// ============================================================================
+// §15 — WEIGHT FILTER HELPERS
 // ============================================================================
 
 void resetWeightFilters() {
@@ -2048,7 +2092,7 @@ void resetWeightFilters() {
 }
 
 // ============================================================================
-// §15 — POST-SEND STATE RESET (shared by all send paths)
+// §16 — POST-SEND STATE RESET (shared by all send paths)
 // ============================================================================
 
 static void resetAfterSuccessfulSend(int shownWeight) {
@@ -2070,7 +2114,7 @@ static void resetAfterSuccessfulSend(int shownWeight) {
 }
 
 // ============================================================================
-// §16 — SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)
+// §17 — SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)
 // ============================================================================
 
 static void handleWeightPushBody(AsyncWebServerRequest *request,
@@ -2143,7 +2187,7 @@ static void handleWeightPushBody(AsyncWebServerRequest *request,
 }
 
 // ============================================================================
-// §17 — WEB SERVER
+// §18 — WEB SERVER
 // ============================================================================
 
 void setupWebServer() {
@@ -2829,7 +2873,7 @@ void setupWebServer() {
 }
 
 // ============================================================================
-// §18 — CLOUD COMMUNICATION
+// §19 — CLOUD COMMUNICATION
 // ============================================================================
 #if ENABLE_LEGACY_API_BRIDGE
 bool sendSingleUidToCloud(const String& uid, float w, const char* sourceLabel) {
@@ -3012,7 +3056,7 @@ bool fetchMetaFromApiByUid(const String& uid) {
 #endif
 
 // ============================================================================
-// §19 — WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)
+// §20 — WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)
 // ============================================================================
 // Update wfCurrentSlope (g/s) from the ring buffer.  Call every loop tick.
 static void updateWeightSlope(float w) {
@@ -3068,6 +3112,9 @@ void handleWeighWorkflow(float w) {
             stableSinceMs      = 0;
             sendPhase          = "countdown";
             sendCountdown      = (int)((SPOOL_SCAN_DURATION_MS + 999) / 1000);
+            // Reset async worker flags for fresh session
+            gContainerFetchPending = false; gContainerFetchDone = false;
+            gCloudSendPending      = false; gCloudSendDone      = false;
             netLog("WF IDLE→SCANNING slope=" + String(wfCurrentSlope,1));
         }
         return;
@@ -3082,6 +3129,9 @@ void handleWeighWorkflow(float w) {
             wfContainerFetched = false; wfContainerWeight = 0.0f;
             stableCandidate = NAN; stableSinceMs = 0;
             resetSlopeBuffer();
+            // Abandon any in-flight async requests
+            gContainerFetchPending = false; gContainerFetchDone = false;
+            gCloudSendPending      = false; gCloudSendDone      = false;
             netLog("WF →IDLE (retrait: slope=" + String(wfCurrentSlope,1) + " w=" + String(w,1) + ")");
             return;
         }
@@ -3092,10 +3142,18 @@ void handleWeighWorkflow(float w) {
         uint32_t scanDuration = (servoEnabled && hwMotorConnected)
                                ? SPOOL_SCAN_DURATION_MS : NO_MOTOR_UID_WAIT_MS;
 
-        // Fetch container weight dès qu'on a le 1er UID
-        if (!wfContainerFetched && lastUID.length() > 0) {
-            wfContainerWeight  = readInventoryContainerWeight(lastUID);
+        // Trigger async container fetch as soon as we have the first UID
+        if (!wfContainerFetched && !gContainerFetchPending && !gContainerFetchDone
+                && lastUID.length() > 0) {
+            gContainerFetchUID     = lastUID;
+            gContainerFetchPending = true;   // hand off to cloudWorkerTask
+        }
+        // Pick up result when the worker task is done (non-blocking)
+        if (gContainerFetchDone) {
+            wfContainerWeight  = gContainerFetchResult;
             wfContainerFetched = true;
+            gContainerFetchDone = false;
+            gLastContainer     = wfContainerWeight;   // immediate OLED/WS update
         }
 
         // Countdown scan
@@ -3145,12 +3203,26 @@ void handleWeighWorkflow(float w) {
     }
 
     // ── SENDING ───────────────────────────────────────────────────────────────
+    // Non-blocking: hand off to cloudWorkerTask, return each tick so the
+    // weight loop keeps running.  Poll gCloudSendDone until task finishes.
     if (wfPhase == WF_SENDING) {
-        sendPhase = "send"; sendCountdown = 0;
-        displayMessage("Sending...", "Fab: " + gLastManufacturer,
-                       String(roundWeight(w)) + " g");
-        netLog("WF SENDING raw=" + String(w,1) + "g uid=" + lastUID + " uid2=" + lastUID2);
-        bool ok = pushWeightToCloud(w);
+        // First entry: kick off the cloud task
+        if (!gCloudSendPending && !gCloudSendDone) {
+            gCloudSendWeight = w;
+            sendPhase = "send"; sendCountdown = 0;
+            displayMessage("Sending...", "Fab: " + gLastManufacturer,
+                           String(roundWeight(w)) + " g");
+            netLog("WF SENDING raw=" + String(w,1) + "g uid=" + lastUID + " uid2=" + lastUID2);
+            gCloudSendPending = true;   // hand off to cloudWorkerTask
+        }
+        // Still running — let weight loop breathe, check back next tick
+        if (!gCloudSendDone) return;
+
+        // Task finished — consume result
+        bool ok = gCloudSendOk;
+        gCloudSendDone    = false;
+        gCloudSendPending = false;   // safety
+
         if (ok) {
             float toDisplay = (gLastNetValid && !isnan(gLastNetWeight)) ? gLastNetWeight : w;
             int   wInt      = roundWeight(toDisplay);
@@ -3166,11 +3238,8 @@ void handleWeighWorkflow(float w) {
             sendPhase = "success"; sendPhaseLastChangeMs = millis(); sendCountdown = -1;
         } else {
             netLog("WF SEND FAIL uid=" + lastUID);
-            displayMessage("Sync failed", "Check WiFi/API", String(roundWeight(w)) + " g");
-            delay(2000);
             currentOledState  = OLED_STATE_ERROR;
             oledStateChangeMs = millis();
-            displayWeightWithState(w, lastUID, OLED_STATE_ERROR);
             sendPhase = "error"; sendPhaseLastChangeMs = millis(); sendCountdown = -1;
         }
         // Succès OU échec → WF_DONE : pas de retry, attendre retrait spool
@@ -3187,9 +3256,12 @@ void handleWeighWorkflow(float w) {
             wfPhase = WF_IDLE;
             lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
             wfContainerFetched = false; wfContainerWeight = 0.0f;
+            gLastContainer     = 0.0f;   // clear container so web UI hides filament row
             stableCandidate = NAN; stableSinceMs = 0;
             rfidLockedForCurrentLoad = false;
             resetSlopeBuffer();
+            gContainerFetchPending = false; gContainerFetchDone = false;
+            gCloudSendPending      = false; gCloudSendDone      = false;
             sendPhase = ""; sendCountdown = -1;
             netLog("WF DONE→IDLE (spool retiré, prêt)");
         }
@@ -3198,7 +3270,7 @@ void handleWeighWorkflow(float w) {
 }
 
 // ============================================================================
-// §20 — mDNS
+// §21 — mDNS
 // ============================================================================
 
 void startMDNS() {
@@ -3236,7 +3308,7 @@ void onWiFiEvent(WiFiEvent_t event) {
 }
 
 // ============================================================================
-// §21 — SCALE
+// §22 — SCALE
 // ============================================================================
 
 void setupScale() {
@@ -3328,7 +3400,7 @@ float readWeight() {
 }
 
 // ============================================================================
-// §22 — RFID
+// §23 — RFID
 // ============================================================================
 
 static String normalizeUidHex(const String& uid) {
@@ -3657,7 +3729,7 @@ static bool isLikelyTigerTagUidHex(const String& uidHex) {
 }
 
 // ============================================================================
-// §23 — OTA — Over-the-air firmware + filesystem update
+// §24 — OTA — Over-the-air firmware + filesystem update
 // ============================================================================
 //
 // Two complementary trigger paths share the same core (`otaApply`):
@@ -4026,7 +4098,7 @@ void pollOtaCommands() {
 }
 
 // ============================================================================
-// §24 — SETUP & LOOP
+// §25 — SETUP & LOOP
 // ============================================================================
 
 void setup() {
@@ -4089,6 +4161,11 @@ void setup() {
 
     setupRFID();
     setupServo();
+
+    // Cloud worker on core 0 — Firestore HTTP calls run here so the weight
+    // loop on core 1 is never blocked by a network round-trip.
+    xTaskCreatePinnedToCore(cloudWorkerTask, "cloudWorker",
+                            8192, nullptr, 1, nullptr, 0);
 
     // Show IP in large text so it's easy to read and type into a browser
     display.clearDisplay();

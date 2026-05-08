@@ -103,8 +103,8 @@ const translations = {
         sendError: '✗ Erreur',
         sendIn: 'Envoi dans',
         // Weight breakdown
-        rawWeightLabel: 'Brut',
-        containerLabel: 'Bobine'
+        containerLabel: 'Bobine',
+        filamentLabel:  'Filament'
     },
     en: {
         waiting: 'Waiting TigerTag...',
@@ -176,8 +176,8 @@ const translations = {
         sendError: '✗ Error',
         sendIn: 'Sending in',
         // Weight breakdown
-        rawWeightLabel: 'Raw',
-        containerLabel: 'Spool'
+        containerLabel: 'Spool',
+        filamentLabel:  'Filament'
     }
 };
 
@@ -773,24 +773,25 @@ document.addEventListener('DOMContentLoaded', function() {
 function applyStatusSnapshot(s) {
     if (!s || typeof s !== 'object') return;
     
-    // Raw weight — always kept in currentWeight for calibration
+    // Raw weight — big number (always shown) + kept for calibration
     if (typeof s.weight !== 'undefined') {
         currentWeight = s.weight;
-        setTextIfChanged(document.getElementById('rawWeightDisplay'), String(s.weight));
-    }
-
-    // Big display = net (filament restant) when container is known, else raw
-    if (typeof s.netWeight !== 'undefined') {
-        const displayWt = (s.netWeight > 0) ? s.netWeight : (s.weight || 0);
-        setTextIfChanged(weightEl, String(displayWt));
-    } else if (typeof s.weight !== 'undefined') {
         setTextIfChanged(weightEl, String(s.weight));
     }
 
-    // Container weight
+    // Filament row — shown only when container is known (async, arrives later)
     if (typeof s.containerWeight !== 'undefined') {
-        const cwEl = document.getElementById('containerWeightDisplay');
-        if (cwEl) setTextIfChanged(cwEl, s.containerWeight > 0 ? String(s.containerWeight) : '—');
+        const rowEl = document.getElementById('filamentRow');
+        const cwEl  = document.getElementById('containerWeightDisplay');
+        const nwEl  = document.getElementById('netWeightDisplay');
+        if (s.containerWeight > 0) {
+            if (cwEl) setTextIfChanged(cwEl, String(s.containerWeight));
+            if (nwEl) setTextIfChanged(nwEl, (typeof s.netWeight !== 'undefined' && s.netWeight >= 0)
+                                              ? String(s.netWeight) : '—');
+            if (rowEl) rowEl.style.display = '';
+        } else {
+            if (rowEl) rowEl.style.display = 'none';
+        }
     }
 
     // UID1

@@ -42,22 +42,22 @@
         <div class="weight-card">
             <div id="userName" class="user-name hidden"></div>
 
-            <!-- Big number: filament restant (net) -->
+            <!-- Big number: poids brut de la balance (toujours affiché) -->
             <div class="weight-display">
                 <span id="weight">—</span>
                 <span class="weight-unit">g</span>
             </div>
 
-            <!-- Secondary row: raw + container -->
-            <div class="weight-meta-row">
-                <div class="weight-meta-item">
-                    <span class="weight-meta-label" data-i18n="rawWeightLabel">Brut</span>
-                    <span class="weight-meta-value"><span id="rawWeightDisplay">—</span> g</span>
-                </div>
-                <div class="weight-meta-sep"></div>
+            <!-- Filament row: visible uniquement quand le container est connu -->
+            <div id="filamentRow" class="weight-meta-row" style="display:none">
                 <div class="weight-meta-item">
                     <span class="weight-meta-label" data-i18n="containerLabel">Bobine</span>
                     <span class="weight-meta-value"><span id="containerWeightDisplay">—</span> g</span>
+                </div>
+                <div class="weight-meta-sep"></div>
+                <div class="weight-meta-item">
+                    <span class="weight-meta-label" data-i18n="filamentLabel">Filament</span>
+                    <span class="weight-meta-value"><span id="netWeightDisplay">—</span> g</span>
                 </div>
             </div>
 
