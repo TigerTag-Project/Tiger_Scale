@@ -12,27 +12,27 @@
 //   §3  FORWARD DECLARATIONS                                                      147–  226
 //   §4  WEIGHT ROUNDING                                                           227–  246
 //   §5  GLOBAL OBJECTS                                                            247–  260
-//   §6  CONFIGURATION VARIABLES                                                   261–  442
-//   §7  OLED DISPLAY                                                              443–  560
-//   §8  CLOUD PARSING                                                             561–  575
-//   §9  WIFI SETUP                                                                576–  848
-//   §10 LITTLEFS                                                                  849–  893
-//   §11 FIREBASE AUTHENTICATION                                                   894– 1087
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1088– 2039
-//   §13 WEBSOCKET                                                                2040– 2066
-//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2067– 2095
-//   §15 5 — UNIFIED WS FRAME BUILDER                                             2096– 2134
-//   §16 WEIGHT FILTER HELPERS                                                    2135– 2149
-//   §17 POST-SEND STATE RESET (shared by all send paths)                         2150– 2168
-//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2169– 2241
-//   §19 WEB SERVER                                                               2242– 2941
-//   §20 CLOUD COMMUNICATION                                                      2942– 3124
-//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3125– 3340
-//   §22 mDNS                                                                     3341– 3378
-//   §23 SCALE                                                                    3379– 3470
-//   §24 RFID                                                                     3471– 3800
-//   §25 OTA — Over-the-air firmware + filesystem update                          3801– 4169
-//   §26 SETUP & LOOP                                                             4170– 4542
+//   §6  CONFIGURATION VARIABLES                                                   261–  447
+//   §7  OLED DISPLAY                                                              448–  565
+//   §8  CLOUD PARSING                                                             566–  580
+//   §9  WIFI SETUP                                                                581–  853
+//   §10 LITTLEFS                                                                  854–  898
+//   §11 FIREBASE AUTHENTICATION                                                   899– 1092
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1093– 2057
+//   §13 WEBSOCKET                                                                2058– 2084
+//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2085– 2119
+//   §15 5 — UNIFIED WS FRAME BUILDER                                             2120– 2158
+//   §16 WEIGHT FILTER HELPERS                                                    2159– 2173
+//   §17 POST-SEND STATE RESET (shared by all send paths)                         2174– 2192
+//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2193– 2265
+//   §19 WEB SERVER                                                               2266– 2965
+//   §20 CLOUD COMMUNICATION                                                      2966– 3148
+//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3149– 3364
+//   §22 mDNS                                                                     3365– 3402
+//   §23 SCALE                                                                    3403– 3494
+//   §24 RFID                                                                     3495– 3824
+//   §25 OTA — Over-the-air firmware + filesystem update                          3825– 4193
+//   §26 SETUP & LOOP                                                             4194– 4566
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -420,6 +420,11 @@ static volatile bool  gContainerFetchPending = false;
 static volatile bool  gContainerFetchDone    = false;
 static volatile float gContainerFetchResult  = 0.0f;
 static String         gContainerFetchUID     = "";
+// Twin tag prefetch — filled by cloudWorkerTask right after container fetch,
+// consumed by pushWeightToCloud to avoid a second round-trip during SENDING.
+static String         gTwinFetchUID          = "";
+static String         gTwinFetchResult       = "";
+static volatile bool  gTwinFetchDone         = false;
 
 static volatile bool  gCloudSendPending      = false;
 static volatile bool  gCloudSendDone         = false;
@@ -1584,7 +1589,14 @@ float readInventoryContainerWeight(const String& uid, float* outMeasureGr) {
 // Rounds to 1 decimal place
 float computeWeightAvailable(float raw_grams, const String& uid_a) {
     float measure_gr = 0.0f;
-    float container = readInventoryContainerWeight(uid_a, &measure_gr);
+    float container;
+    if (wfContainerFetched && wfContainerWeight > 0.0f) {
+        // Use the value prefetched during SCANNING — avoids a duplicate HTTP call
+        container = wfContainerWeight;
+        netLog("CONTAINER cache hit=" + String(container,1) + "g uid=" + uid_a);
+    } else {
+        container = readInventoryContainerWeight(uid_a, &measure_gr);
+    }
     gLastWeightCalcReliable = true;
 
     // Guardrail: if raw is clearly below container, this sample is likely invalid
@@ -1808,7 +1820,13 @@ bool updateScaleLastSpool(const String& uid_a, const String& uid_b = "", float w
     // Case 1: Single tag (or same tag detected twice)
     if (uidBHex.length() == 0 || uidBHex == uidAHex) {
         String twin_a = "";
-        readInventoryDocTwinTag(uidAHex, twin_a);
+        if (gTwinFetchDone && gTwinFetchUID == uidAHex) {
+            twin_a = gTwinFetchResult;
+            gTwinFetchDone = false;   // consume
+            netLog("TWIN cache hit=" + (twin_a.length() > 0 ? twin_a : "none") + " uid=" + uidAHex);
+        } else {
+            readInventoryDocTwinTag(uidAHex, twin_a);
+        }
 
         // If uid_a has a twin_tag_uid, update both docs with same payload (§6.2)
         if (twin_a.length() > 0) {
@@ -2079,6 +2097,12 @@ static void cloudWorkerTask(void* /*param*/) {
             String uid = gContainerFetchUID;          // local copy (thread-safe read)
             float  cw  = readInventoryContainerWeight(uid);
             gContainerFetchResult  = cw;
+            // Prefetch twin tag for the same UID right now — same HTTP round-trip budget,
+            // so pushWeightToCloud won't need a separate TWIN_GET during SENDING.
+            gTwinFetchUID    = uid;
+            gTwinFetchResult = "";
+            readInventoryDocTwinTag(uid, gTwinFetchResult);
+            gTwinFetchDone         = true;
             gContainerFetchPending = false;           // clear before Done for coherent state
             gContainerFetchDone    = true;
         }
@@ -2154,7 +2178,7 @@ void resetWeightFilters() {
 static void resetAfterSuccessfulSend(int shownWeight) {
     currentOledState = OLED_STATE_IDLE;
     oledStateChangeMs = millis();
-    lastUID = ""; lastUID2 = ""; lastUIDLeft = ""; lastUIDRight = "";
+    lastUID = ""; lastUID2 = ""; lastUIDLeft = ""; lastUIDRight = ""; gTwinFetchDone = false; gTwinFetchUID = ""; gTwinFetchResult = "";
     lastUIDHex = ""; lastUID2Hex = "";
     firstUidDetectedMs = 0; firstUidPauseUntilMs = 0;
     stableSinceMs = 0; stableCandidate = NAN;
@@ -2809,7 +2833,7 @@ void setupWebServer() {
         resetSlopeBuffer();
         stopServoSearch();
         lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
-        lastUIDLeft = ""; lastUIDRight = "";
+        lastUIDLeft = ""; lastUIDRight = ""; gTwinFetchDone = false; gTwinFetchUID = ""; gTwinFetchResult = "";
         firstUidDetectedMs = 0; firstUidPauseUntilMs = 0;
         stableSinceMs = 0; stableCandidate = NAN;
         wfContainerWeight = 0.0f; wfContainerFetched = false;
@@ -2881,7 +2905,7 @@ void setupWebServer() {
         resetWeightFilters();
         autoTarePending = false;
         autoTareStableSinceMs = 0;
-        lastUID = ""; lastUID2 = ""; lastUIDLeft = ""; lastUIDRight = "";
+        lastUID = ""; lastUID2 = ""; lastUIDLeft = ""; lastUIDRight = ""; gTwinFetchDone = false; gTwinFetchUID = ""; gTwinFetchResult = "";
         float offset = scale.get_offset();
         prefs.begin("config", false);
         prefs.putFloat("tareFactor", offset);
@@ -3323,7 +3347,7 @@ void handleWeighWorkflow(float w) {
         if (removingNow || w < MIN_WEIGHT_TO_SEND_G) {
             wfPhase = WF_IDLE;
             lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
-            lastUIDLeft = ""; lastUIDRight = "";
+            lastUIDLeft = ""; lastUIDRight = ""; gTwinFetchDone = false; gTwinFetchUID = ""; gTwinFetchResult = "";
             wfContainerFetched = false; wfContainerWeight = 0.0f;
             gLastContainer     = 0.0f;   // clear container so web UI hides filament row
             stableCandidate = NAN; stableSinceMs = 0;
@@ -4480,7 +4504,7 @@ void loop() {
             firstUidDetectedMs = 0;
             firstUidPauseUntilMs = 0;
             lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
-            lastUIDLeft = ""; lastUIDRight = "";
+            lastUIDLeft = ""; lastUIDRight = ""; gTwinFetchDone = false; gTwinFetchUID = ""; gTwinFetchResult = "";
             wfPhase = WF_IDLE;
             wfContainerWeight = 0.0f; wfContainerFetched = false;
             currentOledState = OLED_STATE_IDLE;
@@ -4495,7 +4519,7 @@ void loop() {
         Serial.printf("[REMOVAL] Sent: %.2f, Now: %.2f\n", gLastSentWeight, weight);
         gLastSentWeight = NAN; gLastCloudWeight = NAN; gCloudWeightSetMs = 0;
         lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
-        lastUIDLeft = ""; lastUIDRight = "";
+        lastUIDLeft = ""; lastUIDRight = ""; gTwinFetchDone = false; gTwinFetchUID = ""; gTwinFetchResult = "";
         firstUidDetectedMs = 0; firstUidPauseUntilMs = 0;
         rfidLockedForCurrentLoad = true;   // Keep RFID locked during removal hold
         servoLockedUntilAutotare = false;  // CRITICAL: unlock servo for next measurement
