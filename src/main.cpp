@@ -7,31 +7,32 @@
 //
 //   TABLE OF CONTENTS                            line range
 //   ────────────────────────────────────────────  ──────────
-//   §1  HARDWARE CONFIGURATION                                                     59–  113
-//   §2  OTA CONFIGURATION                                                         114–  132
-//   §3  FORWARD DECLARATIONS                                                      133–  211
-//   §4  WEIGHT ROUNDING                                                           212–  231
-//   §5  GLOBAL OBJECTS                                                            232–  245
-//   §6  CONFIGURATION VARIABLES                                                   246–  424
-//   §7  OLED DISPLAY                                                              425–  542
-//   §8  CLOUD PARSING                                                             543–  557
-//   §9  WIFI SETUP                                                                558–  816
-//   §10 LITTLEFS                                                                  817–  861
-//   §11 FIREBASE AUTHENTICATION                                                   862– 1055
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1056– 2007
-//   §13 WEBSOCKET                                                                2008– 2048
-//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2049– 2077
-//   §15 WEIGHT FILTER HELPERS                                                    2078– 2092
-//   §16 POST-SEND STATE RESET (shared by all send paths)                         2093– 2114
-//   §17 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2115– 2187
-//   §18 WEB SERVER                                                               2188– 2873
-//   §19 CLOUD COMMUNICATION                                                      2874– 3056
-//   §20 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3057– 3270
-//   §21 mDNS                                                                     3271– 3308
-//   §22 SCALE                                                                    3309– 3400
-//   §23 RFID                                                                     3401– 3729
-//   §24 OTA — Over-the-air firmware + filesystem update                          3730– 4098
-//   §25 SETUP & LOOP                                                             4099– 4486
+//   §1  HARDWARE CONFIGURATION                                                     60–  114
+//   §2  OTA CONFIGURATION                                                         115–  133
+//   §3  FORWARD DECLARATIONS                                                      134–  213
+//   §4  WEIGHT ROUNDING                                                           214–  233
+//   §5  GLOBAL OBJECTS                                                            234–  247
+//   §6  CONFIGURATION VARIABLES                                                   248–  426
+//   §7  OLED DISPLAY                                                              427–  544
+//   §8  CLOUD PARSING                                                             545–  559
+//   §9  WIFI SETUP                                                                560–  818
+//   §10 LITTLEFS                                                                  819–  863
+//   §11 FIREBASE AUTHENTICATION                                                   864– 1057
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1058– 2009
+//   §13 WEBSOCKET                                                                2010– 2036
+//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2037– 2065
+//   §15 5 — UNIFIED WS FRAME BUILDER                                             2066– 2102
+//   §16 WEIGHT FILTER HELPERS                                                    2103– 2117
+//   §17 POST-SEND STATE RESET (shared by all send paths)                         2118– 2136
+//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2137– 2209
+//   §19 WEB SERVER                                                               2210– 2895
+//   §20 CLOUD COMMUNICATION                                                      2896– 3078
+//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3079– 3293
+//   §22 mDNS                                                                     3294– 3331
+//   §23 SCALE                                                                    3332– 3423
+//   §24 RFID                                                                     3424– 3752
+//   §25 OTA — Over-the-air firmware + filesystem update                          3753– 4121
+//   §26 SETUP & LOOP                                                             4122– 4486
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -180,7 +181,8 @@ String readRackName(const String& rackId);
 #if ENABLE_LEGACY_API_BRIDGE
 static void parseCloudSpoolMeta(const String& resp);
 #endif
-static void resetAfterSuccessfulSend(int shownWeight);
+static void   resetAfterSuccessfulSend(int shownWeight);
+static String buildWsFrame(float weight);
 static String toHex2(uint8_t v);
 static String normalizeUidHex(const String& uid);
 static String mapColorName(uint8_t r, uint8_t g, uint8_t b);
@@ -2014,23 +2016,9 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
                AwsEventType type, void *arg, uint8_t *data, size_t len) {
     if (type == WS_EVT_CONNECT) {
         Serial.printf("[WS] client #%u connected\n", client->id());
-        // Send weight snapshot immediately on connect (includes breakdown)
-        int cwt0 = (gLastContainer > 0.0f) ? (int)roundf(gLastContainer) : 0;
-        int nwt0 = (cwt0 > 0 && roundWeight(currentWeight) > cwt0) ? roundWeight(currentWeight) - cwt0 : 0;
-        String snap = "{\"weight\":"      + String(roundWeight(currentWeight))
-                      + ",\"netWeight\":" + String(nwt0)
-                      + ",\"containerWeight\":" + String(cwt0)
-                      + ",\"uid\":\""    + lastUID
-                      + "\",\"uid2\":\"" + lastUID2 + "\"}";
-        client->text(snap);
-        // Push current Firebase status
-        StaticJsonDocument<192> out;
-        out["type"]       = "firebaseStatus";
-        out["auth"]       = firebaseAuth;
-        out["configured"] = isFirebaseConfigured();
-        if (firebaseAuth) out["email"] = firebaseEmail;
-        String s; serializeJson(out, s);
-        client->text(s);
+        // Send the full unified frame immediately so the client has all state
+        // without waiting up to 250 ms for the next broadcast tick.
+        client->text(buildWsFrame(currentWeight));
 
     } else if (type == WS_EVT_DATA) {
         AwsFrameInfo *info = (AwsFrameInfo*)arg;
@@ -2077,7 +2065,44 @@ static void cloudWorkerTask(void* /*param*/) {
 }
 
 // ============================================================================
-// §15 — WEIGHT FILTER HELPERS
+// §15 — 5 — UNIFIED WS FRAME BUILDER
+// ============================================================================
+// Single source of truth for all WebSocket data sent to clients.
+// Same fields whether called from the 250ms loop tick or on-connect snapshot.
+// The OLED and the web UI consume the same real-time stream — no separate
+// HTTP path needed for any field.
+
+static String buildWsFrame(float weight) {
+    String stcWs;
+    if      (sendPhase == "countdown" && sendCountdown >= 0) stcWs = String(sendCountdown);
+    else if (sendPhase == "send")    stcWs = "send";
+    else if (sendPhase == "success") stcWs = "success";
+    else if (sendPhase == "error")   stcWs = "error";
+
+    int cwt = (gLastContainer > 0.0f) ? (int)roundf(gLastContainer) : 0;
+    int nwt = (cwt > 0 && roundWeight(weight) > cwt) ? roundWeight(weight) - cwt : 0;
+
+    StaticJsonDocument<768> doc;
+    doc["weight"]            = roundWeight(weight);
+    doc["netWeight"]         = nwt;
+    doc["containerWeight"]   = cwt;
+    doc["uid"]               = lastUID;
+    doc["uid2"]              = lastUID2;
+    doc["sendToCloud"]       = stcWs;
+    doc["cloud"]             = WiFi.isConnected() ? "ok" : "down";
+    doc["firebaseAuth"]      = firebaseAuth;
+    doc["firebaseConfigured"]= isFirebaseConfigured();
+    if (firebaseEmail.length()) doc["firebaseEmail"] = firebaseEmail;
+    doc["calibrationFactor"] = calibrationFactor;
+    doc["uptime_s"]          = (uint32_t)(millis() / 1000);
+
+    String out;
+    serializeJson(doc, out);
+    return out;
+}
+
+// ============================================================================
+// §16 — WEIGHT FILTER HELPERS
 // ============================================================================
 
 void resetWeightFilters() {
@@ -2092,7 +2117,7 @@ void resetWeightFilters() {
 }
 
 // ============================================================================
-// §16 — POST-SEND STATE RESET (shared by all send paths)
+// §17 — POST-SEND STATE RESET (shared by all send paths)
 // ============================================================================
 
 static void resetAfterSuccessfulSend(int shownWeight) {
@@ -2106,15 +2131,12 @@ static void resetAfterSuccessfulSend(int shownWeight) {
     servoLockedUntilAutotare = true;  // Lock servo until auto-tare completes
     stopServoSearch();
     Serial.println("[SERVO] Cycle locked after send, waiting for removal + auto tare");
-    char buf[128];
-    snprintf(buf, sizeof(buf), "{\"weight\":%d,\"uid\":\"%s\",\"uid2\":\"%s\"}",
-             shownWeight, lastUID.c_str(), lastUID2.c_str());
-    ws.textAll(buf);
+    ws.textAll(buildWsFrame((float)shownWeight));
     displayWeightWithState(currentWeight, lastUID, currentOledState);
 }
 
 // ============================================================================
-// §17 — SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)
+// §18 — SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)
 // ============================================================================
 
 static void handleWeightPushBody(AsyncWebServerRequest *request,
@@ -2187,7 +2209,7 @@ static void handleWeightPushBody(AsyncWebServerRequest *request,
 }
 
 // ============================================================================
-// §18 — WEB SERVER
+// §19 — WEB SERVER
 // ============================================================================
 
 void setupWebServer() {
@@ -2873,7 +2895,7 @@ void setupWebServer() {
 }
 
 // ============================================================================
-// §19 — CLOUD COMMUNICATION
+// §20 — CLOUD COMMUNICATION
 // ============================================================================
 #if ENABLE_LEGACY_API_BRIDGE
 bool sendSingleUidToCloud(const String& uid, float w, const char* sourceLabel) {
@@ -3056,7 +3078,7 @@ bool fetchMetaFromApiByUid(const String& uid) {
 #endif
 
 // ============================================================================
-// §20 — WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)
+// §21 — WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)
 // ============================================================================
 // Update wfCurrentSlope (g/s) from the ring buffer.  Call every loop tick.
 static void updateWeightSlope(float w) {
@@ -3127,6 +3149,7 @@ void handleWeighWorkflow(float w) {
             stopServoSearch();
             wfPhase = WF_IDLE; sendPhase = ""; sendCountdown = -1;
             wfContainerFetched = false; wfContainerWeight = 0.0f;
+            gLastContainer     = 0.0f;   // clear so web UI hides filament row immediately
             stableCandidate = NAN; stableSinceMs = 0;
             resetSlopeBuffer();
             // Abandon any in-flight async requests
@@ -3270,7 +3293,7 @@ void handleWeighWorkflow(float w) {
 }
 
 // ============================================================================
-// §21 — mDNS
+// §22 — mDNS
 // ============================================================================
 
 void startMDNS() {
@@ -3308,7 +3331,7 @@ void onWiFiEvent(WiFiEvent_t event) {
 }
 
 // ============================================================================
-// §22 — SCALE
+// §23 — SCALE
 // ============================================================================
 
 void setupScale() {
@@ -3400,7 +3423,7 @@ float readWeight() {
 }
 
 // ============================================================================
-// §23 — RFID
+// §24 — RFID
 // ============================================================================
 
 static String normalizeUidHex(const String& uid) {
@@ -3729,7 +3752,7 @@ static bool isLikelyTigerTagUidHex(const String& uidHex) {
 }
 
 // ============================================================================
-// §24 — OTA — Over-the-air firmware + filesystem update
+// §25 — OTA — Over-the-air firmware + filesystem update
 // ============================================================================
 //
 // Two complementary trigger paths share the same core (`otaApply`):
@@ -4098,7 +4121,7 @@ void pollOtaCommands() {
 }
 
 // ============================================================================
-// §25 — SETUP & LOOP
+// §26 — SETUP & LOOP
 // ============================================================================
 
 void setup() {
@@ -4451,34 +4474,11 @@ void loop() {
 
         displayWeightWithState(weight, lastUID, currentOledState);
 
-        // Build compact WebSocket frame — same tick as OLED so web UI stays in sync
-        String stcWs;
-        if      (sendPhase == "countdown" && sendCountdown >= 0) stcWs = String(sendCountdown);
-        else if (sendPhase == "send")    stcWs = "send";
-        else if (sendPhase == "success") stcWs = "success";
-        else if (sendPhase == "error")   stcWs = "error";
-        int cwt = (gLastContainer > 0.0f) ? (int)roundf(gLastContainer) : 0;
-        int nwt = (cwt > 0 && roundWeight(weight) > cwt) ? roundWeight(weight) - cwt : 0;
-        String json = "{\"weight\":"       + String(roundWeight(weight))
-                      + ",\"netWeight\":"  + String(nwt)
-                      + ",\"containerWeight\":" + String(cwt)
-                      + ",\"uid\":\""     + lastUID
-                      + "\",\"uid2\":\""  + lastUID2
-                      + "\",\"sendToCloud\":\"" + stcWs + "\"}";
-        ws.textAll(json);
+        // Unified WS frame — same tick as OLED, contains ALL fields the web UI needs.
+        // No separate HTTP polling required on the client side.
+        ws.textAll(buildWsFrame(weight));
         ws.cleanupClients();
         lastUpdate = millis();
-    }
-
-    // Rebroadcast Firebase status every 5 s for late-joining clients
-    if (millis() - lastFbBroadcastMs > 5000 && ws.count() > 0) {
-        StaticJsonDocument<128> out;
-        out["type"]       = "firebaseStatus";
-        out["auth"]       = firebaseAuth;
-        out["configured"] = isFirebaseConfigured();
-        String s; serializeJson(out, s);
-        ws.textAll(s);
-        lastFbBroadcastMs = millis();
     }
 
     if (!autoTarePending) handleWeighWorkflow(weight);

@@ -1045,14 +1045,14 @@ function wsConnect() {
     _ws.onmessage = function(evt) {
         try {
             const data = JSON.parse(evt.data);
-            // Firmware sends a separate {type:"firebaseStatus",...} frame on connect + every 5s
+            // Unified frame — every field the UI needs arrives here at 250ms.
+            // Legacy type dispatch kept for backward compat (no longer sent).
             if (data.type === 'firebaseStatus') {
                 firebaseStatusKnown = true;
                 setFirebaseConfigured(!!(data.auth || data.configured));
                 if (data.email) setAccountInfo(data.email);
                 return;
             }
-            // Regular 250ms frame: weight, uid, uid2, sendToCloud
             applyStatusSnapshot(data);
         } catch(e) {}
     };
@@ -1079,13 +1079,10 @@ window.onload = () => {
     // Initial weight display
     setTextIfChanged(weightEl, '…');
 
-    // WebSocket real-time sync (250ms — same tick as OLED on firmware)
+    // WebSocket — single data flow, all fields, 250ms same tick as OLED.
+    // No HTTP polling: every field (weight, uid, cloud, firebase, calibration,
+    // uptime) arrives through the unified WS frame.
     wsConnect();
-
-    // HTTP fallback polling: weight via WS is instant; poll only for
-    // cloud status, calibration factor, uptime, Firebase email (10s is plenty)
-    pollStatus();
-    setInterval(pollStatus, 10000);
 
     // Register Service Worker for PWA
     if ('serviceWorker' in navigator) {
