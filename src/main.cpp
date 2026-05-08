@@ -12,25 +12,25 @@
 //   §3  FORWARD DECLARATIONS                                                      133–  210
 //   §4  WEIGHT ROUNDING                                                           211–  230
 //   §5  GLOBAL OBJECTS                                                            231–  244
-//   §6  CONFIGURATION VARIABLES                                                   245–  370
-//   §7  OLED DISPLAY                                                              371–  488
-//   §8  CLOUD PARSING                                                             489–  503
-//   §9  WIFI SETUP                                                                504–  762
-//   §10 LITTLEFS                                                                  763–  807
-//   §11 FIREBASE AUTHENTICATION                                                   808– 1000
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1001– 1907
-//   §13 WEBSOCKET                                                                1908– 1944
-//   §14 WEIGHT FILTER HELPERS                                                    1945– 1959
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         1960– 1981
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    1982– 2054
-//   §17 WEB SERVER                                                               2055– 2715
-//   §18 CLOUD COMMUNICATION                                                      2716– 2893
-//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                2894– 3018
-//   §20 mDNS                                                                     3019– 3056
-//   §21 SCALE                                                                    3057– 3148
-//   §22 RFID                                                                     3149– 3477
-//   §23 OTA — Over-the-air firmware + filesystem update                          3478– 3846
-//   §24 SETUP & LOOP                                                             3847– 4218
+//   §6  CONFIGURATION VARIABLES                                                   245–  389
+//   §7  OLED DISPLAY                                                              390–  507
+//   §8  CLOUD PARSING                                                             508–  522
+//   §9  WIFI SETUP                                                                523–  781
+//   §10 LITTLEFS                                                                  782–  826
+//   §11 FIREBASE AUTHENTICATION                                                   827– 1020
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1021– 1936
+//   §13 WEBSOCKET                                                                1937– 1973
+//   §14 WEIGHT FILTER HELPERS                                                    1974– 1988
+//   §15 POST-SEND STATE RESET (shared by all send paths)                         1989– 2010
+//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2011– 2083
+//   §17 WEB SERVER                                                               2084– 2766
+//   §18 CLOUD COMMUNICATION                                                      2767– 2944
+//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                2945– 3069
+//   §20 mDNS                                                                     3070– 3107
+//   §21 SCALE                                                                    3108– 3199
+//   §22 RFID                                                                     3200– 3528
+//   §23 OTA — Over-the-air firmware + filesystem update                          3529– 3897
+//   §24 SETUP & LOOP                                                             3898– 4269
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -260,6 +260,25 @@ String   lastUID    = "";
 String   lastUIDHex = "";
 String   lastUID2   = "";
 String   lastUID2Hex = "";
+
+// ── In-memory network log ring buffer ────────────────────────────────────────
+// Exposed via GET /api/logs — last 80 entries, newest last.
+static const int  NET_LOG_SIZE = 80;
+static String     gNetLogs[NET_LOG_SIZE];
+static int        gNetLogHead  = 0;   // next write position
+static int        gNetLogCount = 0;   // total entries stored (capped at NET_LOG_SIZE)
+
+static void netLog(const String& msg) {
+    uint32_t s = millis() / 1000;
+    String entry = "[" + String(s / 3600) + "h"
+                       + String((s % 3600) / 60) + "m"
+                       + String(s % 60) + "s] " + msg;
+    gNetLogs[gNetLogHead] = entry;
+    gNetLogHead = (gNetLogHead + 1) % NET_LOG_SIZE;
+    if (gNetLogCount < NET_LOG_SIZE) gNetLogCount++;
+    Serial.println(entry);
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 bool     wifiConnected           = false;
 String   lastConnectedSSID       = "";      // Track WiFi network to detect changes
@@ -947,6 +966,7 @@ bool ensureFirebaseToken() {
             int code = http.POST(body);
             String resp = http.getString();
             http.end();
+            netLog("TOKEN_REFRESH HTTP=" + String(code) + " respLen=" + String(resp.length()));
             if (code == 200) {
                 // The securetoken response contains two JWTs (id_token +
                 // access_token) of 900-1400 chars each.  ArduinoJson always
@@ -985,12 +1005,12 @@ bool ensureFirebaseToken() {
                     if (firebaseUid.length() > 0)
                         prefs.putString("fbUid", firebaseUid);
                     prefs.end();
-                    Serial.printf("[FIREBASE] Token refresh OK idLen=%u rtLen=%u uid=%s\n",
-                                  firebaseIdToken.length(), firebaseRefreshToken.length(),
-                                  firebaseUid.c_str());
+                    netLog("TOKEN_REFRESH OK uid=" + firebaseUid);
                     return true;
                 }
-                Serial.println("[FIREBASE] Token refresh 200 but id_token empty");
+                netLog("TOKEN_REFRESH 200 but id_token empty");
+            } else {
+                netLog("TOKEN_REFRESH FAIL HTTP=" + String(code) + " body=" + resp.substring(0,80));
             }
             Serial.printf("[FIREBASE] Refresh HTTP %d, falling back to sign-in\n", code);
         }
@@ -1198,10 +1218,12 @@ float readInventoryContainerWeight(const String& uid, float* outMeasureGr) {
     };
 
     code = fetchInventoryDoc(uidForLookup);
+    netLog("CONTAINER_GET uid=" + uidForLookup + " HTTP=" + String(code) + " respLen=" + String(resp.length()));
 
     // HEX-only policy: no decimal fallback
 
     if (code != 200) {
+        netLog("CONTAINER_GET FAIL body=" + resp.substring(0, 120));
         Serial.printf("[CONTAINER] HTTP %d - not found. Resp: %.150s\n", code, resp.c_str());
         return 0.0f;  // Not found - will use raw weight as weight_available
     }
@@ -1251,6 +1273,8 @@ float readInventoryContainerWeight(const String& uid, float* outMeasureGr) {
             *outMeasureGr = (float)mgStr.toInt();
         }
     }
+
+    netLog("CONTAINER_GET result=" + String(container, 1) + "g uid=" + uidForLookup);
 
     // Store container weight globally for real-time display calculation
     if (container > 0) {
@@ -1716,6 +1740,7 @@ bool updateScaleLastSpool(const String& uid_a, const String& uid_b = "", float w
                 int code_a = http.PATCH(payload_a);
                 String resp_a = http.getString();
                 http.end();
+                netLog("PATCH_A uid=" + uidAHex + " HTTP=" + String(code_a) + (code_a < 200 || code_a >= 300 ? " ERR=" + resp_a.substring(0,80) : " OK"));
 
                 if (code_a < 200 || code_a >= 300) {
                     Serial.printf("[WEIGHT] A FAIL (%d): %.120s\n", code_a, resp_a.c_str());
@@ -1739,7 +1764,9 @@ bool updateScaleLastSpool(const String& uid_a, const String& uid_b = "", float w
                 serializeJson(doc_b, payload_b);
 
                 int code_b = http.PATCH(payload_b);
+                String resp_b = http.getString();
                 http.end();
+                netLog("PATCH_B twin=" + twin_a + " HTTP=" + String(code_b) + (code_b < 200 || code_b >= 300 ? " ERR=" + resp_b.substring(0,80) : " OK"));
 
                 if (code_b < 200 || code_b >= 300) {
                     Serial.printf("[WEIGHT] update B FAIL (%d)\n", code_b);
@@ -1749,6 +1776,7 @@ bool updateScaleLastSpool(const String& uid_a, const String& uid_b = "", float w
 
             if (success) {
                 lastUID = uidAHex;
+                netLog("PATCH twin OK uid_a=" + uidAHex + " uid_b=" + twin_a + " w=" + String(weight_available, 1) + "g");
                 Serial.printf("[WEIGHT] twin update uid_a=%s uid_b=%s weight=%.1f OK\n", uidAHex.c_str(), twin_a.c_str(), weight_available);
                 sendScaleHeartbeat();
                 return true;
@@ -1778,6 +1806,7 @@ bool updateScaleLastSpool(const String& uid_a, const String& uid_b = "", float w
             int code = http.PATCH(payload);
             String resp = http.getString();
             http.end();
+            netLog("PATCH uid=" + uidAHex + " w=" + String(weight_available,1) + "g HTTP=" + String(code) + (code >= 200 && code < 300 ? " OK" : " ERR=" + resp.substring(0,80)));
 
             if (code >= 200 && code < 300) {
                 lastUID = uidAHex;
@@ -2580,6 +2609,28 @@ void setupWebServer() {
     );
 
     // ── Workflow stop — kills current weigh workflow, stops servo, clears UIDs ──
+    // ── Network/workflow log ring buffer ─────────────────────────────────────
+    server.on("/api/logs", HTTP_GET, [](AsyncWebServerRequest *request){
+        String out = "[";
+        int total = min(gNetLogCount, NET_LOG_SIZE);
+        // Oldest entry first: start = (head - total + SIZE) % SIZE
+        int start = (gNetLogHead - total + NET_LOG_SIZE) % NET_LOG_SIZE;
+        for (int i = 0; i < total; i++) {
+            int idx = (start + i) % NET_LOG_SIZE;
+            if (i > 0) out += ",";
+            // Escape quotes in the log string
+            String entry = gNetLogs[idx];
+            entry.replace("\"", "'");
+            out += "\"" + entry + "\"";
+        }
+        out += "]";
+        request->send(200, "application/json", out);
+    });
+    server.on("/api/logs", HTTP_DELETE, [](AsyncWebServerRequest *request){
+        gNetLogHead = 0; gNetLogCount = 0;
+        request->send(200, "application/json", "{\"cleared\":true}");
+    });
+
     server.on("/api/workflow/stop", HTTP_POST, [](AsyncWebServerRequest *request){
         wfPhase = WF_IDLE;
         stopServoSearch();
@@ -2951,13 +3002,11 @@ void handleWeighWorkflow(float w) {
             stopServoSearch();
             if (lastUID.length() == 0) {
                 wfPhase = WF_IDLE; sendPhase = ""; sendCountdown = -1;
-                Serial.println("[WF] SCANNING → IDLE (no UID)");
+                netLog("WF SCANNING→IDLE (no UID)");
             } else {
                 wfPhase = WF_STABLE_WAIT;
                 sendCountdown = (int)((STABLE_WINDOW_MS + 999) / 1000);
-                Serial.printf("[WF] SCANNING → STABLE_WAIT uid=%s uid2=%s (%s)\n",
-                              lastUID.c_str(), lastUID2.c_str(),
-                              bothUidsReady ? "both tags" : "timeout");
+                netLog("WF SCANNING→STABLE_WAIT uid=" + lastUID + " uid2=" + lastUID2 + " reason=" + (bothUidsReady ? "both" : "timeout"));
             }
         }
         return;
@@ -2980,7 +3029,7 @@ void handleWeighWorkflow(float w) {
         if (secsLeft != sendCountdown) sendCountdown = secsLeft;
         if (now - stableSinceMs >= STABLE_WINDOW_MS) {
             wfPhase = WF_SENDING;
-            Serial.printf("[WF] STABLE_WAIT → SENDING (stable=%.2f)\n", stableCandidate);
+            netLog("WF STABLE_WAIT→SENDING stable=" + String(stableCandidate, 1) + "g");
         }
         return;
     }
@@ -2990,6 +3039,7 @@ void handleWeighWorkflow(float w) {
         sendPhase = "send"; sendCountdown = 0;
         displayMessage("Sending...", "Fab: " + gLastManufacturer,
                        String(roundWeight(w)) + " g");
+        netLog("WF SENDING raw=" + String(w,1) + "g uid=" + lastUID + " uid2=" + lastUID2);
         bool ok = pushWeightToCloud(w);
         if (ok) {
             float toDisplay = (gLastNetValid && !isnan(gLastNetWeight)) ? gLastNetWeight : w;
@@ -3000,11 +3050,12 @@ void handleWeighWorkflow(float w) {
             gLastCloudWeight  = toDisplay;
             gCloudWeightSetMs = now;
             currentWeight     = toDisplay;
-            Serial.printf("[WF] SENT OK raw=%.2f net=%.2f\n", w, toDisplay);
+            netLog("WF SENT OK raw=" + String(w,1) + "g net=" + String(toDisplay,1) + "g");
             resetAfterSuccessfulSend(wInt);
             gLastNetValid = false;
             sendPhase = "success"; sendPhaseLastChangeMs = millis(); sendCountdown = -1;
         } else {
+            netLog("WF SEND FAIL uid=" + lastUID);
             displayMessage("Sync failed", "Check WiFi/API", String(roundWeight(w)) + " g");
             delay(2000);
             currentOledState  = OLED_STATE_ERROR;
