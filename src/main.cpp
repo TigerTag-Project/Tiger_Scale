@@ -18,19 +18,19 @@
 //   §9  WIFI SETUP                                                                523–  781
 //   §10 LITTLEFS                                                                  782–  826
 //   §11 FIREBASE AUTHENTICATION                                                   827– 1020
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1021– 1936
-//   §13 WEBSOCKET                                                                1937– 1973
-//   §14 WEIGHT FILTER HELPERS                                                    1974– 1988
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         1989– 2010
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2011– 2083
-//   §17 WEB SERVER                                                               2084– 2766
-//   §18 CLOUD COMMUNICATION                                                      2767– 2944
-//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                2945– 3069
-//   §20 mDNS                                                                     3070– 3107
-//   §21 SCALE                                                                    3108– 3199
-//   §22 RFID                                                                     3200– 3528
-//   §23 OTA — Over-the-air firmware + filesystem update                          3529– 3897
-//   §24 SETUP & LOOP                                                             3898– 4269
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1021– 1942
+//   §13 WEBSOCKET                                                                1943– 1979
+//   §14 WEIGHT FILTER HELPERS                                                    1980– 1994
+//   §15 POST-SEND STATE RESET (shared by all send paths)                         1995– 2016
+//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2017– 2089
+//   §17 WEB SERVER                                                               2090– 2772
+//   §18 CLOUD COMMUNICATION                                                      2773– 2950
+//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                2951– 3075
+//   §20 mDNS                                                                     3076– 3113
+//   §21 SCALE                                                                    3114– 3205
+//   §22 RFID                                                                     3206– 3534
+//   §23 OTA — Over-the-air firmware + filesystem update                          3535– 3903
+//   §24 SETUP & LOOP                                                             3904– 4275
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -1081,7 +1081,9 @@ bool readInventoryDocTwinTag(const String& uid, String& outTwinUid) {
     outTwinUid = "";
     HTTPClient http;
     String docPath = "users/" + firebaseUid + "/inventory/" + uidHex;
-    String url = "https://firestore.googleapis.com/v1/projects/tigertag-connect/databases/(default)/documents/" + docPath;
+    // Field mask: only fetch twin_tag_uid — keeps response ~150 bytes, no NoMemory risk
+    String url = "https://firestore.googleapis.com/v1/projects/tigertag-connect/databases/(default)/documents/"
+                 + docPath + "?mask.fieldPaths=twin_tag_uid";
 
     if (!http.begin(url)) return false;
     http.addHeader("Authorization", "Bearer " + firebaseIdToken);
@@ -1089,15 +1091,17 @@ bool readInventoryDocTwinTag(const String& uid, String& outTwinUid) {
     int code = http.GET();
     String resp = http.getString();
     http.end();
+    netLog("TWIN_GET uid=" + uidHex + " HTTP=" + String(code) + " respLen=" + String(resp.length()));
 
     if (code != 200) return false;
 
-    StaticJsonDocument<512> doc;
+    StaticJsonDocument<256> doc;
     if (deserializeJson(doc, resp)) return false;
 
     JsonObject fields = doc["fields"];
     if (fields.containsKey("twin_tag_uid") && fields["twin_tag_uid"].containsKey("stringValue")) {
         outTwinUid = normalizeUidHex(fields["twin_tag_uid"]["stringValue"].as<String>());
+        netLog("TWIN_GET result=" + outTwinUid);
     }
     return true;
 }
@@ -1114,7 +1118,9 @@ bool readScaleDisplayName(const String& mac, String& outDisplayName, String* out
 
     HTTPClient http;
     String docPath = "users/" + firebaseUid + "/scales/" + mac;
-    String url = "https://firestore.googleapis.com/v1/projects/tigertag-connect/databases/(default)/documents/" + docPath;
+    // Field mask: only fetch display_name — small response, avoids NoMemory on large docs
+    String url = "https://firestore.googleapis.com/v1/projects/tigertag-connect/databases/(default)/documents/"
+                 + docPath + "?mask.fieldPaths=display_name";
 
     if (!http.begin(url)) return false;
     http.addHeader("Authorization", "Bearer " + firebaseIdToken);
@@ -1125,7 +1131,7 @@ bool readScaleDisplayName(const String& mac, String& outDisplayName, String* out
 
     if (code != 200) return false;  // Document doesn't exist yet
 
-    StaticJsonDocument<512> doc;
+    StaticJsonDocument<256> doc;
     if (deserializeJson(doc, resp)) return false;
 
     // Extract display_name from fields
@@ -1134,7 +1140,7 @@ bool readScaleDisplayName(const String& mac, String& outDisplayName, String* out
         outDisplayName = fields["display_name"]["stringValue"].as<String>();
     }
 
-    // Extract updateTime (server timestamp from Firestore)
+    // updateTime is a top-level Firestore property, always returned even with field mask
     if (outServerTimestamp && doc.containsKey("updateTime")) {
         *outServerTimestamp = doc["updateTime"].as<String>();
     }
