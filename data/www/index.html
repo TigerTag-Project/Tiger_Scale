@@ -41,11 +41,38 @@
         <!-- Weight Display -->
         <div class="weight-card">
             <div id="userName" class="user-name hidden"></div>
+
+            <!-- Big number: filament restant (net) -->
             <div class="weight-display">
                 <span id="weight">—</span>
                 <span class="weight-unit">g</span>
             </div>
-            <div class="tag-id" id="uid" data-i18n="waiting">En attente...</div>
+
+            <!-- Secondary row: raw + container -->
+            <div class="weight-meta-row">
+                <div class="weight-meta-item">
+                    <span class="weight-meta-label" data-i18n="rawWeightLabel">Brut</span>
+                    <span class="weight-meta-value"><span id="rawWeightDisplay">—</span> g</span>
+                </div>
+                <div class="weight-meta-sep"></div>
+                <div class="weight-meta-item">
+                    <span class="weight-meta-label" data-i18n="containerLabel">Bobine</span>
+                    <span class="weight-meta-value"><span id="containerWeightDisplay">—</span> g</span>
+                </div>
+            </div>
+
+            <!-- UIDs -->
+            <div class="uid-rows">
+                <div class="uid-row">
+                    <span class="uid-chip-label">UID1</span>
+                    <span id="uid" class="uid-value" data-i18n="waiting">—</span>
+                </div>
+                <div class="uid-row">
+                    <span class="uid-chip-label">UID2</span>
+                    <span id="uid2Display" class="uid-value">—</span>
+                </div>
+            </div>
+
             <div id="sendState" class="send-status hidden"></div>
         </div>
 

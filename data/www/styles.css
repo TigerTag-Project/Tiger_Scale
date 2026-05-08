@@ -142,6 +142,70 @@ body {
     font-weight: 500;
 }
 
+/* Secondary weight breakdown: raw + container */
+.weight-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: -4px 0 10px;
+}
+.weight-meta-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 20px;
+}
+.weight-meta-label {
+    font-size: 0.6em;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.6;
+    margin-bottom: 1px;
+}
+.weight-meta-value {
+    font-size: 0.9em;
+    font-weight: 600;
+    opacity: 0.88;
+}
+.weight-meta-sep {
+    width: 1px;
+    height: 28px;
+    background: rgba(255,255,255,0.28);
+    flex-shrink: 0;
+}
+
+/* UID rows */
+.uid-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin: 4px 0 6px;
+}
+.uid-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.uid-chip-label {
+    background: rgba(255,255,255,0.18);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 0.65em;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    min-width: 34px;
+    text-align: center;
+    opacity: 0.9;
+}
+.uid-value {
+    font-size: 0.78em;
+    font-family: monospace;
+    letter-spacing: 0.04em;
+    opacity: 0.88;
+    font-weight: 500;
+}
+
 .send-status {
     margin-top: 12px;
     padding: 8px 16px;

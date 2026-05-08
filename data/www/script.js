@@ -101,7 +101,10 @@ const translations = {
         sending: '⏳ Envoi...',
         sent: '✓ Envoyé',
         sendError: '✗ Erreur',
-        sendIn: 'Envoi dans'
+        sendIn: 'Envoi dans',
+        // Weight breakdown
+        rawWeightLabel: 'Brut',
+        containerLabel: 'Bobine'
     },
     en: {
         waiting: 'Waiting TigerTag...',
@@ -171,7 +174,10 @@ const translations = {
         sending: '⏳ Sending...',
         sent: '✓ Sent',
         sendError: '✗ Error',
-        sendIn: 'Sending in'
+        sendIn: 'Sending in',
+        // Weight breakdown
+        rawWeightLabel: 'Raw',
+        containerLabel: 'Spool'
     }
 };
 
@@ -767,19 +773,39 @@ document.addEventListener('DOMContentLoaded', function() {
 function applyStatusSnapshot(s) {
     if (!s || typeof s !== 'object') return;
     
-    // Weight
-    if (typeof s.weight !== 'undefined' && currentWeight !== s.weight) {
+    // Raw weight — always kept in currentWeight for calibration
+    if (typeof s.weight !== 'undefined') {
         currentWeight = s.weight;
+        setTextIfChanged(document.getElementById('rawWeightDisplay'), String(s.weight));
+    }
+
+    // Big display = net (filament restant) when container is known, else raw
+    if (typeof s.netWeight !== 'undefined') {
+        const displayWt = (s.netWeight > 0) ? s.netWeight : (s.weight || 0);
+        setTextIfChanged(weightEl, String(displayWt));
+    } else if (typeof s.weight !== 'undefined') {
         setTextIfChanged(weightEl, String(s.weight));
     }
-    
-    // UID
+
+    // Container weight
+    if (typeof s.containerWeight !== 'undefined') {
+        const cwEl = document.getElementById('containerWeightDisplay');
+        if (cwEl) setTextIfChanged(cwEl, s.containerWeight > 0 ? String(s.containerWeight) : '—');
+    }
+
+    // UID1
     if (typeof s.uid !== 'undefined') {
         const u = s.uid || '';
         if (currentUid !== u) {
             currentUid = u;
             setTextIfChanged(uidEl, u || t('waiting'));
         }
+    }
+
+    // UID2
+    if (typeof s.uid2 !== 'undefined') {
+        const uid2El = document.getElementById('uid2Display');
+        if (uid2El) setTextIfChanged(uid2El, s.uid2 || '—');
     }
     
     // Cloud

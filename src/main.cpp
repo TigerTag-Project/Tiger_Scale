@@ -19,18 +19,18 @@
 //   §10 LITTLEFS                                                                  803–  847
 //   §11 FIREBASE AUTHENTICATION                                                   848– 1041
 //   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1042– 1993
-//   §13 WEBSOCKET                                                                1994– 2030
-//   §14 WEIGHT FILTER HELPERS                                                    2031– 2045
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         2046– 2067
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2068– 2140
-//   §17 WEB SERVER                                                               2141– 2826
-//   §18 CLOUD COMMUNICATION                                                      2827– 3009
-//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3010– 3195
-//   §20 mDNS                                                                     3196– 3233
-//   §21 SCALE                                                                    3234– 3325
-//   §22 RFID                                                                     3326– 3654
-//   §23 OTA — Over-the-air firmware + filesystem update                          3655– 4023
-//   §24 SETUP & LOOP                                                             4024– 4402
+//   §13 WEBSOCKET                                                                1994– 2034
+//   §14 WEIGHT FILTER HELPERS                                                    2035– 2049
+//   §15 POST-SEND STATE RESET (shared by all send paths)                         2050– 2071
+//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2072– 2144
+//   §17 WEB SERVER                                                               2145– 2830
+//   §18 CLOUD COMMUNICATION                                                      2831– 3013
+//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3014– 3199
+//   §20 mDNS                                                                     3200– 3237
+//   §21 SCALE                                                                    3238– 3329
+//   §22 RFID                                                                     3330– 3658
+//   §23 OTA — Over-the-air firmware + filesystem update                          3659– 4027
+//   §24 SETUP & LOOP                                                             4028– 4410
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -1999,10 +1999,14 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
                AwsEventType type, void *arg, uint8_t *data, size_t len) {
     if (type == WS_EVT_CONNECT) {
         Serial.printf("[WS] client #%u connected\n", client->id());
-        // Send weight snapshot immediately on connect
-        char snap[160];
-        snprintf(snap, sizeof(snap), "{\"weight\":%d,\"uid\":\"%s\",\"uid2\":\"%s\"}",
-                 roundWeight(currentWeight), lastUID.c_str(), lastUID2.c_str());
+        // Send weight snapshot immediately on connect (includes breakdown)
+        int cwt0 = (gLastContainer > 0.0f) ? (int)roundf(gLastContainer) : 0;
+        int nwt0 = (cwt0 > 0 && roundWeight(currentWeight) > cwt0) ? roundWeight(currentWeight) - cwt0 : 0;
+        String snap = "{\"weight\":"      + String(roundWeight(currentWeight))
+                      + ",\"netWeight\":" + String(nwt0)
+                      + ",\"containerWeight\":" + String(cwt0)
+                      + ",\"uid\":\""    + lastUID
+                      + "\",\"uid2\":\"" + lastUID2 + "\"}";
         client->text(snap);
         // Push current Firebase status
         StaticJsonDocument<192> out;
@@ -4376,9 +4380,13 @@ void loop() {
         else if (sendPhase == "send")    stcWs = "send";
         else if (sendPhase == "success") stcWs = "success";
         else if (sendPhase == "error")   stcWs = "error";
-        String json = "{\"weight\":" + String(roundWeight(weight))
-                      + ",\"uid\":\"" + lastUID
-                      + "\",\"uid2\":\"" + lastUID2
+        int cwt = (gLastContainer > 0.0f) ? (int)roundf(gLastContainer) : 0;
+        int nwt = (cwt > 0 && roundWeight(weight) > cwt) ? roundWeight(weight) - cwt : 0;
+        String json = "{\"weight\":"       + String(roundWeight(weight))
+                      + ",\"netWeight\":"  + String(nwt)
+                      + ",\"containerWeight\":" + String(cwt)
+                      + ",\"uid\":\""     + lastUID
+                      + "\",\"uid2\":\""  + lastUID2
                       + "\",\"sendToCloud\":\"" + stcWs + "\"}";
         ws.textAll(json);
         ws.cleanupClients();
