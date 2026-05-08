@@ -28,32 +28,237 @@ const masterspools = [
 ];
 
 // ========== TRANSLATIONS ==========
-// Translations live in locales/{lang}.json. The i18n controller (i18n.js) is
-// loaded BEFORE this script in index.html and exposes window.t() and
-// window.setLanguage() shims so the application code below keeps working.
-//
-// Backward-compat: the legacy `currentLang` global is updated by the controller
-// every time the language changes (window.currentLang).
-//
-// To add a language: drop a new locales/<code>.json + add an entry in the
-// LANGS object inside i18n.js. No change needed in this file.
-//
-// Override updateCloudText() in setLanguage() — keep the legacy hook so the
-// status pill text re-renders when the language changes.
-document.addEventListener("i18n:applied", () => {
-    if (typeof updateCloudText === "function") updateCloudText();
-    // Re-render translated status labels now that locale is loaded
-    if (typeof setFirebaseConfigured === "function") setFirebaseConfigured(firebaseConfigured);
-});
+const translations = {
+    fr: {
+        waiting: 'Attente du TigerTag...',
+        quickActions: 'Actions rapides',
+        tare: 'TARE',
+        firebase: 'Firebase',
+        firebaseStatus: 'Statut Firebase',
+        firebaseEmail: 'Email Firebase',
+        firebasePassword: 'Mot de passe Firebase',
+        apiKey: 'Clé API',
+        user: 'Utilisateur',
+        newApiKey: 'Nouvelle clé API',
+        update: 'Mettre à jour',
+        delete: 'Supprimer',
+        calibration: 'Calibration Magique',
+        currentFactor: 'Facteur actuel',
+        autoCalc: 'Calcul automatique',
+        knownWeight: 'Poids connu (g)',
+        compute: 'Calculer',
+        manual: 'Manuel',
+        newFactor: 'Nouveau facteur',
+        apply: 'Appliquer',
+        advanced: 'Avancé',
+        reconfigWifi: 'Reconfigurer Wi‑Fi',
+        factoryReset: 'Réinitialisation',
+        uptime: 'Durée de fonctionnement',
+        // Calibration wizard
+        step1Title: 'Step 1',
+        step1Instruction: 'Laissez la balance vide puis appuyez sur le bouton',
+        step1Button: 'GO →',
+        step2Title: 'Step 2',
+        step2Instruction: 'Sélectionnez votre Masterspool vide et placez-la sur la balance',
+        selectMasterspool: 'Sélectionnez votre Masterspool',
+        step2Button: 'Calibrer ✓',
+        step3Title: 'Calibré !',
+        step3Instruction: 'La balance est maintenant calibrée',
+        currentReading: 'Lecture actuelle',
+        calibKnownWeight: 'Poids réel (g)',
+        newFactor: 'Nouveau facteur',
+        back: '← Retour',
+        calibAgain: 'Restart',
+        manualCalib: 'Calibration manuelle',
+        // Status
+        cloud: 'Cloud',
+        offline: 'Hors ligne',
+        validated: 'Validé',
+        invalid: 'Invalide',
+        notConfigured: 'Non configuré',
+        configureApiKey: 'Configurer la clé API',
+        apiKeyInvalid: 'Clé API invalide',
+        // Alerts
+        alertEnterKey: 'Veuillez saisir une clé API',
+        alertUpdateError: 'Erreur lors de la mise à jour',
+        alertDeleteConfirm: 'Supprimer la clé API ?',
+        alertDeleteError: 'Erreur lors de la suppression',
+        alertInvalidFactor: 'Facteur invalide',
+        alertNegativeFactor: '⚠️ Le coefficient doit être positif',
+        alertError: 'Erreur',
+        alertInvalidWeight: 'Poids connu invalide',
+        alertDataUnavailable: 'Données non disponibles',
+        alertWeightTooLight: '⚠️ Poids trop léger (min. 200g)\nVérifiez que le filament est bien sur la balance.',
+        errorWeightRequired: '⚠️ Veuillez entrer un poids valide (min. 200g)',
+        modalWeightTooLightTitle: 'Poids insuffisant',
+        modalWeightTooLightMessage: 'Le poids est trop léger pour une calibration. Utilisez une Masterspool ou un filament d\'au moins 200g.',
+        modalWeightInvalidTitle: 'Poids invalide',
+        modalWeightInvalidMessage: 'Veuillez entrer un poids valide',
+        modalOk: 'OK',
+        alertReconfigConfirm: 'Reconfigurer le Wi‑Fi ? L\'appareil redémarrera.',
+        alertResetConfirm: '⚠️ ATTENTION : Cette action effacera toutes les données. Continuer ?',
+        // Send status
+        sending: '⏳ Envoi...',
+        sent: '✓ Envoyé',
+        sendError: '✗ Erreur',
+        sendIn: 'Envoi dans'
+    },
+    en: {
+        waiting: 'Waiting TigerTag...',
+        quickActions: 'Quick Actions',
+        tare: 'TARE',
+        apiKey: 'API Key',
+        user: 'User',
+        newApiKey: 'New API Key',
+        update: 'Update',
+        delete: 'Delete',
+        calibration: 'Wizard Calibration',
+        currentFactor: 'Current factor',
+        autoCalc: 'Auto calculation',
+        knownWeight: 'Known weight (g)',
+        compute: 'Compute',
+        manual: 'Manual',
+        newFactor: 'New factor',
+        apply: 'Apply',
+        advanced: 'Advanced',
+        reconfigWifi: 'Reconfigure Wi‑Fi',
+        factoryReset: 'Factory Reset',
+        uptime: 'Uptime',
+        // Calibration wizard
+        step1Title: 'Step 1',
+        step1Instruction: 'Leave the scale empty then press the button',
+        step1Button: 'GO →',
+        step2Title: 'Step 2',
+        step2Instruction: 'Select your empty Masterspool and place it on the scale',
+        selectMasterspool: 'Select your Masterspool',
+        step2Button: 'Calibrate ✓',
+        step3Title: 'Calibrated!',
+        step3Instruction: 'The scale is now calibrated',
+        currentReading: 'Current reading',
+        calibKnownWeight: 'Real weight (g)',
+        newFactor: 'New factor',
+        back: '← Back',
+        calibAgain: 'Restart',
+        manualCalib: 'Manual calibration',
+        // Status
+        cloud: 'Cloud',
+        offline: 'Offline',
+        validated: 'Validated',
+        invalid: 'Invalid',
+        notConfigured: 'Not configured',
+        configureApiKey: 'Setup API Key',
+        apiKeyInvalid: 'Invalid API Key',
+        // Alerts
+        alertEnterKey: 'Please enter an API key',
+        alertUpdateError: 'Update error',
+        alertDeleteConfirm: 'Delete API key?',
+        alertDeleteError: 'Delete error',
+        alertInvalidFactor: 'Invalid factor',
+        alertNegativeFactor: '⚠️ Coefficient must be positive',
+        alertError: 'Error',
+        alertInvalidWeight: 'Invalid known weight',
+        alertDataUnavailable: 'Data unavailable',
+        alertWeightTooLight: '⚠️ Weight too light (min. 200g)\nCheck that the filament is on the scale.',
+        errorWeightRequired: '⚠️ Please enter a valid weight (min. 200g)',
+        modalWeightTooLightTitle: 'Insufficient weight',
+        modalWeightTooLightMessage: 'The weight is too light for calibration. Use a Masterspool or filament of at least 200g.',
+        modalWeightInvalidTitle: 'Invalid weight',
+        modalWeightInvalidMessage: 'Please enter a valid weight',
+        modalOk: 'OK',
+        alertReconfigConfirm: 'Reconfigure Wi‑Fi? Device will restart.',
+        alertResetConfirm: '⚠️ WARNING: This will erase all data. Continue?',
+        // Send status
+        sending: '⏳ Sending...',
+        sent: '✓ Sent',
+        sendError: '✗ Error',
+        sendIn: 'Sending in'
+    }
+};
 
-// Make sure t() exists even if i18n.js failed to load — never crash the app.
-if (typeof window.t !== "function") {
-    window.t = (k) => k;
-}
-if (typeof window.setLanguage !== "function") {
-    window.setLanguage = () => {};
+translations.fr.save = 'Enregistrer';
+translations.en.save = 'Save';
+translations.fr.firebase = 'Firebase';
+translations.fr.firebaseStatus = 'Statut Firebase';
+translations.fr.firebaseEmail = 'Email Firebase';
+translations.fr.firebasePassword = 'Mot de passe Firebase';
+translations.en.firebase = 'Firebase';
+translations.en.firebaseStatus = 'Firebase status';
+translations.en.firebaseEmail = 'Firebase email';
+translations.en.firebasePassword = 'Firebase password';
+translations.fr.alertFirebaseSaved = 'Identifiants Firebase enregistres';
+translations.fr.alertFirebaseDeleted = 'Identifiants Firebase supprimes';
+translations.fr.alertFirebaseError = 'Erreur Firebase';
+translations.en.alertFirebaseSaved = 'Firebase credentials saved';
+translations.en.alertFirebaseDeleted = 'Firebase credentials deleted';
+translations.en.alertFirebaseError = 'Firebase error';
+
+// ── Auth modal (NEW) ──
+translations.fr.authTitle = 'Bienvenue sur votre TigerScale';
+translations.fr.authSub = 'Connectez-vous pour synchroniser vos bobines avec le cloud TigerTag.';
+translations.fr.authGoogleBtn = 'Continuer avec Google';
+translations.fr.authOr = 'ou';
+translations.fr.authSignIn = 'Se connecter';
+translations.fr.authNoAccount = 'Pas encore de compte ?';
+translations.fr.authSignUp = 'Créer un compte';
+translations.fr.authPopupBlocked = 'Le popup a été bloqué. Autorisez les popups pour ce site.';
+translations.fr.authPopupClosed = 'Connexion annulée.';
+translations.fr.authNetworkError = 'Erreur réseau. Vérifiez votre connexion.';
+translations.fr.authInvalidCreds = 'Email ou mot de passe incorrect.';
+translations.fr.authSuccess = 'Connecté !';
+translations.en.authTitle = 'Welcome to your TigerScale';
+translations.en.authSub = 'Sign in to sync your spools with the TigerTag cloud.';
+translations.en.authGoogleBtn = 'Continue with Google';
+translations.en.authOr = 'or';
+translations.en.authSignIn = 'Sign in';
+translations.en.authNoAccount = 'No account yet?';
+translations.en.authSignUp = 'Create account';
+translations.en.authPopupBlocked = 'Popup blocked. Please allow popups for this site.';
+translations.en.authPopupClosed = 'Sign-in cancelled.';
+translations.en.authNetworkError = 'Network error. Check your connection.';
+translations.en.authInvalidCreds = 'Wrong email or password.';
+translations.en.authSuccess = 'Signed in!';
+
+// ── Account / logout (NEW) ──
+translations.fr.account = 'Compte';
+translations.fr.connectedAs = 'Connecté en tant que';
+translations.fr.signOut = 'Se déconnecter';
+translations.fr.confirmSignOut = 'Vous voulez vraiment vous déconnecter ? Vous devrez vous reconnecter pour synchroniser vos bobines.';
+translations.en.account = 'Account';
+translations.en.connectedAs = 'Signed in as';
+translations.en.signOut = 'Sign out';
+translations.en.confirmSignOut = 'Sign out for real? You will need to sign back in to sync your spools.';
+
+let currentLang = localStorage.getItem('tigertag_lang') || 'en';
+
+function t(key) {
+    return translations[currentLang][key] || key;
 }
 
+function setLanguage(lang) {
+    currentLang = lang;
+    localStorage.setItem('tigertag_lang', lang);
+    document.documentElement.lang = lang;
+    
+    // Update lang buttons
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.lang === lang);
+    });
+    
+    // Update all translated elements
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.dataset.i18n;
+        el.textContent = t(key);
+    });
+    
+    // Update placeholders
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.dataset.i18nPlaceholder;
+        el.placeholder = t(key);
+    });
+    
+    // Update dynamic content
+    updateCloudText();
+}
 
 // ========== DOM ELEMENTS ==========
 const cloudDot = document.getElementById('cloudDot');
@@ -107,62 +312,13 @@ function setFirebaseConfigured(flag) {
     const el = document.getElementById('firebaseStatus');
     if (el) setTextIfChanged(el, firebaseConfigured ? t('validated') : t('notConfigured'));
     if (fbDot) fbDot.className = firebaseConfigured ? 'status-dot active' : 'status-dot warning';
-    if (fbText) {
-        if (firebaseConfigured) {
-            const stored = localStorage.getItem('tt_displayName') || localStorage.getItem('tt_email') || '';
-            const emailEl = document.getElementById('accountEmail');
-            const emailVal = (emailEl ? emailEl.value : '') || stored;
-            setTextIfChanged(fbText, emailVal || t('validated'));
-        } else {
-            setTextIfChanged(fbText, t('notConfigured'));
-        }
-    }
-    // Header login button — always visible, style changes based on auth
-    const btnHeaderLogin = document.getElementById('btnHeaderLogin');
-    if (btnHeaderLogin) {
-        btnHeaderLogin.classList.toggle('logged-in', firebaseConfigured);
-    }
-    // Auto-show/hide login modal
+    if (fbText) setTextIfChanged(fbText, firebaseConfigured ? 'FB OK' : 'FB OFF');
+    // Toggle the Account card (visible only when authenticated)
+    const accountCard = document.getElementById('accountCard');
+    if (accountCard) accountCard.style.display = firebaseConfigured ? '' : 'none';
+    // Auto-show/hide login modal — only after we know the actual status (not on init)
     if (typeof firebaseStatusKnown !== 'undefined' && firebaseStatusKnown) {
         if (firebaseConfigured) hideAuthModal(); else showAuthModal();
-    }
-}
-
-function handleAccountBtn() {
-    if (firebaseConfigured) {
-        toggleAccountPopover();
-    } else {
-        openAuthModal();
-    }
-}
-
-function toggleAccountPopover() {
-    const pop = document.getElementById('accountPopover');
-    if (!pop) return;
-    const isOpen = pop.style.display !== 'none';
-    if (isOpen) {
-        closeAccountPopover();
-    } else {
-        pop.style.display = '';
-        pop.setAttribute('aria-hidden', 'false');
-        // Close on outside click
-        setTimeout(() => {
-            document.addEventListener('click', _closePopoverOnOutside, true);
-        }, 0);
-    }
-}
-
-function closeAccountPopover() {
-    const pop = document.getElementById('accountPopover');
-    if (pop) { pop.style.display = 'none'; pop.setAttribute('aria-hidden', 'true'); }
-    document.removeEventListener('click', _closePopoverOnOutside, true);
-}
-
-function _closePopoverOnOutside(e) {
-    const pop = document.getElementById('accountPopover');
-    const btn = document.getElementById('btnHeaderLogin');
-    if (pop && !pop.contains(e.target) && btn && !btn.contains(e.target)) {
-        closeAccountPopover();
     }
 }
 
@@ -170,30 +326,14 @@ function _closePopoverOnOutside(e) {
 // Called from applyStatusSnapshot when /api/status reports a firebaseEmail.
 function setAccountInfo(email) {
     if (!email) return;
-    // Persist email for status bar
     const emailEl = document.getElementById('accountEmail');
-    if (emailEl) emailEl.value = email;
-    try { localStorage.setItem('tt_email', email); } catch (_) {}
-
-    // displayName: prefer localStorage (set at login), fallback to email local part
-    const stored = '';
-    try { localStorage.getItem('tt_displayName') || ''; } catch (_) {}
-    const displayName = (localStorage.getItem('tt_displayName') || '').trim()
-                        || email.split('@')[0];
-
-    // Populate popover
-    const nameEl  = document.getElementById('accountDisplayName');
-    const mailLbl = document.getElementById('accountEmailLabel');
     const avatarEl = document.getElementById('accountAvatar');
-
-    if (nameEl)  setTextIfChanged(nameEl, displayName);
-    if (mailLbl) setTextIfChanged(mailLbl, email);
-    if (avatarEl) avatarEl.textContent = displayName.charAt(0).toUpperCase();
-
-    // Also update fbText in status bar (only when actually authenticated)
-    if (fbText && firebaseConfigured) setTextIfChanged(fbText, displayName || email);
-    // Ensure the dot reflects the authenticated state
-    if (firebaseConfigured && fbDot) fbDot.className = 'status-dot active';
+    if (emailEl) setTextIfChanged(emailEl, email);
+    if (avatarEl) {
+        // Use first char of the email's local part (before @) as avatar initial
+        const local = email.split('@')[0] || '?';
+        avatarEl.textContent = local.charAt(0).toUpperCase();
+    }
 }
 
 function setSendState(msg, color) {
@@ -238,7 +378,7 @@ function updateFirebaseAuth() {
 }
 
 function deleteFirebaseAuth() {
-    fetch('/api/firebase/logout', { method: 'POST' })
+    fetch('/api/firebase/auth', { method: 'DELETE' })
     .then(r => r.ok ? r.json() : Promise.reject(r.status))
     .then(() => {
         const emailEl = document.getElementById('firebaseEmail');
@@ -395,310 +535,6 @@ function computeFactor() {
     })
     .then(r => r.ok ? r.json() : Promise.reject(r.status))
     .catch(() => alert(t('alertError')));
-}
-
-function toggleServo() {
-    const chk = document.getElementById('servoToggleCheck');
-    fetch('/api/servo-toggle', { method: 'POST' })
-    .then(r => r.ok ? r.json() : Promise.reject(r.status))
-    .then(data => updateServoToggleBtn(data.servoEnabled))
-    .catch(() => { if (chk) chk.checked = !chk.checked; }); // revert on error
-}
-function updateServoToggleBtn(enabled) {
-    const chk = document.getElementById('servoToggleCheck');
-    if (chk) chk.checked = !!enabled;
-    // Keep hardware section motor-enabled in sync
-    const enChk = document.getElementById('motorEnabledCheck');
-    if (enChk) enChk.checked = !!enabled;
-}
-
-// ========== HARDWARE CONFIG ==========
-let hwConfig = { rfidCount: 1, rfidSide: 'left', motorConnected: false, motorEnabled: false };
-
-async function fetchHardwareConfig() {
-    try {
-        const r = await fetch('/api/hw/config', { cache: 'no-cache' });
-        if (!r.ok) return; // endpoint may not exist yet — fail silently
-        const d = await r.json();
-        hwConfig = { ...hwConfig, ...d };
-    } catch (_) { /* ESP32 may not have this endpoint yet */ }
-    applyHardwareConfig();
-}
-
-function applyHardwareConfig() {
-    // RFID count segment
-    document.querySelectorAll('#rfidSegment .segment-btn').forEach(b => {
-        b.classList.toggle('active', +b.dataset.val === hwConfig.rfidCount);
-    });
-    // RFID side segment active state
-    document.querySelectorAll('#rfidSideSegment .segment-btn').forEach(b => {
-        b.classList.toggle('active', b.dataset.val === hwConfig.rfidSide);
-    });
-    // Motor connected toggle
-    const connChk = document.getElementById('motorConnectedCheck');
-    if (connChk) connChk.checked = !!hwConfig.motorConnected;
-    // Show/hide enabled row
-    const enabledRow = document.getElementById('motorEnabledRow');
-    if (enabledRow) enabledRow.style.display = hwConfig.motorConnected ? '' : 'none';
-    // Motor enabled toggle
-    const enChk = document.getElementById('motorEnabledCheck');
-    if (enChk) enChk.checked = !!hwConfig.motorEnabled;
-    // Motor test panel — visible only when both connected + enabled
-    updateMotorTestPanel();
-    // RFID test panel — hide reader 2 button if only 1 reader configured
-    updateRfidTestPanel();
-}
-
-async function saveHardwareConfig() {
-    try {
-        await fetch('/api/hw/config', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(hwConfig)
-        });
-    } catch (_) {}
-}
-
-function setRfidCount(n) {
-    hwConfig.rfidCount = n;
-    document.querySelectorAll('#rfidSegment .segment-btn').forEach(b => {
-        b.classList.toggle('active', +b.dataset.val === n);
-    });
-    updateRfidTestPanel();
-    saveHardwareConfig();
-}
-
-function setRfidSide(side) {
-    hwConfig.rfidSide = side;
-    document.querySelectorAll('#rfidSideSegment .segment-btn').forEach(b => {
-        b.classList.toggle('active', b.dataset.val === side);
-    });
-    updateRfidTestPanel();
-    saveHardwareConfig();
-}
-
-function onMotorConnectedChange() {
-    const chk = document.getElementById('motorConnectedCheck');
-    hwConfig.motorConnected = !!(chk && chk.checked);
-    const row = document.getElementById('motorEnabledRow');
-    if (row) row.style.display = hwConfig.motorConnected ? '' : 'none';
-    if (!hwConfig.motorConnected) {
-        hwConfig.motorEnabled = false;
-        const enChk = document.getElementById('motorEnabledCheck');
-        if (enChk) enChk.checked = false;
-        updateServoToggleBtn(false);
-        stopMotorTest();
-    }
-    updateMotorTestPanel();
-    saveHardwareConfig();
-}
-
-function onMotorEnabledChange() {
-    const chk = document.getElementById('motorEnabledCheck');
-    hwConfig.motorEnabled = !!(chk && chk.checked);
-    updateServoToggleBtn(hwConfig.motorEnabled);
-    if (!hwConfig.motorEnabled) stopMotorTest();
-    updateMotorTestPanel();
-    // Also call servo toggle endpoint so ESP32 state stays in sync
-    fetch('/api/servo-toggle', { method: 'POST' })
-    .then(r => r.ok ? r.json() : Promise.reject())
-    .then(d => { if (typeof d.servoEnabled !== 'undefined') updateServoToggleBtn(d.servoEnabled); })
-    .catch(() => { /* revert */
-        hwConfig.motorEnabled = !hwConfig.motorEnabled;
-        const c = document.getElementById('motorEnabledCheck');
-        if (c) c.checked = hwConfig.motorEnabled;
-    });
-    saveHardwareConfig();
-}
-
-// ── Motor test ────────────────────────────────────────────────
-// Speed levels → microseconds for a continuous rotation servo
-// 1500 = stop, >1500 = forward, 2000 = full speed
-const MOTOR_SPEED_US = { 1: 1530, 2: 1580, 3: 1650, 4: 1750, 5: 1900 };
-let _motorTestRunning = false;
-let _motorTestSpeed   = 2;
-
-function updateMotorTestPanel() {
-    const panel = document.getElementById('motorTestPanel');
-    if (!panel) return;
-    const show = !!(hwConfig.motorConnected && hwConfig.motorEnabled);
-    panel.style.display = show ? '' : 'none';
-    if (!show && _motorTestRunning) stopMotorTest();
-    _updateMotorTestBtn();  // sync label/icon (no data-i18n on label — managed here only)
-}
-
-function setMotorTestSpeed(level) {
-    _motorTestSpeed = level;
-    // Sync slider position + CSS gradient fill
-    const slider = document.getElementById('motorSpeedSlider');
-    if (slider) {
-        slider.value = level;
-        slider.style.setProperty('--val', level);
-    }
-    // Color active tick dot
-    document.querySelectorAll('.motor-speed-ticks span').forEach((s, i) => {
-        s.style.color = (i + 1 === level) ? 'var(--orange, #e67e22)' : '';
-        s.style.setProperty('--dot', (i + 1 <= level) ? 'var(--orange, #e67e22)' : 'var(--line, #e5e7eb)');
-    });
-    if (_motorTestRunning) {
-        fetch('/api/servo/test', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ us: MOTOR_SPEED_US[level] })
-        }).catch(() => {});
-    }
-}
-
-function toggleMotorTest() {
-    if (_motorTestRunning) stopMotorTest();
-    else startMotorTest();
-}
-
-function startMotorTest() {
-    const us = MOTOR_SPEED_US[_motorTestSpeed] || 1650;
-    fetch('/api/servo/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ us })
-    })
-    .then(r => r.ok ? r.json() : Promise.reject())
-    .then(() => {
-        _motorTestRunning = true;
-        _updateMotorTestBtn();
-    })
-    .catch(() => {});
-}
-
-function stopMotorTest() {
-    fetch('/api/servo/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stop: true })
-    }).catch(() => {});
-    _motorTestRunning = false;
-    _updateMotorTestBtn();
-}
-
-function _updateMotorTestBtn() {
-    const btn   = document.getElementById('motorTestRunBtn');
-    const label = document.getElementById('motorTestLabel');
-    const icon  = document.getElementById('motorTestIcon');
-    if (!btn) return;
-    btn.classList.toggle('running', _motorTestRunning);
-    if (label) label.textContent = _motorTestRunning ? t('motorTestStop') : t('motorTestRun');
-    if (icon) icon.innerHTML = _motorTestRunning
-        ? '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>'
-        : '<polygon points="5,3 19,12 5,21"/>';
-}
-
-// ── RFID hardware test ────────────────────────────────────────────────────────
-let _rfidTestRunning = false;
-let _rfidTestPollId  = null;
-
-function toggleRfidTest() {
-    if (_rfidTestRunning) stopRfidTest(); else startRfidTest();
-}
-
-function startRfidTest() {
-    // Clear both displays immediately before starting
-    _setRfidUid('left',  '—', false);
-    _setRfidUid('right', '—', false);
-    fetch('/api/rfid/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: '{}'
-    })
-    .then(r => r.ok ? r.json() : Promise.reject())
-    .then(() => {
-        _rfidTestRunning = true;
-        _updateRfidTestBtn();
-        _rfidTestPollId = setInterval(_pollRfidTestUid, 600);
-    })
-    .catch(() => {});
-}
-
-function stopRfidTest() {
-    clearInterval(_rfidTestPollId); _rfidTestPollId = null;
-    fetch('/api/rfid/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: '{"stop":true}'
-    }).catch(() => {});
-    _rfidTestRunning = false;
-    _updateRfidTestBtn();
-}
-
-function _pollRfidTestUid() {
-    fetch('/api/rfid/test')
-        .then(r => r.ok ? r.json() : Promise.reject())
-        .then(d => {
-            if (d.uid_left)  _setRfidUid('left',  d.uid_left,  true);
-            if (d.uid_right) _setRfidUid('right', d.uid_right, true);
-        })
-        .catch(() => {});
-}
-
-function _setRfidUid(side, text, detected) {
-    const el  = document.getElementById(side === 'left' ? 'rfidTestUidLeft'  : 'rfidTestUidRight');
-    const btn = document.getElementById(side === 'left' ? 'rfidClearBtnLeft' : 'rfidClearBtnRight');
-    if (!el) return;
-    el.textContent = text;
-    el.classList.toggle('uid-detected', !!detected);
-    if (btn) btn.style.display = detected ? '' : 'none';
-}
-
-function clearRfidUid(side) {
-    fetch('/api/rfid/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: '{"reset":true}'
-    }).catch(() => {});
-    _setRfidUid(side, '—', false);
-}
-
-function _updateRfidTestBtn() {
-    const btn   = document.getElementById('rfidTestRunBtn');
-    const label = document.getElementById('rfidTestLabel');
-    const icon  = document.getElementById('rfidTestIcon');
-    if (!btn) return;
-    btn.classList.toggle('running', _rfidTestRunning);
-    if (label) label.textContent = _rfidTestRunning ? t('motorTestStop') : t('rfidTestScan');
-    if (icon) icon.innerHTML = _rfidTestRunning
-        ? '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>'
-        : '<polygon points="5,3 19,12 5,21"/>';
-}
-
-function updateRfidTestPanel() {
-    const sideRow  = document.getElementById('rfidSideRow');
-    const leftRow  = document.getElementById('rfidLeftRow');
-    const rightRow = document.getElementById('rfidRightRow');
-    if (hwConfig.rfidCount >= 2) {
-        // 2 readers: hide selector, show both rows
-        if (sideRow)  sideRow.style.display  = 'none';
-        if (leftRow)  leftRow.style.display  = '';
-        if (rightRow) rightRow.style.display = '';
-    } else {
-        // 1 reader: show selector, show only the configured side row
-        if (sideRow)  sideRow.style.display  = '';
-        if (leftRow)  leftRow.style.display  = (hwConfig.rfidSide === 'left')  ? '' : 'none';
-        if (rightRow) rightRow.style.display = (hwConfig.rfidSide === 'right') ? '' : 'none';
-    }
-    if (!hwConfig.rfidCount && _rfidTestRunning) stopRfidTest();
-}
-
-function updateSpoolStatus(detected, position) {
-    const detEl = document.getElementById('spoolDetectedVal');
-    const posRow = document.getElementById('spoolPositionRow');
-    const posEl  = document.getElementById('spoolPositionVal');
-    if (!detEl) return;
-    if (detected) {
-        setTextIfChanged(detEl, t('yes'));
-        if (posRow) posRow.style.display = '';
-        if (posEl && position != null) setTextIfChanged(posEl, String(position));
-    } else {
-        setTextIfChanged(detEl, t('no'));
-        if (posRow) posRow.style.display = 'none';
-    }
 }
 
 function resetWiFi() {
@@ -935,10 +771,6 @@ function applyStatusSnapshot(s) {
     if (typeof s.weight !== 'undefined' && currentWeight !== s.weight) {
         currentWeight = s.weight;
         setTextIfChanged(weightEl, String(s.weight));
-        // Micro-animation on change
-        weightEl.classList.remove('updated');
-        void weightEl.offsetWidth; // reflow to restart animation
-        weightEl.classList.add('updated');
     }
     
     // UID
@@ -957,7 +789,7 @@ function applyStatusSnapshot(s) {
     
     // API UI removed in Firebase-only mode
     // Modal trigger uses firebaseAuth ("am I signed in right now?") rather than
-    // firebaseConfigured ("are creds stored?") - this catches the stale-creds case
+    // firebaseConfigured ("are creds stored?") — this catches the stale-creds case
     // (e.g. password changed on Firebase side) where stored creds exist but sign-in
     // fails on boot, in which case we want the user to re-authenticate via the modal.
     if (typeof s.firebaseAuth !== 'undefined') {
@@ -978,29 +810,11 @@ function applyStatusSnapshot(s) {
     // Calibration factor
     if (typeof s.calibrationFactor !== 'undefined') {
         const n = Number(s.calibrationFactor);
-        const shown = isFinite(n) ? n.toFixed(2) : '-';
+        const shown = isFinite(n) ? n.toFixed(2) : '—';
         setTextIfChanged(calFactorEl, shown);
         calFactor = n;
     }
     
-    // Servo / motor enabled state
-    if (typeof s.servoEnabled !== 'undefined') {
-        hwConfig.motorEnabled = !!s.servoEnabled;
-        updateServoToggleBtn(!!s.servoEnabled);
-    }
-
-    // Hardware config fields (rfidCount, motorConnected) if ESP32 exposes them
-    let hwUpdated = false;
-    if (typeof s.rfidCount      !== 'undefined') { hwConfig.rfidCount      = Number(s.rfidCount);    hwUpdated = true; }
-    if (typeof s.rfidSide       !== 'undefined') { hwConfig.rfidSide       = s.rfidSide;              hwUpdated = true; }
-    if (typeof s.motorConnected !== 'undefined') { hwConfig.motorConnected = !!s.motorConnected;      hwUpdated = true; }
-    if (hwUpdated) applyHardwareConfig();
-
-    // Spool detection
-    if (typeof s.spoolDetected !== 'undefined') {
-        updateSpoolStatus(!!s.spoolDetected, s.spoolPosition);
-    }
-
     // Uptime
     if (typeof s.uptime_s !== 'undefined' || typeof s.uptime_ms !== 'undefined') {
         let secs = (typeof s.uptime_s !== 'undefined') ? Number(s.uptime_s) : Number(s.uptime_ms) / 1000;
@@ -1008,20 +822,6 @@ function applyStatusSnapshot(s) {
         setTextIfChanged(upEl, formatHMS(secs));
     }
     
-    // Workflow phase — show/hide stop button
-    if (typeof s.wfPhase !== 'undefined') {
-        const stopBtn = document.getElementById('workflowStopBtn');
-        if (stopBtn) stopBtn.classList.toggle('hidden', !s.wfPhase);
-    }
-    // Container weight — show when fetched (>= 0)
-    if (typeof s.containerWeight !== 'undefined') {
-        const row = document.getElementById('containerWeightRow');
-        const val = document.getElementById('containerWeightVal');
-        const known = (s.containerWeight >= 0);
-        if (row) row.classList.toggle('hidden', !known);
-        if (val && known) setTextIfChanged(val, String(s.containerWeight));
-    }
-
     // Send to cloud status
     if (typeof s.sendToCloud !== 'undefined') {
         const v = String(s.sendToCloud || '').trim();
@@ -1041,14 +841,6 @@ function applyStatusSnapshot(s) {
     }
 }
 
-function stopWorkflow() {
-    fetch('/api/workflow/stop', { method: 'POST' }).catch(() => {});
-    const stopBtn = document.getElementById('workflowStopBtn');
-    if (stopBtn) stopBtn.classList.add('hidden');
-    const row = document.getElementById('containerWeightRow');
-    if (row) row.classList.add('hidden');
-}
-
 function pollStatus() {
     fetch('/api/status', { cache: 'no-store' })
     .then(r => r.ok ? r.json() : Promise.reject(r.status))
@@ -1061,20 +853,14 @@ function pollStatus() {
 // Prevents the modal from flashing on first load (before we know the actual state)
 let firebaseStatusKnown = false;
 
-// Firebase public Web API key — same key used by the firmware.
-// Intentionally public: https://firebase.google.com/docs/projects/api-keys
-const FIREBASE_WEB_API_KEY = 'AIzaSyCkxPTs_Cv0KVLqsZj-UKWWqIY0OtfVpnw';
-
-// Bridge page URL (Firebase Hosting target "cdn" -> site "tigertag-cdn")
+// Bridge page URL (Firebase Hosting target "cdn" → site "tigertag-cdn")
 const AUTH_BRIDGE_URL = 'https://tigertag-cdn.web.app/scale-auth.html';
 const AUTH_BRIDGE_ORIGIN = 'https://tigertag-cdn.web.app';
 
 let _authPopup = null;
 let _authPopupWatcher = null;
-let _authModalDismissed = false;   // true once user explicitly closes the modal
 
 function showAuthModal() {
-    if (_authModalDismissed) return;  // don't reopen if user already dismissed it
     const m = document.getElementById('firebaseLoginModal');
     if (!m) return;
     m.style.display = 'flex';
@@ -1087,66 +873,12 @@ function hideAuthModal() {
     m.setAttribute('aria-hidden', 'true');
     setAuthError('');
 }
-function dismissAuthModal() {
-    _authModalDismissed = true;
-    hideAuthModal();
-}
-function openAuthModal() {
-    _authModalDismissed = false;
-    showAuthModal();
-}
 function setAuthError(msg) {
     const el = document.getElementById('authError');
     if (!el) return;
-    if (!msg) { el.style.display = 'none'; el.textContent = ''; el.classList.remove('auth-info'); return; }
+    if (!msg) { el.style.display = 'none'; el.textContent = ''; return; }
     el.textContent = msg;
-    el.classList.remove('auth-info');
     el.style.display = 'block';
-}
-function setAuthInfo(msg) {
-    const el = document.getElementById('authError');
-    if (!el) return;
-    if (!msg) { el.style.display = 'none'; el.textContent = ''; el.classList.remove('auth-info'); return; }
-    el.textContent = msg;
-    el.classList.add('auth-info');
-    el.style.display = 'block';
-}
-
-// ── Password visibility toggle ──
-function togglePasswordVisibility() {
-    const input = document.getElementById('loginPassword');
-    const eyeShow = document.querySelector('.pw-eye-show');
-    const eyeHide = document.querySelector('.pw-eye-hide');
-    if (!input) return;
-    const isHidden = input.type === 'password';
-    input.type = isHidden ? 'text' : 'password';
-    if (eyeShow) eyeShow.style.display = isHidden ? 'none' : '';
-    if (eyeHide) eyeHide.style.display = isHidden ? '' : 'none';
-}
-
-// ── Password reset — sends a Firebase reset email directly from the browser ──
-function sendPasswordReset() {
-    setAuthError('');
-    const email = (document.getElementById('loginEmail')?.value || '').trim();
-    if (!email) {
-        setAuthError(t('authEnterEmailFirst'));
-        return;
-    }
-    fetch(`https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${FIREBASE_WEB_API_KEY}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestType: 'PASSWORD_RESET', email })
-    })
-    .then(r => r.json().then(j => ({ ok: r.ok, body: j })))
-    .then(({ ok, body }) => {
-        if (!ok) {
-            const code = body?.error?.message || '';
-            setAuthError(code === 'EMAIL_NOT_FOUND' ? t('authEmailNotFound') : t('alertFirebaseError'));
-            return;
-        }
-        setAuthInfo(t('authResetSent'));
-    })
-    .catch(() => setAuthError(t('authNetworkError')));
 }
 
 // ── Email / Password sign-in (uses existing /api/firebase/auth endpoint) ──
@@ -1170,26 +902,12 @@ function signInWithEmail() {
             return;
         }
         setFirebaseConfigured(true);
-        if (body.email) setAccountInfo(body.email);
         hideAuthModal();
     })
     .catch(() => setAuthError(t('authNetworkError')));
 }
 
-// ── Google sign-in via OAuth bridge (popup -> postMessage) ──
-//
-// Mobile note: iOS Safari aggressively blocks `window.open()` calls that
-// include a features string (`width=...,height=...`) — it treats them as
-// pop-ups and the popup-blocker discards them, returning null. On mobile
-// we therefore open a plain `_blank` tab (which iOS allows from a direct
-// user gesture). On desktop we keep the centered popup window for a
-// nicer UX.
-function isMobileDevice() {
-    return ('ontouchstart' in window) ||
-           (navigator.maxTouchPoints > 0) ||
-           /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-}
-
+// ── Google sign-in via OAuth bridge (popup → postMessage) ──
 function signInWithGoogleBridge() {
     setAuthError('');
 
@@ -1197,25 +915,17 @@ function signInWithGoogleBridge() {
     const returnTo = encodeURIComponent(location.origin);
     const url = `${AUTH_BRIDGE_URL}?return_to=${returnTo}`;
 
-    if (isMobileDevice()) {
-        // Plain `_blank` — iOS opens a new tab from this user-gesture click
-        _authPopup = window.open(url, '_blank');
-    } else {
-        // Centered popup on desktop
-        const w = 460, h = 640;
-        const left = Math.max(0, (screen.width - w) / 2);
-        const top = Math.max(0, (screen.height - h) / 2);
-        _authPopup = window.open(
-            url,
-            'tigertag-auth',
-            `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`
-        );
-    }
+    // Open centered popup
+    const w = 460, h = 640;
+    const left = Math.max(0, (screen.width - w) / 2);
+    const top = Math.max(0, (screen.height - h) / 2);
+    _authPopup = window.open(
+        url,
+        'tigertag-auth',
+        `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`
+    );
 
     if (!_authPopup) {
-        // Last-resort fallback: navigate the current tab to the bridge.
-        // The bridge's "no opener" state lets the user copy tokens manually.
-        // (Better than a dead end — no rare-on-modern-browsers blocker UX.)
         setAuthError(t('authPopupBlocked'));
         return;
     }
@@ -1231,42 +941,31 @@ function signInWithGoogleBridge() {
     }, 500);
 }
 
-// ── Sign out - clears tokens on the device and re-opens the login modal ──
+// ── Sign out — clears tokens on the device and re-opens the login modal ──
 function signOut() {
     if (!confirm(t('confirmSignOut'))) return;
-    fetch('/api/firebase/logout', { method: 'POST' })
-    .then(r => {
-        console.log('[signOut] logout status:', r.status, 'ok:', r.ok);
-        return r.ok ? r.json() : r.text().then(txt => Promise.reject('HTTP ' + r.status + ': ' + txt));
-    })
+    fetch('/api/firebase/auth', { method: 'DELETE' })
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
     .then(() => {
-        // Clear persisted user info
-        try { localStorage.removeItem('tt_displayName'); localStorage.removeItem('tt_email'); } catch (_) {}
         // Reset local UI state
         const emailEl = document.getElementById('firebaseEmail');
         const passEl = document.getElementById('firebasePassword');
         if (emailEl) emailEl.value = '';
         if (passEl) passEl.value = '';
-        // Clear the modal's input fields
+        // Clear the modal's input fields too (so the next user starts fresh)
         const loginEmail = document.getElementById('loginEmail');
         const loginPass = document.getElementById('loginPassword');
         if (loginEmail) loginEmail.value = '';
         if (loginPass) loginPass.value = '';
-        // Reset popover
+        setAccountInfo('');
         const avatarEl = document.getElementById('accountAvatar');
         if (avatarEl) avatarEl.textContent = '?';
-        const nameEl = document.getElementById('accountDisplayName');
-        if (nameEl) nameEl.textContent = '—';
-        const mailLbl = document.getElementById('accountEmailLabel');
-        if (mailLbl) mailLbl.textContent = '—';
-        closeAccountPopover();
-        _authModalDismissed = false;   // always force modal open after explicit sign-out
-        setFirebaseConfigured(false);
+        setFirebaseConfigured(false); // this also re-shows the modal via setFirebaseConfigured
     })
-    .catch(err => { console.error('[signOut] error:', err); alert(t('alertFirebaseError')); });
+    .catch(() => alert(t('alertFirebaseError')));
 }
 
-// ── postMessage listener - receives tokens from the bridge ──
+// ── postMessage listener — receives tokens from the bridge ──
 window.addEventListener('message', (event) => {
     // SECURITY: only accept messages from the bridge origin
     if (event.origin !== AUTH_BRIDGE_ORIGIN) return;
@@ -1278,12 +977,6 @@ window.addEventListener('message', (event) => {
         setAuthError(t('alertFirebaseError'));
         return;
     }
-
-    // Persist displayName locally so the UI can show it across sessions
-    try {
-        if (p.displayName) localStorage.setItem('tt_displayName', p.displayName);
-        if (p.email)       localStorage.setItem('tt_email', p.email);
-    } catch (_) {}
 
     // Send tokens to the firmware
     fetch('/api/firebase/token', {
@@ -1300,7 +993,6 @@ window.addEventListener('message', (event) => {
     })
     .then(r => r.ok ? r.json() : Promise.reject(r.status))
     .then(() => {
-        if (p.email) setAccountInfo(p.email);
         setFirebaseConfigured(true);
         hideAuthModal();
         // Best-effort close of the popup
@@ -1311,26 +1003,12 @@ window.addEventListener('message', (event) => {
 
 // ========== INITIALIZATION ==========
 window.onload = () => {
-    // Language: i18n.js (loaded before this script) auto-detects and applies
-    // the user's language during its own init(). The legacy `currentLang`
-    // local variable was removed when translations were externalised into
-    // locales/*.json — referencing it here previously threw a ReferenceError
-    // that aborted the rest of window.onload (no pollStatus, no modal, no
-    // data). Use window.currentLang (set by the i18n controller) as a safe
-    // alias, or fall back to "en".
-    const lang = (window.TigerI18n && window.TigerI18n.getLang && window.TigerI18n.getLang())
-              || window.currentLang
-              || 'en';
-    if (typeof window.setLanguage === 'function') {
-        try { window.setLanguage(lang); } catch (_) {}
-    }
+    // Set language
+    setLanguage(currentLang);
     setFirebaseConfigured(false);
 
     // Initial weight display
     setTextIfChanged(weightEl, '…');
-
-    // Fetch hardware config (RFID count, motor connected, etc.)
-    fetchHardwareConfig();
 
     // Start polling
     pollStatus();
