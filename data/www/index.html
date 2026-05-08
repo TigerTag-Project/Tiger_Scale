@@ -200,6 +200,40 @@
                 </a>
             </div>
         </div>
+
+        <!-- ── Debug API panel (advanced users) ─────────────────────────── -->
+        <div id="debugPanel" style="margin-top:28px;padding:0 4px 24px;">
+            <button onclick="(function(p){p.style.display=p.style.display==='none'?'block':'none'})(document.getElementById('debugContent'))"
+                    style="background:none;border:none;color:#c0c0c8;font-size:11px;cursor:pointer;padding:4px 0;letter-spacing:.05em;opacity:.55;transition:opacity .2s"
+                    onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='.55'">
+                ⚙ API Debug
+            </button>
+            <div id="debugContent" style="display:none;margin-top:10px;background:#1a1a2e;border-radius:10px;padding:14px 16px;font-size:12px;font-family:monospace;color:#a0a0c0;line-height:1.9">
+
+                <div style="color:#667eea;font-weight:600;margin-bottom:6px;font-size:11px;letter-spacing:.08em">GET — ouvre dans le navigateur</div>
+
+                <a href="/api/status"        target="_blank" style="display:block;color:#a29bfe;text-decoration:none" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#a29bfe'">/api/status</a>
+                <a href="/api/logs"          target="_blank" style="display:block;color:#a29bfe;text-decoration:none" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#a29bfe'">/api/logs</a>
+                <a href="/api/firebase/status" target="_blank" style="display:block;color:#a29bfe;text-decoration:none" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#a29bfe'">/api/firebase/status</a>
+                <a href="/api/hw/config"     target="_blank" style="display:block;color:#a29bfe;text-decoration:none" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#a29bfe'">/api/hw/config</a>
+                <a href="/api/ping"          target="_blank" style="display:block;color:#a29bfe;text-decoration:none" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#a29bfe'">/api/ping</a>
+                <a href="/api/rfid/test"     target="_blank" style="display:block;color:#a29bfe;text-decoration:none" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#a29bfe'">/api/rfid/test</a>
+                <a href="/api/ota/check"     target="_blank" style="display:block;color:#a29bfe;text-decoration:none" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#a29bfe'">/api/ota/check</a>
+
+                <div style="color:#667eea;font-weight:600;margin:10px 0 6px;font-size:11px;letter-spacing:.08em">POST — clic = fetch()</div>
+
+                <span id="_dbg_tare"       class="dbg-post" onclick="dbgPost('/api/tare')">/api/tare</span><br>
+                <span id="_dbg_logs_del"   class="dbg-post" onclick="dbgPost('/api/logs','DELETE')">/api/logs  <span style="color:#fd79a8;font-size:10px">DELETE</span></span><br>
+                <span id="_dbg_wf_stop"    class="dbg-post" onclick="dbgPost('/api/workflow/stop')">/api/workflow/stop</span><br>
+                <span id="_dbg_srv_toggle" class="dbg-post" onclick="dbgPost('/api/servo-toggle')">/api/servo-toggle</span><br>
+                <span id="_dbg_reset_wifi" class="dbg-post" onclick="dbgPost('/api/reset-wifi')" style="color:#fd79a8">/api/reset-wifi  ⚠</span><br>
+                <span id="_dbg_factory"    class="dbg-post" onclick="dbgPost('/api/factory-reset')" style="color:#fd79a8">/api/factory-reset  ⚠</span><br>
+
+                <div id="debugLog" style="margin-top:10px;color:#55efc4;min-height:16px;font-size:11px"></div>
+            </div>
+        </div>
+        <!-- ── end debug panel ──────────────────────────────────────────── -->
+
     </div>
 
     <!-- Modal for weight too light error -->
@@ -306,8 +340,42 @@
             font-size: 14px; color: #2c3e50; font-weight: 500;
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
+        /* --- Debug API panel --- */
+        .dbg-post {
+            display: inline-block; color: #74b9ff; cursor: pointer;
+            text-decoration: none; transition: color .15s;
+        }
+        .dbg-post:hover { color: #fff; }
+        .dbg-post.ok   { color: #55efc4 !important; }
+        .dbg-post.err  { color: #fd79a8 !important; }
     </style>
 
     <script src="script.js"></script>
+    <script>
+    function dbgPost(url, method) {
+        method = method || 'POST';
+        var log = document.getElementById('debugLog');
+        log.textContent = method + ' ' + url + ' …';
+        // Find the span whose onclick calls this url
+        var spans = document.querySelectorAll('.dbg-post');
+        var el = null;
+        for (var i = 0; i < spans.length; i++) {
+            if ((spans[i].getAttribute('onclick') || '').indexOf("'" + url + "'") !== -1) { el = spans[i]; break; }
+        }
+        fetch(url, { method: method, cache: 'no-store' })
+            .then(function(r) {
+                return r.text().then(function(t) { return { ok: r.ok, status: r.status, body: t }; });
+            })
+            .then(function(d) {
+                var preview = d.body.length > 120 ? d.body.substring(0, 120) + '…' : d.body;
+                log.textContent = '✓ ' + d.status + '  ' + preview;
+                if (el) { el.classList.add('ok'); setTimeout(function(){ el.classList.remove('ok'); }, 1500); }
+            })
+            .catch(function(e) {
+                log.textContent = '✗ ' + e;
+                if (el) { el.classList.add('err'); setTimeout(function(){ el.classList.remove('err'); }, 2000); }
+            });
+    }
+    </script>
 </body>
 </html>
