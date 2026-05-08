@@ -30,7 +30,7 @@
 //   §21 SCALE                                                                    3234– 3325
 //   §22 RFID                                                                     3326– 3654
 //   §23 OTA — Over-the-air firmware + filesystem update                          3655– 4023
-//   §24 SETUP & LOOP                                                             4024– 4395
+//   §24 SETUP & LOOP                                                             4024– 4402
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -4370,9 +4370,16 @@ void loop() {
 
         displayWeightWithState(weight, lastUID, currentOledState);
 
+        // Build compact WebSocket frame — same tick as OLED so web UI stays in sync
+        String stcWs;
+        if      (sendPhase == "countdown" && sendCountdown >= 0) stcWs = String(sendCountdown);
+        else if (sendPhase == "send")    stcWs = "send";
+        else if (sendPhase == "success") stcWs = "success";
+        else if (sendPhase == "error")   stcWs = "error";
         String json = "{\"weight\":" + String(roundWeight(weight))
                       + ",\"uid\":\"" + lastUID
-                      + "\",\"uid2\":\"" + lastUID2 + "\"}";
+                      + "\",\"uid2\":\"" + lastUID2
+                      + "\",\"sendToCloud\":\"" + stcWs + "\"}";
         ws.textAll(json);
         ws.cleanupClients();
         lastUpdate = millis();

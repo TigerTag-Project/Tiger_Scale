@@ -1005,6 +1005,48 @@ window.addEventListener('message', (event) => {
     .catch(() => setAuthError(t('authNetworkError')));
 });
 
+// ========== WEBSOCKET CLIENT ==========
+let _ws = null;
+let _wsReconnectTimer = null;
+
+function wsConnect() {
+    if (_ws && (_ws.readyState === WebSocket.OPEN || _ws.readyState === WebSocket.CONNECTING)) return;
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    _ws = new WebSocket(proto + '//' + location.host + '/ws');
+
+    _ws.onopen = function() {
+        console.log('[WS] connected');
+        if (_wsReconnectTimer) { clearTimeout(_wsReconnectTimer); _wsReconnectTimer = null; }
+    };
+
+    _ws.onmessage = function(evt) {
+        try {
+            const data = JSON.parse(evt.data);
+            // Firmware sends a separate {type:"firebaseStatus",...} frame on connect + every 5s
+            if (data.type === 'firebaseStatus') {
+                firebaseStatusKnown = true;
+                setFirebaseConfigured(!!(data.auth || data.configured));
+                if (data.email) setAccountInfo(data.email);
+                return;
+            }
+            // Regular 250ms frame: weight, uid, uid2, sendToCloud
+            applyStatusSnapshot(data);
+        } catch(e) {}
+    };
+
+    _ws.onerror = function() { /* onclose fires right after */ };
+
+    _ws.onclose = function() {
+        console.log('[WS] closed — reconnect in 3s');
+        if (!_wsReconnectTimer) {
+            _wsReconnectTimer = setTimeout(function() {
+                _wsReconnectTimer = null;
+                wsConnect();
+            }, 3000);
+        }
+    };
+}
+
 // ========== INITIALIZATION ==========
 window.onload = () => {
     // Set language
@@ -1014,9 +1056,13 @@ window.onload = () => {
     // Initial weight display
     setTextIfChanged(weightEl, '…');
 
-    // Start polling
+    // WebSocket real-time sync (250ms — same tick as OLED on firmware)
+    wsConnect();
+
+    // HTTP fallback polling: weight via WS is instant; poll only for
+    // cloud status, calibration factor, uptime, Firebase email (10s is plenty)
     pollStatus();
-    setInterval(pollStatus, 300);
+    setInterval(pollStatus, 10000);
 
     // Register Service Worker for PWA
     if ('serviceWorker' in navigator) {
