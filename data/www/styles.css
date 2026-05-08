@@ -126,7 +126,7 @@ body {
     line-height: 1;
     margin: 12px 0;
     letter-spacing: -1px;
-    transition: opacity 0.15s ease;
+    transition: none;
 }
 
 .weight-unit {

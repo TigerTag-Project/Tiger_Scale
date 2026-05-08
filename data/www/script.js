@@ -767,14 +767,10 @@ document.addEventListener('DOMContentLoaded', function() {
 function applyStatusSnapshot(s) {
     if (!s || typeof s !== 'object') return;
     
-    // Weight — 300ms poll: flash opacity briefly on each change
+    // Weight
     if (typeof s.weight !== 'undefined' && currentWeight !== s.weight) {
         currentWeight = s.weight;
         setTextIfChanged(weightEl, String(s.weight));
-        if (weightEl) {
-            weightEl.style.opacity = '0.45';
-            setTimeout(function(){ weightEl.style.opacity = '1'; }, 120);
-        }
     }
     
     // UID
