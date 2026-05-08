@@ -18,19 +18,19 @@
 //   §9  WIFI SETUP                                                                544–  802
 //   §10 LITTLEFS                                                                  803–  847
 //   §11 FIREBASE AUTHENTICATION                                                   848– 1041
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1042– 1980
-//   §13 WEBSOCKET                                                                1981– 2017
-//   §14 WEIGHT FILTER HELPERS                                                    2018– 2032
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         2033– 2054
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2055– 2127
-//   §17 WEB SERVER                                                               2128– 2813
-//   §18 CLOUD COMMUNICATION                                                      2814– 2996
-//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                2997– 3182
-//   §20 mDNS                                                                     3183– 3220
-//   §21 SCALE                                                                    3221– 3312
-//   §22 RFID                                                                     3313– 3641
-//   §23 OTA — Over-the-air firmware + filesystem update                          3642– 4010
-//   §24 SETUP & LOOP                                                             4011– 4382
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1042– 1993
+//   §13 WEBSOCKET                                                                1994– 2030
+//   §14 WEIGHT FILTER HELPERS                                                    2031– 2045
+//   §15 POST-SEND STATE RESET (shared by all send paths)                         2046– 2067
+//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2068– 2140
+//   §17 WEB SERVER                                                               2141– 2826
+//   §18 CLOUD COMMUNICATION                                                      2827– 3009
+//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3010– 3195
+//   §20 mDNS                                                                     3196– 3233
+//   §21 SCALE                                                                    3234– 3325
+//   §22 RFID                                                                     3326– 3654
+//   §23 OTA — Over-the-air firmware + filesystem update                          3655– 4023
+//   §24 SETUP & LOOP                                                             4024– 4395
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -1160,7 +1160,10 @@ bool readScaleDisplayName(const String& mac, String& outDisplayName, String* out
 
     if (code != 200) return false;  // Document doesn't exist yet
 
-    StaticJsonDocument<256> doc;
+    // Scale doc response has a 'name' field of ~110 chars (full Firestore doc path).
+    // StaticJsonDocument<256> silently fails (NoMemory) → updateTime stays empty.
+    // Use 512 bytes to safely parse name + createTime + updateTime + display_name.
+    DynamicJsonDocument doc(512);
     if (deserializeJson(doc, resp)) return false;
 
     // Extract display_name from fields
@@ -1733,17 +1736,27 @@ bool updateScaleLastSpool(const String& uid_a, const String& uid_b = "", float w
     String displayName = "";
     bool scaleDocExists = readScaleDisplayName(gScaleMacAddress, displayName, &serverTimestamp);
 
-    // If we got a server timestamp from Firestore, use it; otherwise fallback to local time
+    // If we got a server timestamp from Firestore, use it; otherwise build ISO 8601 locally.
+    // Firestore timestampValue REQUIRES RFC 3339 format ("2026-05-03T12:34:56Z").
+    // Sending raw epoch-ms as a string causes HTTP 400 "Invalid value at document.fields.last_update".
     String tsStr;
     if (serverTimestamp.length() > 0) {
-        tsStr = serverTimestamp;  // Use Firestore timestamp (ISO 8601 format like "2026-05-03T12:34:56.789Z")
+        tsStr = serverTimestamp;
         Serial.printf("[WEIGHT] Using Firestore timestamp: %s\n", tsStr.c_str());
     } else {
-        long long timestampMs = getTimestampMs();
-        char tsBuf[20];
-        snprintf(tsBuf, sizeof(tsBuf), "%lld", timestampMs);
-        tsStr = String(tsBuf);
-        Serial.printf("[WEIGHT] Using local timestamp: %s (Firestore unavailable)\n", tsStr.c_str());
+        char iso8601_buf[30];
+        time_t now_sec = time(nullptr);
+        if (now_sec > 1000000000L) {
+            struct tm* ti = gmtime(&now_sec);
+            strftime(iso8601_buf, sizeof(iso8601_buf), "%Y-%m-%dT%H:%M:%SZ", ti);
+        } else {
+            // No NTP — approximate based on boot epoch + uptime
+            time_t fallback_sec = 1746316800L + (millis() / 1000);
+            struct tm* ti = gmtime(&fallback_sec);
+            strftime(iso8601_buf, sizeof(iso8601_buf), "%Y-%m-%dT%H:%M:%SZ", ti);
+        }
+        tsStr = String(iso8601_buf);
+        Serial.printf("[WEIGHT] Using local ISO timestamp: %s\n", tsStr.c_str());
     }
 
     // Case 1: Single tag (or same tag detected twice)
