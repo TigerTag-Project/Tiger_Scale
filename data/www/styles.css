@@ -635,6 +635,286 @@ input::placeholder {
     color: #2d3748;
 }
 
+/* ── Hardware section ─────────────────────────────────────────────────────── */
+.setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 8px;
+}
+.setting-row-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #2d3748;
+    font-size: 14px;
+    font-weight: 600;
+}
+.setting-row--indent {
+    padding-left: 28px;
+}
+.setting-row--indent .setting-row-label {
+    color: #718096;
+    font-weight: 500;
+}
+
+/* Segment control (RFID count selector) */
+.segment-control {
+    display: flex;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1.5px solid #e2e8f0;
+    flex-shrink: 0;
+}
+.segment-btn {
+    flex: 1;
+    padding: 5px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    background: transparent;
+    border: none;
+    color: #718096;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    min-width: 36px;
+    line-height: 1;
+}
+.segment-btn + .segment-btn { border-left: 1.5px solid #e2e8f0; }
+.segment-btn.active { background: #e67e22; color: #fff; }
+.segment-btn:not(.active):hover { background: #f7f8fa; color: #2d3748; }
+
+/* iOS-style toggle switch */
+.ios-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 28px;
+    flex-shrink: 0;
+    cursor: pointer;
+    vertical-align: middle;
+}
+.ios-switch input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    margin: 0;
+}
+.ios-switch-track {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: #d1d5db;
+    transition: background 0.22s cubic-bezier(0.4,0,0.2,1);
+}
+.ios-switch-track::before {
+    content: "";
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.22), 0 0 0 0.5px rgba(0,0,0,0.04);
+    transition: transform 0.22s cubic-bezier(0.4,0,0.2,1);
+}
+.ios-switch input:checked ~ .ios-switch-track { background: #22c55e; }
+.ios-switch input:checked ~ .ios-switch-track::before { transform: translateX(22px); }
+.ios-switch input:focus-visible ~ .ios-switch-track { outline: 2px solid #e67e22; outline-offset: 2px; }
+
+/* Motor / RFID test panel */
+.motor-test-panel {
+    margin: 4px 0 8px 16px;
+    padding: 14px 16px;
+    background: #f7f8fa;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.motor-test-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #718096;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    width: 100%;
+}
+.motor-test-speeds {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+/* Speed slider */
+.motor-speed-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(
+        to right,
+        #e67e22 0%,
+        #e67e22 calc((var(--val,2) - 1) / 4 * 100%),
+        #e2e8f0 calc((var(--val,2) - 1) / 4 * 100%),
+        #e2e8f0 100%
+    );
+    outline: none;
+    cursor: pointer;
+    min-height: unset;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}
+.motor-speed-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: #e67e22;
+    border: 3px solid #fff;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.18);
+    cursor: pointer;
+    transition: transform .12s;
+}
+.motor-speed-slider::-moz-range-thumb {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: #e67e22;
+    border: 3px solid #fff;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.18);
+    cursor: pointer;
+}
+.motor-speed-slider:active::-webkit-slider-thumb { transform: scale(1.2); }
+.motor-speed-ticks {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 2px;
+}
+.motor-speed-ticks span {
+    position: relative;
+    font-size: 11px;
+    font-weight: 700;
+    color: #9ca3af;
+    text-align: center;
+    width: 20px;
+    margin: 0 -10px;
+    user-select: none;
+}
+.motor-speed-ticks span::before {
+    content: '';
+    display: block;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    margin: 0 auto 2px;
+}
+/* Run / Stop button */
+.motor-test-run-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 36px;
+    min-height: unset;
+    padding: 0 16px;
+    font-size: 14px;
+    font-weight: 700;
+    background: #2d3748;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    box-shadow: none;
+    cursor: pointer;
+    transition: background .15s, transform .1s;
+}
+.motor-test-run-btn:hover  { background: #4a5568; transform: none; box-shadow: none; }
+.motor-test-run-btn.running { background: #dc2626; }
+.motor-test-run-btn.running:hover { background: #b91c1c; }
+
+/* Motor noise badge row */
+.motor-noise-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.motor-noise-badge {
+    font-size: 1.25rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.motor-noise-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #4a5568;
+    letter-spacing: 0.03em;
+}
+
+/* RFID panel stacks vertically */
+#rfidTestPanel { flex-direction: column; align-items: stretch; }
+#rfidTestPanel .motor-test-run-btn { justify-content: center; }
+
+.rfid-reader-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.rfid-reader-row-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #718096;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    width: 34px;
+    flex-shrink: 0;
+}
+.rfid-reader-row .rfid-uid-wrap { flex: 1; margin-bottom: 0; }
+.rfid-uid-wrap {
+    position: relative;
+    margin-bottom: 10px;
+}
+.rfid-uid-wrap .rfid-test-uid { margin-bottom: 0; padding-right: 38px; }
+.rfid-clear-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px; height: 24px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: #718096;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background .15s, color .15s;
+    z-index: 2;
+}
+.rfid-clear-btn:hover { background: #fee2e2; color: #dc2626; transform: translateY(-50%) !important; box-shadow: none !important; }
+.rfid-test-uid {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.88rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-align: center;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    color: #2d3748;
+    margin-bottom: 10px;
+    min-height: 36px;
+    word-break: break-all;
+}
+.rfid-test-uid.uid-detected { color: #e67e22; border-color: #e67e22; }
+
 /* Responsive */
 @media (max-width: 500px) {
     .container { padding: 0 8px; }
@@ -744,6 +1024,226 @@ input::placeholder {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
+
+/* ── Log open buttons ───────────────────────────────────────────────────── */
+.log-open-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 13px 16px;
+    background: #fff;
+    border: none;
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #2d3748;
+    cursor: pointer;
+    transition: background .15s, box-shadow .15s;
+    gap: 6px;
+}
+.log-open-btn:hover { background: #f7fafc; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.log-open-arrow { font-size: 1.1rem; color: #a0aec0; font-weight: 400; }
+
+/* ── Log Side Panel ─────────────────────────────────────────────────────── */
+.log-side-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    z-index: 600;
+    animation: fadeIn .2s;
+}
+.log-side-overlay.open { display: block; }
+
+.log-side-panel {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: min(520px, 100vw);
+    background: #1a202c;
+    z-index: 601;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
+    box-shadow: -6px 0 32px rgba(0,0,0,0.25);
+}
+.log-side-panel.open { transform: translateX(0); }
+
+.log-side-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px 0;
+    flex-shrink: 0;
+    background: #171923;
+    border-bottom: 1px solid #2d3748;
+    padding-bottom: 0;
+}
+
+.log-side-tabs {
+    display: flex;
+    gap: 0;
+}
+.log-side-tab {
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #718096;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color .15s, border-color .15s;
+    white-space: nowrap;
+}
+.log-side-tab.active  { color: #e2e8f0; border-bottom-color: #667eea; }
+.log-side-tab:hover:not(.active) { color: #a0aec0; }
+
+.log-side-close {
+    background: none;
+    border: none;
+    color: #718096;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 6px;
+    line-height: 1;
+    transition: color .15s, background .15s;
+    flex-shrink: 0;
+}
+.log-side-close:hover { color: #e2e8f0; background: #2d3748; }
+
+.log-pane {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+}
+.log-pane.active { display: flex; }
+
+.log-pane-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px 6px;
+    flex-shrink: 0;
+    background: #171923;
+    gap: 8px;
+}
+.log-pane-toolbar .ws-log-count { color: #4a5568; font-size: 0.75rem; }
+.log-pane-toolbar .ws-log-toggle-wrap { color: #718096; }
+.log-pane-toolbar .ws-log-btn {
+    background: #2d3748;
+    border-color: #4a5568;
+    color: #a0aec0;
+}
+.log-pane-toolbar .ws-log-btn:hover { background: #3d4f6b; color: #e2e8f0; }
+
+.log-pane-entries {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+/* Scrollbar styling for dark panel */
+.log-pane-entries::-webkit-scrollbar { width: 6px; }
+.log-pane-entries::-webkit-scrollbar-track { background: #1a202c; }
+.log-pane-entries::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 3px; }
+
+/* ── Firebase Log ──────────────────────────────────────────────────────── */
+.fb-log-entry {
+    padding: 3px 0;
+    border-bottom: 1px solid #2d3748;
+    font-family: 'Courier New', monospace;
+    font-size: 0.72rem;
+    line-height: 1.5;
+}
+.fb-log-entry:last-child { border-bottom: none; }
+.fb-log-entry .ws-log-data { color: #a0aec0; }
+.fb-log-ok   .ws-log-data  { color: #68d391; }
+.fb-log-err  .ws-log-data  { color: #fc8181; }
+.fb-log-auth .ws-log-data  { color: #76e4f7; }
+.fb-log-data .ws-log-data  { color: #fbd38d; }
+
+/* ── WebSocket Log ─────────────────────────────────────────────────────── */
+.ws-log-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    gap: 8px;
+}
+.ws-log-toggle-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: #4a5568;
+    cursor: pointer;
+    user-select: none;
+}
+.ws-log-toggle-wrap input { cursor: pointer; accent-color: #667eea; }
+.ws-log-toolbar-btns { display: flex; gap: 6px; }
+.ws-log-btn {
+    padding: 4px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #f7fafc;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background .15s;
+}
+.ws-log-btn:hover { background: #edf2f7; }
+.ws-log-count {
+    font-size: 0.72rem;
+    color: #a0aec0;
+    margin-bottom: 6px;
+}
+/* ws-log-container — only used as fallback; main display is .log-pane-entries in side panel */
+.ws-log-container { display: none; }
+.ws-log-empty {
+    color: #4a5568;
+    font-size: 0.78rem;
+    font-family: 'Courier New', monospace;
+    text-align: center;
+    padding: 16px 0;
+}
+.ws-log-entry {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 3px 0;
+    border-bottom: 1px solid #2d3748;
+    font-family: 'Courier New', monospace;
+    font-size: 0.72rem;
+    line-height: 1.5;
+}
+.ws-log-entry:last-child { border-bottom: none; }
+.ws-log-ts {
+    color: #4a5568;
+    flex-shrink: 0;
+    font-size: 0.68rem;
+}
+.ws-log-arrow {
+    flex-shrink: 0;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+.ws-log-in  .ws-log-arrow { color: #48bb78; }
+.ws-log-out .ws-log-arrow { color: #ed8936; }
+.ws-log-data {
+    color: #cbd5e0;
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+    flex: 1;
+}
+.ws-log-in  .ws-log-data { color: #e2e8f0; }
+.ws-log-out .ws-log-data { color: #fbd38d; }
 
 /* Footer */
 .footer {

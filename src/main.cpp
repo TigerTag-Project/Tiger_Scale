@@ -7,32 +7,32 @@
 //
 //   TABLE OF CONTENTS                            line range
 //   ────────────────────────────────────────────  ──────────
-//   §1  HARDWARE CONFIGURATION                                                     60–  114
-//   §2  OTA CONFIGURATION                                                         115–  133
-//   §3  FORWARD DECLARATIONS                                                      134–  213
-//   §4  WEIGHT ROUNDING                                                           214–  233
-//   §5  GLOBAL OBJECTS                                                            234–  247
-//   §6  CONFIGURATION VARIABLES                                                   248–  426
-//   §7  OLED DISPLAY                                                              427–  544
-//   §8  CLOUD PARSING                                                             545–  559
-//   §9  WIFI SETUP                                                                560–  818
-//   §10 LITTLEFS                                                                  819–  863
-//   §11 FIREBASE AUTHENTICATION                                                   864– 1057
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1058– 2009
-//   §13 WEBSOCKET                                                                2010– 2036
-//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2037– 2065
-//   §15 5 — UNIFIED WS FRAME BUILDER                                             2066– 2102
-//   §16 WEIGHT FILTER HELPERS                                                    2103– 2117
-//   §17 POST-SEND STATE RESET (shared by all send paths)                         2118– 2136
-//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2137– 2209
-//   §19 WEB SERVER                                                               2210– 2895
-//   §20 CLOUD COMMUNICATION                                                      2896– 3078
-//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3079– 3293
-//   §22 mDNS                                                                     3294– 3331
-//   §23 SCALE                                                                    3332– 3423
-//   §24 RFID                                                                     3424– 3752
-//   §25 OTA — Over-the-air firmware + filesystem update                          3753– 4121
-//   §26 SETUP & LOOP                                                             4122– 4486
+//   §1  HARDWARE CONFIGURATION                                                     61–  127
+//   §2  OTA CONFIGURATION                                                         128–  146
+//   §3  FORWARD DECLARATIONS                                                      147–  226
+//   §4  WEIGHT ROUNDING                                                           227–  246
+//   §5  GLOBAL OBJECTS                                                            247–  260
+//   §6  CONFIGURATION VARIABLES                                                   261–  442
+//   §7  OLED DISPLAY                                                              443–  560
+//   §8  CLOUD PARSING                                                             561–  575
+//   §9  WIFI SETUP                                                                576–  848
+//   §10 LITTLEFS                                                                  849–  893
+//   §11 FIREBASE AUTHENTICATION                                                   894– 1087
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1088– 2039
+//   §13 WEBSOCKET                                                                2040– 2066
+//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2067– 2095
+//   §15 5 — UNIFIED WS FRAME BUILDER                                             2096– 2134
+//   §16 WEIGHT FILTER HELPERS                                                    2135– 2149
+//   §17 POST-SEND STATE RESET (shared by all send paths)                         2150– 2168
+//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2169– 2241
+//   §19 WEB SERVER                                                               2242– 2941
+//   §20 CLOUD COMMUNICATION                                                      2942– 3124
+//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3125– 3340
+//   §22 mDNS                                                                     3341– 3378
+//   §23 SCALE                                                                    3379– 3470
+//   §24 RFID                                                                     3471– 3800
+//   §25 OTA — Over-the-air firmware + filesystem update                          3801– 4169
+//   §26 SETUP & LOOP                                                             4170– 4542
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -92,7 +92,19 @@ const float    SERVO_WEIGHT_PRESENT_G      = 10.0f;
 const float    SERVO_WEIGHT_REMOVED_G      =  8.0f;
 const float    SERVO_MIN_SPIN_WEIGHT_G     = 15.0f;
 const int      SERVO_STOP_US               = 1500;
-const int      SERVO_SEARCH_US             = 1700;
+const int      SERVO_SEARCH_US             = 1700;  // legacy default (level 4)
+// Map user speed level (1-5) → μs for the continuous-rotation servo
+// 1500 = full stop, higher = faster forward rotation
+static inline int motorLevelToUs(uint8_t lvl) {
+    switch (lvl) {
+        case 1: return 1530;
+        case 2: return 1580;
+        case 3: return 1650;
+        case 4: return 1750;
+        case 5: return 1900;
+        default: return 1650;
+    }
+}
 const uint32_t RFID_SECOND_TAG_TIMEOUT_MS  = 6000;   // Faster fallback when 2nd tag is missing
 const uint32_t RFID_FIRST_TAG_PAUSE_MS     =  250;   // Short pause after first tag
 const float    RFID_ANTENNA_WAKE_WEIGHT_G  = 50.0f;  // Wake antennas above this weight; sleep below
@@ -264,6 +276,8 @@ String   lastUID    = "";
 String   lastUIDHex = "";
 String   lastUID2   = "";
 String   lastUID2Hex = "";
+String   lastUIDLeft  = "";   // rfid2 — physically Left reader
+String   lastUIDRight = "";   // rfid1 — physically Right reader
 
 // ── In-memory network log ring buffer ────────────────────────────────────────
 // Exposed via GET /api/logs — last 80 entries, newest last.
@@ -330,6 +344,7 @@ String   rfidTestLastUidRight     = "";     // Last UID — right reader (rfid1)
 uint8_t  hwRfidCount             = 2;      // Number of RC522 readers physically connected (1 or 2)
 uint8_t  hwRfidSide              = 0;      // When count==1: 0=left (rfid2), 1=right (rfid1)
 bool     hwMotorConnected        = true;   // Whether the servo is physically wired
+uint8_t  hwMotorSpeed            = 3;      // Preferred scan speed 1-5 (persisted), default=3
 uint32_t lastAutoPushSkipLogMs   = 0;
 uint32_t firstUidDetectedMs      = 0;
 uint32_t firstUidPauseUntilMs    = 0;
@@ -562,7 +577,10 @@ static bool parseCloudNetWeights(const String& resp, float& netOut, float& rawOu
 // §9 — WIFI SETUP
 // ============================================================================
 
+static bool gWasInConfigMode = false;   // set true when captive portal opens
+
 void configModeCallback(WiFiManager *myWiFiManager) {
+    gWasInConfigMode = true;
     displayMessage("CONFIG MODE", "Connect to WiFi",
                    gSetupSsid.length() ? gSetupSsid : "Setup-TigerScale");
 }
@@ -805,6 +823,17 @@ void setupWiFi() {
         displayMessage("WiFi ERROR", "Restarting...");
         delay(3000);
         ESP.restart();
+    }
+
+    // First-boot via captive portal: ESP32 lingers in AP+STA mode after the
+    // portal closes, so any device still on the AP can't reach the home-network
+    // IP.  A clean restart drops the AP, re-connects in pure STA mode, and
+    // makes the web interface immediately reachable.
+    if (gWasInConfigMode) {
+        displayMessage("WiFi OK!", "Go back to", "your home WiFi",
+                       "Restarting...");
+        delay(3000);
+        ESP.restart();   // credentials already stored in flash
     }
 
     wifiConnected = WiFi.isConnected();
@@ -2088,6 +2117,8 @@ static String buildWsFrame(float weight) {
     doc["containerWeight"]   = cwt;
     doc["uid"]               = lastUID;
     doc["uid2"]              = lastUID2;
+    doc["uid_left"]          = lastUIDLeft;
+    doc["uid_right"]         = lastUIDRight;
     doc["sendToCloud"]       = stcWs;
     doc["cloud"]             = WiFi.isConnected() ? "ok" : "down";
     doc["firebaseAuth"]      = firebaseAuth;
@@ -2123,7 +2154,7 @@ void resetWeightFilters() {
 static void resetAfterSuccessfulSend(int shownWeight) {
     currentOledState = OLED_STATE_IDLE;
     oledStateChangeMs = millis();
-    lastUID = ""; lastUID2 = "";
+    lastUID = ""; lastUID2 = ""; lastUIDLeft = ""; lastUIDRight = "";
     lastUIDHex = ""; lastUID2Hex = "";
     firstUidDetectedMs = 0; firstUidPauseUntilMs = 0;
     stableSinceMs = 0; stableCandidate = NAN;
@@ -2334,6 +2365,8 @@ void setupWebServer() {
         doc["uid_hex"]           = lastUIDHex;
         doc["uid2"]              = lastUID2;
         doc["uid2_hex"]          = lastUID2Hex;
+        doc["uid_left"]          = lastUIDLeft;
+        doc["uid_right"]         = lastUIDRight;
         doc["wifi"]              = WiFi.SSID();
         doc["ip"]                = WiFi.localIP().toString();
         doc["mdns"]              = gMdnsName + ".local";
@@ -2647,18 +2680,19 @@ void setupWebServer() {
 
     // Hardware config — GET returns current state; POST updates it (persisted in NVS)
     server.on("/api/hw/config", HTTP_GET, [](AsyncWebServerRequest *request){
-        char buf[128];
+        char buf[160];
         snprintf(buf, sizeof(buf),
-                 "{\"rfidCount\":%u,\"rfidSide\":\"%s\",\"motorConnected\":%s,\"motorEnabled\":%s}",
+                 "{\"rfidCount\":%u,\"rfidSide\":\"%s\",\"motorConnected\":%s,\"motorEnabled\":%s,\"motorSpeed\":%u}",
                  hwRfidCount,
                  hwRfidSide == 1 ? "right" : "left",
                  hwMotorConnected ? "true" : "false",
-                 servoEnabled     ? "true" : "false");
+                 servoEnabled     ? "true" : "false",
+                 hwMotorSpeed);
         request->send(200, "application/json", buf);
     });
     server.on("/api/hw/config", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL,
         [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
-            StaticJsonDocument<128> doc;
+            StaticJsonDocument<160> doc;
             if (deserializeJson(doc, data, len)) {
                 request->send(400, "application/json", "{\"error\":\"bad json\"}"); return;
             }
@@ -2682,19 +2716,25 @@ void setupWebServer() {
                 servoEnabled = doc["motorEnabled"].as<bool>();
                 if (!servoEnabled) stopServoSearch();
             }
+            if (doc.containsKey("motorSpeed")) {
+                uint8_t spd = doc["motorSpeed"].as<uint8_t>();
+                if (spd >= 1 && spd <= 5) hwMotorSpeed = spd;
+            }
             prefs.begin("config", false);
             prefs.putUChar("hwRfidCnt",   hwRfidCount);
             prefs.putUChar("hwRfidSide",  hwRfidSide);
             prefs.putBool("hwMotorConn",  hwMotorConnected);
             prefs.putBool("servoEnabled", servoEnabled);
+            prefs.putUChar("hwMotorSpd",  hwMotorSpeed);
             prefs.end();
-            char buf[128];
+            char buf[160];
             snprintf(buf, sizeof(buf),
-                     "{\"rfidCount\":%u,\"rfidSide\":\"%s\",\"motorConnected\":%s,\"motorEnabled\":%s}",
+                     "{\"rfidCount\":%u,\"rfidSide\":\"%s\",\"motorConnected\":%s,\"motorEnabled\":%s,\"motorSpeed\":%u}",
                      hwRfidCount,
                      hwRfidSide == 1 ? "right" : "left",
                      hwMotorConnected ? "true" : "false",
-                     servoEnabled     ? "true" : "false");
+                     servoEnabled     ? "true" : "false",
+                     hwMotorSpeed);
             request->send(200, "application/json", buf);
         }
     );
@@ -2759,12 +2799,17 @@ void setupWebServer() {
         gNetLogHead = 0; gNetLogCount = 0;
         request->send(200, "application/json", "{\"cleared\":true}");
     });
+    server.on("/api/logs/clear", HTTP_POST, [](AsyncWebServerRequest *request){
+        gNetLogHead = 0; gNetLogCount = 0;
+        request->send(200, "application/json", "{\"cleared\":true}");
+    });
 
     server.on("/api/workflow/stop", HTTP_POST, [](AsyncWebServerRequest *request){
         wfPhase = WF_IDLE;
         resetSlopeBuffer();
         stopServoSearch();
         lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
+        lastUIDLeft = ""; lastUIDRight = "";
         firstUidDetectedMs = 0; firstUidPauseUntilMs = 0;
         stableSinceMs = 0; stableCandidate = NAN;
         wfContainerWeight = 0.0f; wfContainerFetched = false;
@@ -2836,7 +2881,7 @@ void setupWebServer() {
         resetWeightFilters();
         autoTarePending = false;
         autoTareStableSinceMs = 0;
-        lastUID = "";
+        lastUID = ""; lastUID2 = ""; lastUIDLeft = ""; lastUIDRight = "";
         float offset = scale.get_offset();
         prefs.begin("config", false);
         prefs.putFloat("tareFactor", offset);
@@ -3278,6 +3323,7 @@ void handleWeighWorkflow(float w) {
         if (removingNow || w < MIN_WEIGHT_TO_SEND_G) {
             wfPhase = WF_IDLE;
             lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
+            lastUIDLeft = ""; lastUIDRight = "";
             wfContainerFetched = false; wfContainerWeight = 0.0f;
             gLastContainer     = 0.0f;   // clear container so web UI hides filament row
             stableCandidate = NAN; stableSinceMs = 0;
@@ -3480,9 +3526,10 @@ void startServoSearch() {
         Serial.println("[SERVO] Re-attached after detach");
     }
 
-    spoolServo.writeMicroseconds(SERVO_SEARCH_US);
+    spoolServo.writeMicroseconds(motorLevelToUs(hwMotorSpeed));
     servoSearching = true;
-    Serial.printf("[SERVO] Searching RFID... (uid=%s uid2=%s hasLock=%d)\n",
+    Serial.printf("[SERVO] Searching RFID at speed %u (%d µs)... (uid=%s uid2=%s hasLock=%d)\n",
+                  hwMotorSpeed, motorLevelToUs(hwMotorSpeed),
                   lastUID.c_str(), lastUID2.c_str(), rfidLockedForCurrentLoad);
 }
 
@@ -4147,6 +4194,8 @@ void setup() {
     hwRfidCount          = prefs.getUChar("hwRfidCnt",     2);
     hwRfidSide           = prefs.getUChar("hwRfidSide",    0);
     hwMotorConnected     = prefs.getBool("hwMotorConn",    true);
+    hwMotorSpeed         = prefs.getUChar("hwMotorSpd",    3);
+    if (hwMotorSpeed < 1 || hwMotorSpeed > 5) hwMotorSpeed = 3;
     prefs.end();
 
     Serial.printf("[BOOT] Firebase configured: %s (mode=%s)\n",
@@ -4280,6 +4329,10 @@ void loop() {
             Serial.printf("[RFID] Ignored short UID2: %s\n", uid2Hex.c_str());
             uid2Hex = "";
         }
+
+        // Track left/right per physical reader (rfid1=Right, rfid2=Left)
+        if (uid1Hex.length() > 0) lastUIDRight = uid1Hex;
+        if (uid2Hex.length() > 0) lastUIDLeft  = uid2Hex;
 
         // --- Step 2: store new UIDs ---
         bool newUid1 = uid1Hex.length() > 0 && uid1Hex != lastUID && uid1Hex != lastUID2;
@@ -4427,6 +4480,7 @@ void loop() {
             firstUidDetectedMs = 0;
             firstUidPauseUntilMs = 0;
             lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
+            lastUIDLeft = ""; lastUIDRight = "";
             wfPhase = WF_IDLE;
             wfContainerWeight = 0.0f; wfContainerFetched = false;
             currentOledState = OLED_STATE_IDLE;
@@ -4441,6 +4495,7 @@ void loop() {
         Serial.printf("[REMOVAL] Sent: %.2f, Now: %.2f\n", gLastSentWeight, weight);
         gLastSentWeight = NAN; gLastCloudWeight = NAN; gCloudWeightSetMs = 0;
         lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
+        lastUIDLeft = ""; lastUIDRight = "";
         firstUidDetectedMs = 0; firstUidPauseUntilMs = 0;
         rfidLockedForCurrentLoad = true;   // Keep RFID locked during removal hold
         servoLockedUntilAutotare = false;  // CRITICAL: unlock servo for next measurement

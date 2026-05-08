@@ -63,13 +63,13 @@
 
             <!-- UIDs -->
             <div class="uid-rows">
-                <div class="uid-row">
-                    <span class="uid-chip-label">UID1</span>
-                    <span id="uid" class="uid-value" data-i18n="waiting">—</span>
+                <div class="uid-row" id="uidLeftRow">
+                    <span class="uid-chip-label" data-i18n="uidLeft">◀ Left</span>
+                    <span id="uidLeftDisplay" class="uid-value">—</span>
                 </div>
-                <div class="uid-row">
-                    <span class="uid-chip-label">UID2</span>
-                    <span id="uid2Display" class="uid-value">—</span>
+                <div class="uid-row" id="uidRightRow">
+                    <span class="uid-chip-label" data-i18n="uidRight">Right ▶</span>
+                    <span id="uid" class="uid-value" data-i18n-empty="waiting">—</span>
                 </div>
             </div>
 
@@ -190,6 +190,132 @@
             </div>
         </div>
 
+        <!-- Hardware -->
+        <div class="card">
+            <div class="card-title collapsible" onclick="toggleSection(this)">
+                🔧 <span data-i18n="hardware">Hardware</span>
+            </div>
+            <div class="collapsible-content">
+
+                <!-- RFID Reader count -->
+                <div class="setting-row">
+                    <div class="setting-row-label">
+                        📡 <span data-i18n="rfidReaders">RFID Readers</span>
+                    </div>
+                    <div class="segment-control" id="rfidSegment">
+                        <button class="segment-btn active" data-val="1" onclick="setRfidCount(1)">1</button>
+                        <button class="segment-btn"        data-val="2" onclick="setRfidCount(2)">2</button>
+                    </div>
+                </div>
+
+                <!-- Left/Right selector — visible only when count=1 -->
+                <div class="setting-row setting-row--indent" id="rfidSideRow" style="display:none">
+                    <div class="setting-row-label">
+                        <span data-i18n="rfidSide">Position</span>
+                    </div>
+                    <div class="segment-control" id="rfidSideSegment">
+                        <button class="segment-btn active" data-val="left"  onclick="setRfidSide('left')"  data-i18n="rfidReaderLeft">Left</button>
+                        <button class="segment-btn"        data-val="right" onclick="setRfidSide('right')" data-i18n="rfidReaderRight">Right</button>
+                    </div>
+                </div>
+
+                <!-- RFID test panel -->
+                <div class="motor-test-panel" id="rfidTestPanel">
+                    <div class="motor-test-header">
+                        📡 <span data-i18n="rfidTest">RFID test</span>
+                    </div>
+                    <!-- Left reader row -->
+                    <div class="rfid-reader-row" id="rfidLeftRow">
+                        <span class="rfid-reader-row-label" data-i18n="rfidReaderLeft">Left</span>
+                        <div class="rfid-uid-wrap">
+                            <div class="rfid-test-uid" id="rfidTestUidLeft">—</div>
+                            <button class="rfid-clear-btn" id="rfidClearBtnLeft" onclick="clearRfidUid('left')" style="display:none" aria-label="Clear">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Right reader row -->
+                    <div class="rfid-reader-row" id="rfidRightRow">
+                        <span class="rfid-reader-row-label" data-i18n="rfidReaderRight">Right</span>
+                        <div class="rfid-uid-wrap">
+                            <div class="rfid-test-uid" id="rfidTestUidRight">—</div>
+                            <button class="rfid-clear-btn" id="rfidClearBtnRight" onclick="clearRfidUid('right')" style="display:none" aria-label="Clear">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <button class="motor-test-run-btn" id="rfidTestRunBtn" onclick="toggleRfidTest()">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" id="rfidTestIcon"><polygon points="5,3 19,12 5,21"/></svg>
+                        <span id="rfidTestLabel">Scan</span>
+                    </button>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Motor connected toggle -->
+                <div class="setting-row">
+                    <div class="setting-row-label">
+                        ⚙️ <span data-i18n="motorConnected">Motor connected</span>
+                    </div>
+                    <label class="ios-switch" aria-label="Motor connected">
+                        <input type="checkbox" id="motorConnectedCheck" onchange="onMotorConnectedChange()">
+                        <span class="ios-switch-track"></span>
+                    </label>
+                </div>
+
+                <!-- Rotation enabled (shown only when motor connected) -->
+                <div class="setting-row setting-row--indent" id="motorEnabledRow" style="display:none">
+                    <div class="setting-row-label">
+                        <span data-i18n="motorEnabled">Rotation enabled</span>
+                    </div>
+                    <label class="ios-switch" aria-label="Rotation enabled">
+                        <input type="checkbox" id="motorEnabledCheck" onchange="onMotorEnabledChange()">
+                        <span class="ios-switch-track"></span>
+                    </label>
+                </div>
+
+                <!-- Speed + test panel (shown only when connected + enabled) -->
+                <div class="motor-test-panel" id="motorTestPanel" style="display:none">
+                    <div class="motor-test-header">
+                        ⚙️ <span data-i18n="motorSpeedLabel">Vitesse de rotation</span>
+                    </div>
+                    <!-- Noise badge -->
+                    <div class="motor-noise-row">
+                        <span class="motor-noise-badge" id="motorNoiseBadge">🔉</span>
+                        <span class="motor-noise-label" id="motorNoiseLabel" data-i18n="motorNoiseModerate">Modéré</span>
+                    </div>
+                    <div class="motor-test-speeds">
+                        <input type="range" class="motor-speed-slider" id="motorSpeedSlider"
+                               min="1" max="5" step="1" value="3"
+                               oninput="setMotorSpeed(+this.value)">
+                        <div class="motor-speed-ticks">
+                            <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+                        </div>
+                    </div>
+                    <!-- Test run button -->
+                    <button class="motor-test-run-btn" id="motorTestRunBtn" onclick="toggleMotorTest()">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" id="motorTestIcon"><polygon points="5,3 19,12 5,21"/></svg>
+                        <span id="motorTestLabel" data-i18n="motorTestRun">Run</span>
+                    </button>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Spool detection (read-only, from WS) -->
+                <div class="setting-row">
+                    <div class="setting-row-label">
+                        🧵 <span data-i18n="spoolDetected">Spool detected</span>
+                    </div>
+                    <span class="compact-value" id="spoolDetectedVal">—</span>
+                </div>
+                <div class="setting-row" id="spoolPositionRow" style="display:none">
+                    <span class="setting-row-label" data-i18n="spoolPosition">Position</span>
+                    <span class="compact-value" id="spoolPositionVal">—</span>
+                </div>
+
+            </div>
+        </div>
+
         <!-- Advanced -->
         <div class="card">
             <div class="card-title collapsible" onclick="toggleSection(this)">
@@ -207,6 +333,16 @@
             </div>
         </div>
         
+        <!-- Log buttons -->
+        <div style="display:flex;gap:10px;margin-bottom:0">
+            <button class="log-open-btn" onclick="logPanelOpen('fb')">
+                🔥 Firebase Log <span class="log-open-arrow">›</span>
+            </button>
+            <button class="log-open-btn" onclick="logPanelOpen('ws')">
+                🔌 WebSocket Log <span class="log-open-arrow">›</span>
+            </button>
+        </div>
+
         <!-- Footer -->
         <div class="footer">
             <div class="footer-version">
@@ -404,5 +540,49 @@
             });
     }
     </script>
+
+    <!-- ── Log Side Panel ───────────────────────────────────────────────── -->
+    <div id="logSideOverlay" class="log-side-overlay" onclick="logPanelClose()"></div>
+    <div id="logSidePanel" class="log-side-panel">
+        <div class="log-side-header">
+            <div class="log-side-tabs">
+                <button class="log-side-tab active" id="logTabFb" onclick="logTabSwitch('fb')">🔥 Firebase</button>
+                <button class="log-side-tab" id="logTabWs" onclick="logTabSwitch('ws')">🔌 WebSocket</button>
+            </div>
+            <button class="log-side-close" onclick="logPanelClose()">✕</button>
+        </div>
+
+        <!-- Firebase pane -->
+        <div id="logPaneFb" class="log-pane active">
+            <div class="log-pane-toolbar">
+                <span class="ws-log-count"><span id="fbLogCount">0</span> entrées</span>
+                <div class="ws-log-toolbar-btns">
+                    <button class="ws-log-btn" id="fbLogRefreshBtn" onclick="fbLogFetch()">↺</button>
+                    <button class="ws-log-btn" onclick="fbLogClear()">🗑</button>
+                </div>
+            </div>
+            <div class="log-pane-entries" id="fbLogContainer">
+                <div class="ws-log-empty">Chargement...</div>
+            </div>
+        </div>
+
+        <!-- WebSocket pane -->
+        <div id="logPaneWs" class="log-pane">
+            <div class="log-pane-toolbar">
+                <label class="ws-log-toggle-wrap">
+                    <input type="checkbox" id="wsLogOnlyChanges" checked onchange="wsLogSetOnlyChanges(this.checked)">
+                    <span>Changements seulement</span>
+                </label>
+                <div class="ws-log-toolbar-btns">
+                    <button class="ws-log-btn" id="wsLogPauseBtn" onclick="wsLogTogglePause()">⏸</button>
+                    <button class="ws-log-btn" onclick="wsLogClear()">🗑</button>
+                </div>
+            </div>
+            <div class="ws-log-count" style="padding:0 12px 6px"><span id="wsLogCount">0</span> messages</div>
+            <div class="log-pane-entries" id="wsLogContainer">
+                <div class="ws-log-empty">En attente de messages...</div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

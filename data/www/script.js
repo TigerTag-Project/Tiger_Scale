@@ -104,7 +104,31 @@ const translations = {
         sendIn: 'Envoi dans',
         // Weight breakdown
         containerLabel: 'Bobine',
-        filamentLabel:  'Filament'
+        filamentLabel:  'Filament',
+        // Hardware
+        hardware: 'Hardware',
+        rfidReaders: 'Lecteurs RFID',
+        rfidTest: 'Test RFID',
+        rfidReaderLeft: 'Gauche',
+        rfidReaderRight: 'Droite',
+        rfidClear: 'Effacer',
+        rfidTestScan: 'Scanner',
+        motorConnected: 'Moteur connecté',
+        motorEnabled: 'Rotation activée',
+        motorTest: 'Test moteur',
+        motorTestRun: 'Démarrer',
+        motorTestStop: 'Arrêter',
+        spoolDetected: 'Bobine détectée',
+        spoolPosition: 'Position',
+        yes: 'Oui',
+        no: 'Non',
+        rfidSide: 'Position',
+        motorSpeedLabel: 'Vitesse de rotation',
+        motorNoiseQuiet: 'Silencieux',
+        motorNoiseModerate: 'Modéré',
+        motorNoiseLoud: 'Bruyant',
+        uidLeft: '◀ Gauche',
+        uidRight: 'Droite ▶'
     },
     en: {
         waiting: 'Waiting TigerTag...',
@@ -177,7 +201,31 @@ const translations = {
         sendIn: 'Sending in',
         // Weight breakdown
         containerLabel: 'Spool',
-        filamentLabel:  'Filament'
+        filamentLabel:  'Filament',
+        // Hardware
+        hardware: 'Hardware',
+        rfidReaders: 'RFID Readers',
+        rfidTest: 'RFID test',
+        rfidReaderLeft: 'Left',
+        rfidReaderRight: 'Right',
+        rfidClear: 'Clear',
+        rfidTestScan: 'Scan',
+        motorConnected: 'Motor connected',
+        motorEnabled: 'Rotation enabled',
+        motorTest: 'Motor test',
+        motorTestRun: 'Run',
+        motorTestStop: 'Stop',
+        spoolDetected: 'Spool detected',
+        spoolPosition: 'Position',
+        yes: 'Yes',
+        no: 'No',
+        rfidSide: 'Position',
+        motorSpeedLabel: 'Scan speed',
+        motorNoiseQuiet: 'Quiet',
+        motorNoiseModerate: 'Moderate',
+        motorNoiseLoud: 'Loud',
+        uidLeft: '◀ Left',
+        uidRight: 'Right ▶'
     }
 };
 
@@ -384,7 +432,7 @@ function updateFirebaseAuth() {
 }
 
 function deleteFirebaseAuth() {
-    fetch('/api/firebase/auth', { method: 'DELETE' })
+    fetch('/api/firebase/logout', { method: 'POST' })
     .then(r => r.ok ? r.json() : Promise.reject(r.status))
     .then(() => {
         const emailEl = document.getElementById('firebaseEmail');
@@ -794,20 +842,30 @@ function applyStatusSnapshot(s) {
         }
     }
 
-    // UID1
-    if (typeof s.uid !== 'undefined') {
+    // UID Left (rfid2 — physically Left reader)
+    if (typeof s.uid_left !== 'undefined') {
+        const el = document.getElementById('uidLeftDisplay');
+        if (el) setTextIfChanged(el, s.uid_left || '—');
+    }
+
+    // UID Right (rfid1 — physically Right reader)
+    if (typeof s.uid_right !== 'undefined') {
+        const u = s.uid_right || '';
+        if (currentUid !== u) {
+            currentUid = u;
+            setTextIfChanged(uidEl, u || '—');
+        }
+    } else if (typeof s.uid !== 'undefined') {
+        // fallback for older firmware frames
         const u = s.uid || '';
         if (currentUid !== u) {
             currentUid = u;
-            setTextIfChanged(uidEl, u || t('waiting'));
+            setTextIfChanged(uidEl, u || '—');
         }
     }
 
-    // UID2
-    if (typeof s.uid2 !== 'undefined') {
-        const uid2El = document.getElementById('uid2Display');
-        if (uid2El) setTextIfChanged(uid2El, s.uid2 || '—');
-    }
+    // Show/hide UID rows based on hardware config
+    _updateUidRows();
     
     // Cloud
     if (typeof s.cloud !== 'undefined') {
@@ -971,7 +1029,7 @@ function signInWithGoogleBridge() {
 // ── Sign out — clears tokens on the device and re-opens the login modal ──
 function signOut() {
     if (!confirm(t('confirmSignOut'))) return;
-    fetch('/api/firebase/auth', { method: 'DELETE' })
+    fetch('/api/firebase/logout', { method: 'POST' })
     .then(r => r.ok ? r.json() : Promise.reject(r.status))
     .then(() => {
         // Reset local UI state
@@ -1043,6 +1101,7 @@ function wsConnect() {
     };
 
     _ws.onmessage = function(evt) {
+        wsLogPush('in', evt.data);
         try {
             const data = JSON.parse(evt.data);
             // Unified frame — every field the UI needs arrives here at 250ms.
@@ -1057,6 +1116,10 @@ function wsConnect() {
         } catch(e) {}
     };
 
+    // Patch send to log outgoing frames too
+    const _origSend = _ws.send.bind(_ws);
+    _ws.send = function(data) { wsLogPush('out', data); _origSend(data); };
+
     _ws.onerror = function() { /* onclose fires right after */ };
 
     _ws.onclose = function() {
@@ -1070,6 +1133,444 @@ function wsConnect() {
     };
 }
 
+// ========== HARDWARE CONFIG ==========
+let hwConfig = { rfidCount: 1, rfidSide: 'left', motorConnected: false, motorEnabled: false, motorSpeed: 3 };
+
+async function fetchHardwareConfig() {
+    try {
+        const r = await fetch('/api/hw/config', { cache: 'no-cache' });
+        if (!r.ok) return;
+        const d = await r.json();
+        hwConfig = { ...hwConfig, ...d };
+    } catch (_) {}
+    applyHardwareConfig();
+}
+
+function applyHardwareConfig() {
+    // RFID count segment
+    document.querySelectorAll('#rfidSegment .segment-btn').forEach(b => {
+        b.classList.toggle('active', +b.dataset.val === hwConfig.rfidCount);
+    });
+    // RFID side selector — visible only when count=1
+    const sideRow = document.getElementById('rfidSideRow');
+    if (sideRow) sideRow.style.display = (hwConfig.rfidCount === 1) ? '' : 'none';
+    // RFID side segment
+    const side = hwConfig.rfidSide || 'left';
+    document.querySelectorAll('#rfidSideSegment .segment-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.val === side);
+    });
+    // Motor connected toggle
+    const connChk = document.getElementById('motorConnectedCheck');
+    if (connChk) connChk.checked = !!hwConfig.motorConnected;
+    const enabledRow = document.getElementById('motorEnabledRow');
+    if (enabledRow) enabledRow.style.display = hwConfig.motorConnected ? '' : 'none';
+    const enChk = document.getElementById('motorEnabledCheck');
+    if (enChk) enChk.checked = !!hwConfig.motorEnabled;
+    // Motor speed — init slider + noise badge without triggering a save
+    const spd = hwConfig.motorSpeed || 3;
+    _motorTestSpeed = spd;
+    const slider = document.getElementById('motorSpeedSlider');
+    if (slider) slider.value = spd;
+    _updateMotorNoiseBadge(spd);
+    updateMotorTestPanel();
+    updateRfidTestPanel();
+    _updateUidRows();
+}
+
+async function saveHardwareConfig() {
+    try {
+        await fetch('/api/hw/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(hwConfig)
+        });
+    } catch (_) {}
+}
+
+function setRfidCount(n) {
+    hwConfig.rfidCount = n;
+    document.querySelectorAll('#rfidSegment .segment-btn').forEach(b => {
+        b.classList.toggle('active', +b.dataset.val === n);
+    });
+    const sideRow = document.getElementById('rfidSideRow');
+    if (sideRow) sideRow.style.display = (n === 1) ? '' : 'none';
+    updateRfidTestPanel();
+    saveHardwareConfig();
+}
+
+function setRfidSide(side) {
+    hwConfig.rfidSide = side;
+    document.querySelectorAll('#rfidSideSegment .segment-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.val === side);
+    });
+    updateRfidTestPanel();
+    saveHardwareConfig();
+}
+
+function onMotorConnectedChange() {
+    const chk = document.getElementById('motorConnectedCheck');
+    hwConfig.motorConnected = !!(chk && chk.checked);
+    const row = document.getElementById('motorEnabledRow');
+    if (row) row.style.display = hwConfig.motorConnected ? '' : 'none';
+    if (!hwConfig.motorConnected) {
+        hwConfig.motorEnabled = false;
+        const enChk = document.getElementById('motorEnabledCheck');
+        if (enChk) enChk.checked = false;
+        stopMotorTest();
+    }
+    updateMotorTestPanel();
+    saveHardwareConfig();
+}
+
+function onMotorEnabledChange() {
+    const chk = document.getElementById('motorEnabledCheck');
+    hwConfig.motorEnabled = !!(chk && chk.checked);
+    if (!hwConfig.motorEnabled) stopMotorTest();
+    updateMotorTestPanel();
+    fetch('/api/servo-toggle', { method: 'POST' })
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .catch(() => {
+            hwConfig.motorEnabled = !hwConfig.motorEnabled;
+            const c = document.getElementById('motorEnabledCheck');
+            if (c) c.checked = hwConfig.motorEnabled;
+        });
+    saveHardwareConfig();
+}
+
+// ── Motor test ──────────────────────────────────────────────────────────────
+const MOTOR_SPEED_US = { 1: 1530, 2: 1580, 3: 1650, 4: 1750, 5: 1900 };
+let _motorTestRunning = false;
+let _motorTestSpeed   = 2;
+
+function updateMotorTestPanel() {
+    const panel = document.getElementById('motorTestPanel');
+    if (!panel) return;
+    const show = !!(hwConfig.motorConnected && hwConfig.motorEnabled);
+    panel.style.display = show ? '' : 'none';
+    if (!show && _motorTestRunning) stopMotorTest();
+    _updateMotorTestBtn();
+}
+
+function _updateMotorNoiseBadge(level) {
+    const badge = document.getElementById('motorNoiseBadge');
+    const label = document.getElementById('motorNoiseLabel');
+    let noiseKey, icon;
+    if (level <= 2)       { noiseKey = 'motorNoiseQuiet';    icon = '🔇'; }
+    else if (level === 3) { noiseKey = 'motorNoiseModerate'; icon = '🔉'; }
+    else                  { noiseKey = 'motorNoiseLoud';     icon = '🔊'; }
+    if (badge) badge.textContent = icon;
+    if (label) { label.textContent = t(noiseKey); label.dataset.i18n = noiseKey; }
+}
+
+function setMotorSpeed(level) {
+    _motorTestSpeed = level;
+    hwConfig.motorSpeed = level;
+    const slider = document.getElementById('motorSpeedSlider');
+    if (slider) { slider.value = level; slider.style.setProperty('--val', level); }
+    document.querySelectorAll('.motor-speed-ticks span').forEach((s, i) => {
+        s.style.color = (i + 1 === level) ? '#e67e22' : '';
+        s.style.setProperty('--dot', (i + 1 <= level) ? '#e67e22' : '#e2e8f0');
+    });
+    _updateMotorNoiseBadge(level);
+    if (_motorTestRunning) {
+        fetch('/api/servo/test', { method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ us: MOTOR_SPEED_US[level] }) }).catch(() => {});
+    }
+    saveHardwareConfig();
+}
+
+function toggleMotorTest() { if (_motorTestRunning) stopMotorTest(); else startMotorTest(); }
+
+function startMotorTest() {
+    const us = MOTOR_SPEED_US[_motorTestSpeed] || 1650;
+    fetch('/api/servo/test', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ us }) })
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(() => { _motorTestRunning = true; _updateMotorTestBtn(); })
+    .catch(() => {});
+}
+
+function stopMotorTest() {
+    fetch('/api/servo/test', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stop: true }) }).catch(() => {});
+    _motorTestRunning = false;
+    _updateMotorTestBtn();
+}
+
+function _updateMotorTestBtn() {
+    const btn   = document.getElementById('motorTestRunBtn');
+    const label = document.getElementById('motorTestLabel');
+    const icon  = document.getElementById('motorTestIcon');
+    if (!btn) return;
+    btn.classList.toggle('running', _motorTestRunning);
+    if (label) label.textContent = _motorTestRunning ? t('motorTestStop') : t('motorTestRun');
+    if (icon) icon.innerHTML = _motorTestRunning
+        ? '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>'
+        : '<polygon points="5,3 19,12 5,21"/>';
+}
+
+// ── RFID hardware test ───────────────────────────────────────────────────────
+let _rfidTestRunning = false;
+let _rfidTestPollId  = null;
+
+function toggleRfidTest() { if (_rfidTestRunning) stopRfidTest(); else startRfidTest(); }
+
+function startRfidTest() {
+    _setRfidUid('left',  '—', false);
+    _setRfidUid('right', '—', false);
+    fetch('/api/rfid/test', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' }, body: '{}' })
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(() => {
+        _rfidTestRunning = true;
+        _updateRfidTestBtn();
+        _rfidTestPollId = setInterval(_pollRfidTestUid, 600);
+    })
+    .catch(() => {});
+}
+
+function stopRfidTest() {
+    clearInterval(_rfidTestPollId); _rfidTestPollId = null;
+    fetch('/api/rfid/test', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' }, body: '{"stop":true}' }).catch(() => {});
+    _rfidTestRunning = false;
+    _updateRfidTestBtn();
+}
+
+function _pollRfidTestUid() {
+    fetch('/api/rfid/test')
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(d => {
+            if (d.uid_left)  _setRfidUid('left',  d.uid_left,  true);
+            if (d.uid_right) _setRfidUid('right', d.uid_right, true);
+        })
+        .catch(() => {});
+}
+
+function _setRfidUid(side, text, detected) {
+    const el  = document.getElementById(side === 'left' ? 'rfidTestUidLeft'  : 'rfidTestUidRight');
+    const btn = document.getElementById(side === 'left' ? 'rfidClearBtnLeft' : 'rfidClearBtnRight');
+    if (!el) return;
+    el.textContent = text;
+    el.classList.toggle('uid-detected', !!detected);
+    if (btn) btn.style.display = detected ? '' : 'none';
+}
+
+function clearRfidUid(side) {
+    fetch('/api/rfid/test', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' }, body: '{"reset":true}' }).catch(() => {});
+    _setRfidUid(side, '—', false);
+}
+
+function _updateRfidTestBtn() {
+    const btn   = document.getElementById('rfidTestRunBtn');
+    const label = document.getElementById('rfidTestLabel');
+    const icon  = document.getElementById('rfidTestIcon');
+    if (!btn) return;
+    btn.classList.toggle('running', _rfidTestRunning);
+    if (label) label.textContent = _rfidTestRunning ? t('motorTestStop') : t('rfidTestScan');
+    if (icon) icon.innerHTML = _rfidTestRunning
+        ? '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>'
+        : '<polygon points="5,3 19,12 5,21"/>';
+}
+
+function updateRfidTestPanel() {
+    if (_rfidTestRunning && !hwConfig.rfidCount) stopRfidTest();
+    const leftRow  = document.getElementById('rfidLeftRow');
+    const rightRow = document.getElementById('rfidRightRow');
+    if (hwConfig.rfidCount >= 2) {
+        if (leftRow)  leftRow.style.display = '';
+        if (rightRow) rightRow.style.display = '';
+    } else {
+        const activeSide = hwConfig.rfidSide || 'left';
+        if (leftRow)  leftRow.style.display  = (activeSide === 'left')  ? '' : 'none';
+        if (rightRow) rightRow.style.display = (activeSide === 'right') ? '' : 'none';
+    }
+}
+
+function updateSpoolStatus(detected, position) {
+    const detEl  = document.getElementById('spoolDetectedVal');
+    const posRow = document.getElementById('spoolPositionRow');
+    const posEl  = document.getElementById('spoolPositionVal');
+    if (!detEl) return;
+    if (detected) {
+        setTextIfChanged(detEl, t('yes'));
+        if (posRow) posRow.style.display = '';
+        if (posEl && position != null) setTextIfChanged(posEl, String(position));
+    } else {
+        setTextIfChanged(detEl, t('no'));
+        if (posRow) posRow.style.display = 'none';
+    }
+}
+
+// ========== LOG SIDE PANEL ==========
+let _fbLogPollId  = null;
+let _logPanelOpen = false;
+let _logActiveTab = 'fb';
+
+function logPanelOpen(tab) {
+    _logPanelOpen = true;
+    document.getElementById('logSidePanel').classList.add('open');
+    document.getElementById('logSideOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    logTabSwitch(tab || _logActiveTab);
+}
+
+function logPanelClose() {
+    _logPanelOpen = false;
+    document.getElementById('logSidePanel').classList.remove('open');
+    document.getElementById('logSideOverlay').classList.remove('open');
+    document.body.style.overflow = '';
+    clearInterval(_fbLogPollId); _fbLogPollId = null;
+}
+
+function logTabSwitch(tab) {
+    _logActiveTab = tab;
+    document.getElementById('logPaneFb').classList.toggle('active', tab === 'fb');
+    document.getElementById('logPaneWs').classList.toggle('active', tab === 'ws');
+    document.getElementById('logTabFb').classList.toggle('active', tab === 'fb');
+    document.getElementById('logTabWs').classList.toggle('active', tab === 'ws');
+    if (tab === 'fb') {
+        fbLogFetch();
+        if (!_fbLogPollId) _fbLogPollId = setInterval(fbLogFetch, 4000);
+    } else {
+        clearInterval(_fbLogPollId); _fbLogPollId = null;
+    }
+}
+
+// ========== FIREBASE LOG ==========
+
+async function fbLogFetch() {
+    const btn = document.getElementById('fbLogRefreshBtn');
+    if (btn) btn.textContent = '…';
+    try {
+        const r = await fetch('/api/logs', { cache: 'no-store' });
+        if (!r.ok) throw new Error(r.status);
+        const entries = await r.json();   // array of strings, oldest first
+        _fbLogRender(entries);
+    } catch (_) {
+        const c = document.getElementById('fbLogContainer');
+        if (c) c.innerHTML = '<div class="ws-log-empty" style="color:#fc8181">Erreur de connexion</div>';
+    } finally {
+        if (btn) btn.textContent = '↺';
+    }
+}
+
+function _fbLogEntryClass(line) {
+    if (/ERR|FAIL|error|INVALID/i.test(line)) return 'fb-log-err';
+    if (/ OK\b|result=|Signed|signed|AUTH OK/i.test(line)) return 'fb-log-ok';
+    if (/TOKEN|REFRESH|auth/i.test(line)) return 'fb-log-auth';
+    if (/PATCH|CONTAINER|TWIN|WEIGHT/i.test(line)) return 'fb-log-data';
+    return '';
+}
+
+function _fbLogRender(entries) {
+    const container = document.getElementById('fbLogContainer');
+    const countEl   = document.getElementById('fbLogCount');
+    if (!container) return;
+    if (countEl) countEl.textContent = entries.length;
+    if (entries.length === 0) {
+        container.innerHTML = '<div class="ws-log-empty">Aucun log Firebase</div>';
+        return;
+    }
+    // Show newest first
+    container.innerHTML = entries.slice().reverse().map(line => {
+        const cls = _fbLogEntryClass(line);
+        return `<div class="fb-log-entry ${cls}"><pre class="ws-log-data">${line}</pre></div>`;
+    }).join('');
+}
+
+async function fbLogClear() {
+    try {
+        await fetch('/api/logs/clear', { method: 'POST' });
+        _fbLogRender([]);
+    } catch (_) {}
+}
+
+// ========== WEBSOCKET LOG ==========
+const WS_LOG_MAX = 100;
+let _wsLogEntries    = [];
+let _wsLogPaused     = false;
+let _wsLogOnlyChange = true;
+let _wsLogLastRaw    = null;
+let _wsLogRenderTimer = null;
+
+function _updateUidRows() {
+    const leftRow  = document.getElementById('uidLeftRow');
+    const rightRow = document.getElementById('uidRightRow');
+    if (!leftRow || !rightRow) return;
+    if (hwConfig.rfidCount >= 2) {
+        leftRow.style.display  = '';
+        rightRow.style.display = '';
+    } else {
+        const side = hwConfig.rfidSide || 'left';
+        leftRow.style.display  = (side === 'left')  ? '' : 'none';
+        rightRow.style.display = (side === 'right') ? '' : 'none';
+    }
+}
+
+function wsLogPush(dir, raw) {
+    if (_wsLogPaused) return;
+    if (_wsLogOnlyChange && dir === 'in' && raw === _wsLogLastRaw) return;
+    if (dir === 'in') _wsLogLastRaw = raw;
+
+    const now  = new Date();
+    const ts   = now.toTimeString().slice(0, 8) + '.' + String(now.getMilliseconds()).padStart(3, '0');
+    let display;
+    try {
+        // Pretty-print only small payloads, compact otherwise
+        const obj = JSON.parse(raw);
+        const compact = JSON.stringify(obj);
+        display = compact.length < 300 ? compact : JSON.stringify(obj, null, 2);
+    } catch (_) { display = raw; }
+
+    _wsLogEntries.unshift({ ts, dir, display });
+    if (_wsLogEntries.length > WS_LOG_MAX) _wsLogEntries.pop();
+
+    // Throttle DOM update to ~4 fps
+    if (!_wsLogRenderTimer) {
+        _wsLogRenderTimer = setTimeout(() => { _wsLogRenderTimer = null; _wsLogRender(); }, 250);
+    }
+}
+
+function _wsLogRender() {
+    const container = document.getElementById('wsLogContainer');
+    const countEl   = document.getElementById('wsLogCount');
+    if (!container) return;
+    if (countEl) countEl.textContent = _wsLogEntries.length;
+    if (_wsLogEntries.length === 0) {
+        container.innerHTML = '<div class="ws-log-empty">Aucun message</div>';
+        return;
+    }
+    const wasAtTop = container.scrollTop < 40;
+    container.innerHTML = _wsLogEntries.map(e => {
+        const cls   = e.dir === 'in' ? 'ws-log-in' : 'ws-log-out';
+        const arrow = e.dir === 'in' ? '↓' : '↑';
+        return `<div class="ws-log-entry ${cls}"><span class="ws-log-ts">${e.ts}</span><span class="ws-log-arrow">${arrow}</span><pre class="ws-log-data">${e.display}</pre></div>`;
+    }).join('');
+    // Keep scroll at top (newest first)
+    if (wasAtTop) container.scrollTop = 0;
+}
+
+function wsLogClear() {
+    _wsLogEntries = [];
+    _wsLogLastRaw = null;
+    _wsLogRender();
+}
+
+function wsLogTogglePause() {
+    _wsLogPaused = !_wsLogPaused;
+    const btn = document.getElementById('wsLogPauseBtn');
+    if (btn) btn.textContent = _wsLogPaused ? '▶' : '⏸';
+}
+
+function wsLogSetOnlyChanges(val) {
+    _wsLogOnlyChange = !!val;
+}
+
 // ========== INITIALIZATION ==========
 window.onload = () => {
     // Set language
@@ -1078,6 +1579,9 @@ window.onload = () => {
 
     // Initial weight display
     setTextIfChanged(weightEl, '…');
+
+    // Load hardware config from ESP32 (RFID count, motor state)
+    fetchHardwareConfig();
 
     // WebSocket — single data flow, all fields, 250ms same tick as OLED.
     // No HTTP polling: every field (weight, uid, cloud, firebase, calibration,
