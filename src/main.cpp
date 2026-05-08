@@ -1780,7 +1780,7 @@ bool updateScaleLastSpool(const String& uid_a, const String& uid_b = "", float w
                 http.addHeader("Authorization", "Bearer " + firebaseIdToken);
 
                 StaticJsonDocument<256> doc_a;
-                doc_a["fields"]["weight_available"]["doubleValue"] = weight_available;
+                doc_a["fields"]["weight_available"]["integerValue"] = String((int)roundf(weight_available));
                 doc_a["fields"]["last_update"]["timestampValue"] = tsStr;
 
                 String payload_a;
@@ -1809,7 +1809,7 @@ bool updateScaleLastSpool(const String& uid_a, const String& uid_b = "", float w
                 http.addHeader("Authorization", "Bearer " + firebaseIdToken);
 
                 StaticJsonDocument<256> doc_b;
-                doc_b["fields"]["weight_available"]["doubleValue"] = weight_available;
+                doc_b["fields"]["weight_available"]["integerValue"] = String((int)roundf(weight_available));
                 doc_b["fields"]["last_update"]["timestampValue"] = tsStr;
 
                 String payload_b;
@@ -1846,7 +1846,7 @@ bool updateScaleLastSpool(const String& uid_a, const String& uid_b = "", float w
             http.addHeader("Authorization", "Bearer " + firebaseIdToken);
 
             StaticJsonDocument<256> doc;
-            doc["fields"]["weight_available"]["doubleValue"] = weight_available;
+            doc["fields"]["weight_available"]["integerValue"] = String((int)roundf(weight_available));
             doc["fields"]["last_update"]["timestampValue"] = tsStr;
 
             String payload;
@@ -1927,7 +1927,7 @@ bool updateScaleLastSpool(const String& uid_a, const String& uid_b = "", float w
             http.addHeader("Authorization", "Bearer " + firebaseIdToken);
 
             StaticJsonDocument<256> doc_a;
-            doc_a["fields"]["weight_available"]["doubleValue"] = weight_available;
+            doc_a["fields"]["weight_available"]["integerValue"] = String((int)roundf(weight_available));
             doc_a["fields"]["last_update"]["timestampValue"] = tsStr;
             if (!twin_a_is_b) {
                 doc_a["fields"]["twin_tag_uid"]["stringValue"] = uidBHex;
@@ -1958,7 +1958,7 @@ bool updateScaleLastSpool(const String& uid_a, const String& uid_b = "", float w
             http.addHeader("Authorization", "Bearer " + firebaseIdToken);
 
             StaticJsonDocument<256> doc_b;
-            doc_b["fields"]["weight_available"]["doubleValue"] = weight_available;
+            doc_b["fields"]["weight_available"]["integerValue"] = String((int)roundf(weight_available));
             doc_b["fields"]["last_update"]["timestampValue"] = tsStr;
             if (!twin_b_is_a) {
                 doc_b["fields"]["twin_tag_uid"]["stringValue"] = uidAHex;
