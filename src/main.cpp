@@ -9,28 +9,28 @@
 //   ────────────────────────────────────────────  ──────────
 //   §1  HARDWARE CONFIGURATION                                                     59–  113
 //   §2  OTA CONFIGURATION                                                         114–  132
-//   §3  FORWARD DECLARATIONS                                                      133–  210
-//   §4  WEIGHT ROUNDING                                                           211–  230
-//   §5  GLOBAL OBJECTS                                                            231–  244
-//   §6  CONFIGURATION VARIABLES                                                   245–  389
-//   §7  OLED DISPLAY                                                              390–  507
-//   §8  CLOUD PARSING                                                             508–  522
-//   §9  WIFI SETUP                                                                523–  781
-//   §10 LITTLEFS                                                                  782–  826
-//   §11 FIREBASE AUTHENTICATION                                                   827– 1020
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1021– 1942
-//   §13 WEBSOCKET                                                                1943– 1979
-//   §14 WEIGHT FILTER HELPERS                                                    1980– 1994
-//   §15 POST-SEND STATE RESET (shared by all send paths)                         1995– 2016
-//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2017– 2089
-//   §17 WEB SERVER                                                               2090– 2772
-//   §18 CLOUD COMMUNICATION                                                      2773– 2950
-//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                2951– 3075
-//   §20 mDNS                                                                     3076– 3113
-//   §21 SCALE                                                                    3114– 3205
-//   §22 RFID                                                                     3206– 3534
-//   §23 OTA — Over-the-air firmware + filesystem update                          3535– 3903
-//   §24 SETUP & LOOP                                                             3904– 4275
+//   §3  FORWARD DECLARATIONS                                                      133–  211
+//   §4  WEIGHT ROUNDING                                                           212–  231
+//   §5  GLOBAL OBJECTS                                                            232–  245
+//   §6  CONFIGURATION VARIABLES                                                   246–  410
+//   §7  OLED DISPLAY                                                              411–  528
+//   §8  CLOUD PARSING                                                             529–  543
+//   §9  WIFI SETUP                                                                544–  802
+//   §10 LITTLEFS                                                                  803–  847
+//   §11 FIREBASE AUTHENTICATION                                                   848– 1041
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1042– 1963
+//   §13 WEBSOCKET                                                                1964– 2000
+//   §14 WEIGHT FILTER HELPERS                                                    2001– 2015
+//   §15 POST-SEND STATE RESET (shared by all send paths)                         2016– 2037
+//   §16 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2038– 2110
+//   §17 WEB SERVER                                                               2111– 2796
+//   §18 CLOUD COMMUNICATION                                                      2797– 2974
+//   §19 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                2975– 3160
+//   §20 mDNS                                                                     3161– 3198
+//   §21 SCALE                                                                    3199– 3290
+//   §22 RFID                                                                     3291– 3619
+//   §23 OTA — Over-the-air firmware + filesystem update                          3620– 3988
+//   §24 SETUP & LOOP                                                             3989– 4360
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -150,6 +150,7 @@ void startServoSearch();
 void stopServoSearch();
 void updateServoWorkflow(float weight);
 void handleWeighWorkflow(float w);
+static void resetSlopeBuffer();
 String readRFIDFromReader(MFRC522 &reader, String &uidHexOut);
 String readRFIDUidOnly(MFRC522 &reader, String &uidHexOut);
 void   rfidAntennaSetAll(bool on);
@@ -286,11 +287,31 @@ bool     cloudOK                 = false;
 bool     servoSearching          = false;
 bool     servoPausedForCalibration = false;
 // ── Weigh workflow state machine ──────────────────────────────────────────
-enum WorkflowPhase : uint8_t { WF_IDLE=0, WF_SCANNING, WF_STABLE_WAIT, WF_SENDING };
+// WF_IDLE       : scale empty / ready for new spool
+// WF_SCANNING   : motor turn + RFID scan (up to SPOOL_SCAN_DURATION_MS)
+// WF_STABLE_WAIT: weight must stay within ±STABLE_EPSILON_G for STABLE_WINDOW_MS
+// WF_SENDING    : one Firestore PATCH in progress
+// WF_DONE       : sent (success OR fail) — no retry until spool removed
+enum WorkflowPhase : uint8_t { WF_IDLE=0, WF_SCANNING, WF_STABLE_WAIT, WF_SENDING, WF_DONE };
 WorkflowPhase wfPhase            = WF_IDLE;
 uint32_t      wfScanStartMs      = 0;
 float         wfContainerWeight  = 0.0f;
 bool          wfContainerFetched = false;
+
+// ── Weight slope tracking (detects spool placement / removal) ─────────────
+// Ring buffer of (weight, timestamp) sampled every SLOPE_SAMPLE_MS.
+// slope_g_per_s = (newest − oldest) / window_s
+static const uint32_t SLOPE_SAMPLE_MS   = 400;   // sample interval
+static const int      SLOPE_BUF_SIZE    = 6;     // 6 × 400ms = 2.4s window
+static float          slopeBuf[SLOPE_BUF_SIZE]   = {};
+static uint32_t       slopeBufMs[SLOPE_BUF_SIZE] = {};
+static int            slopeBufIdx  = 0;
+static bool           slopeBufFull = false;
+static float          wfCurrentSlope = 0.0f;     // g/s — updated by updateWeightSlope()
+
+// Thresholds
+static const float SLOPE_REMOVAL_G_PER_S  = -25.0f; // pente < -25g/s → retrait spool
+static const float SLOPE_STABLE_G_PER_S   =   5.0f; // |pente| < 5g/s → considéré stable
 bool     autoTarePending         = false;
 bool     loadPresent             = false;
 bool     rfidLockedForCurrentLoad = false;
@@ -2242,8 +2263,10 @@ void setupWebServer() {
         const char* wfPhaseStr = (wfPhase == WF_SCANNING)    ? "scanning"
                                 : (wfPhase == WF_STABLE_WAIT) ? "stable_wait"
                                 : (wfPhase == WF_SENDING)     ? "sending"
+                                : (wfPhase == WF_DONE)        ? "done"
                                 : "";
         doc["wfPhase"]        = wfPhaseStr;
+        doc["wfSlope"]        = (int)wfCurrentSlope;   // g/s (debug)
         doc["containerWeight"] = wfContainerFetched ? (int)wfContainerWeight : -1;
         String out; serializeJson(doc, out);
         request->send(200, "application/json", out);
@@ -2639,6 +2662,7 @@ void setupWebServer() {
 
     server.on("/api/workflow/stop", HTTP_POST, [](AsyncWebServerRequest *request){
         wfPhase = WF_IDLE;
+        resetSlopeBuffer();
         stopServoSearch();
         lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
         firstUidDetectedMs = 0; firstUidPauseUntilMs = 0;
@@ -2951,12 +2975,41 @@ bool fetchMetaFromApiByUid(const String& uid) {
 // ============================================================================
 // §19 — WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)
 // ============================================================================
+// Update wfCurrentSlope (g/s) from the ring buffer.  Call every loop tick.
+static void updateWeightSlope(float w) {
+    uint32_t now = millis();
+    int head = slopeBufIdx % SLOPE_BUF_SIZE;
+    if (slopeBufMs[head] == 0 || (now - slopeBufMs[head]) >= SLOPE_SAMPLE_MS) {
+        slopeBuf[head]   = w;
+        slopeBufMs[head] = now;
+        slopeBufIdx++;
+        if (slopeBufIdx >= SLOPE_BUF_SIZE) slopeBufFull = true;
+    }
+    if (!slopeBufFull) { wfCurrentSlope = 0.0f; return; }
+    // oldest = next slot (circular)
+    int oldIdx = slopeBufIdx % SLOPE_BUF_SIZE;
+    int newIdx = (slopeBufIdx - 1 + SLOPE_BUF_SIZE) % SLOPE_BUF_SIZE;
+    uint32_t dtMs = slopeBufMs[newIdx] - slopeBufMs[oldIdx];
+    if (dtMs == 0) { wfCurrentSlope = 0.0f; return; }
+    wfCurrentSlope = (slopeBuf[newIdx] - slopeBuf[oldIdx]) / (dtMs / 1000.0f);
+}
+
+// Reset slope buffer (call when workflow resets to avoid stale data)
+static void resetSlopeBuffer() {
+    for (int i = 0; i < SLOPE_BUF_SIZE; i++) { slopeBuf[i] = 0.0f; slopeBufMs[i] = 0; }
+    slopeBufIdx = 0; slopeBufFull = false; wfCurrentSlope = 0.0f;
+}
+
 void handleWeighWorkflow(float w) {
     const uint32_t now = millis();
 
-    // Dismiss success/error banner after 1.5 s
+    // Mise à jour pente (tous les ticks)
+    updateWeightSlope(w);
+    bool removingNow = (wfCurrentSlope < SLOPE_REMOVAL_G_PER_S);
+
+    // Dismiss success/error banner after 2 s
     if ((sendPhase == "success" || sendPhase == "error") &&
-        (now - sendPhaseLastChangeMs > 1500)) {
+        (now - sendPhaseLastChangeMs > 2000)) {
         sendPhase = ""; sendCountdown = -1;
     }
 
@@ -2966,7 +3019,8 @@ void handleWeighWorkflow(float w) {
             && firebaseAuth
             && WiFi.isConnected()
             && !rfidLockedForCurrentLoad
-            && !autoTarePending) {
+            && !autoTarePending
+            && !removingNow) {          // ne pas démarrer si poids en descente
             wfPhase            = WF_SCANNING;
             wfScanStartMs      = now;
             wfContainerWeight  = 0.0f;
@@ -2975,34 +3029,42 @@ void handleWeighWorkflow(float w) {
             stableSinceMs      = 0;
             sendPhase          = "countdown";
             sendCountdown      = (int)((SPOOL_SCAN_DURATION_MS + 999) / 1000);
-            Serial.println("[WF] IDLE → SCANNING");
+            netLog("WF IDLE→SCANNING slope=" + String(wfCurrentSlope,1));
         }
         return;
     }
 
-    // ── SCANNING ─────────────────────────────────────────────────────────────
-    if (wfPhase == WF_SCANNING) {
-        if (w < MIN_WEIGHT_TO_SEND_G) {
+    // ── Détection retrait spool (toutes phases actives) ──────────────────────
+    // Pente fortement négative OU poids sous seuil → reset immédiat
+    if (wfPhase != WF_DONE) {
+        if (removingNow || w < MIN_WEIGHT_TO_SEND_G) {
+            stopServoSearch();
             wfPhase = WF_IDLE; sendPhase = ""; sendCountdown = -1;
-            Serial.println("[WF] SCANNING → IDLE (weight dropped)");
+            wfContainerFetched = false; wfContainerWeight = 0.0f;
+            stableCandidate = NAN; stableSinceMs = 0;
+            resetSlopeBuffer();
+            netLog("WF →IDLE (retrait: slope=" + String(wfCurrentSlope,1) + " w=" + String(w,1) + ")");
             return;
         }
+    }
+
+    // ── SCANNING ─────────────────────────────────────────────────────────────
+    if (wfPhase == WF_SCANNING) {
         uint32_t scanDuration = (servoEnabled && hwMotorConnected)
                                ? SPOOL_SCAN_DURATION_MS : NO_MOTOR_UID_WAIT_MS;
 
-        // Fetch container weight as soon as 1st UID is known (avoids double-fetch at send)
+        // Fetch container weight dès qu'on a le 1er UID
         if (!wfContainerFetched && lastUID.length() > 0) {
             wfContainerWeight  = readInventoryContainerWeight(lastUID);
             wfContainerFetched = true;
-            Serial.printf("[WF] Container fetched: %.1f g\n", wfContainerWeight);
         }
 
-        // Update countdown display
+        // Countdown scan
         int secsLeft = (int)((int32_t)(scanDuration - (now - wfScanStartMs) + 999) / 1000);
         if (secsLeft < 0) secsLeft = 0;
         if (secsLeft != sendCountdown) sendCountdown = secsLeft;
 
-        // Early exit: both UIDs already captured — no need to finish the full turn
+        // Sortie anticipée si les 2 UIDs sont capturés
         bool bothUidsReady = (lastUID.length() > 0 && lastUID2.length() > 0);
         if (bothUidsReady || now - wfScanStartMs >= scanDuration) {
             stopServoSearch();
@@ -3011,8 +3073,10 @@ void handleWeighWorkflow(float w) {
                 netLog("WF SCANNING→IDLE (no UID)");
             } else {
                 wfPhase = WF_STABLE_WAIT;
+                stableCandidate = NAN; stableSinceMs = 0;
                 sendCountdown = (int)((STABLE_WINDOW_MS + 999) / 1000);
-                netLog("WF SCANNING→STABLE_WAIT uid=" + lastUID + " uid2=" + lastUID2 + " reason=" + (bothUidsReady ? "both" : "timeout"));
+                netLog("WF SCANNING→STABLE_WAIT uid=" + lastUID + " uid2=" + lastUID2
+                       + " reason=" + (bothUidsReady ? "both" : "timeout"));
             }
         }
         return;
@@ -3020,22 +3084,23 @@ void handleWeighWorkflow(float w) {
 
     // ── STABLE_WAIT ───────────────────────────────────────────────────────────
     if (wfPhase == WF_STABLE_WAIT) {
-        if (w < MIN_WEIGHT_TO_SEND_G) {
-            wfPhase = WF_IDLE; sendPhase = ""; sendCountdown = -1;
-            Serial.println("[WF] STABLE_WAIT → IDLE (weight dropped)");
-            return;
-        }
-        if (isnan(stableCandidate)) {
+        // Poids instable ou en montée : réinitialiser le chrono de stabilité
+        bool weightStable = (fabsf(wfCurrentSlope) < SLOPE_STABLE_G_PER_S);
+
+        if (!weightStable || isnan(stableCandidate)) {
             stableCandidate = w; stableSinceMs = now;
         } else if (fabs(w - stableCandidate) > STABLE_EPSILON_G) {
             stableCandidate = w; stableSinceMs = now;
         }
+
         int secsLeft = (int)((int32_t)(STABLE_WINDOW_MS - (now - stableSinceMs) + 999) / 1000);
         if (secsLeft < 0) secsLeft = 0;
         if (secsLeft != sendCountdown) sendCountdown = secsLeft;
-        if (now - stableSinceMs >= STABLE_WINDOW_MS) {
+
+        if (weightStable && (now - stableSinceMs >= STABLE_WINDOW_MS)) {
             wfPhase = WF_SENDING;
-            netLog("WF STABLE_WAIT→SENDING stable=" + String(stableCandidate, 1) + "g");
+            netLog("WF STABLE_WAIT→SENDING stable=" + String(stableCandidate,1)
+                   + "g slope=" + String(wfCurrentSlope,1));
         }
         return;
     }
@@ -3069,7 +3134,27 @@ void handleWeighWorkflow(float w) {
             displayWeightWithState(w, lastUID, OLED_STATE_ERROR);
             sendPhase = "error"; sendPhaseLastChangeMs = millis(); sendCountdown = -1;
         }
-        wfPhase = WF_IDLE;
+        // Succès OU échec → WF_DONE : pas de retry, attendre retrait spool
+        wfPhase = WF_DONE;
+        netLog("WF →DONE (session locked until spool removed)");
+        return;
+    }
+
+    // ── DONE ─────────────────────────────────────────────────────────────────
+    // Session terminée (succès ou échec). On attend que le spool soit retiré
+    // (pente négative OU poids bas) avant d'accepter une nouvelle mesure.
+    if (wfPhase == WF_DONE) {
+        if (removingNow || w < MIN_WEIGHT_TO_SEND_G) {
+            wfPhase = WF_IDLE;
+            lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
+            wfContainerFetched = false; wfContainerWeight = 0.0f;
+            stableCandidate = NAN; stableSinceMs = 0;
+            rfidLockedForCurrentLoad = false;
+            resetSlopeBuffer();
+            sendPhase = ""; sendCountdown = -1;
+            netLog("WF DONE→IDLE (spool retiré, prêt)");
+        }
+        return;
     }
 }
 
