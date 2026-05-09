@@ -21,18 +21,18 @@
 //   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1101– 2031
 //   §13 WEBSOCKET                                                                2032– 2058
 //   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2059– 2118
-//   §15 5 — UNIFIED WS FRAME BUILDER                                             2119– 2158
-//   §16 WEIGHT FILTER HELPERS                                                    2159– 2173
-//   §17 POST-SEND STATE RESET (shared by all send paths)                         2174– 2192
-//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2193– 2265
-//   §19 WEB SERVER                                                               2266– 2966
-//   §20 CLOUD COMMUNICATION                                                      2967– 3149
-//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3150– 3385
-//   §22 mDNS                                                                     3386– 3423
-//   §23 SCALE                                                                    3424– 3515
-//   §24 RFID                                                                     3516– 3845
-//   §25 OTA — Over-the-air firmware + filesystem update                          3846– 4214
-//   §26 SETUP & LOOP                                                             4215– 4591
+//   §15 5 — UNIFIED WS FRAME BUILDER                                             2119– 2162
+//   §16 WEIGHT FILTER HELPERS                                                    2163– 2177
+//   §17 POST-SEND STATE RESET (shared by all send paths)                         2178– 2196
+//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2197– 2269
+//   §19 WEB SERVER                                                               2270– 2970
+//   §20 CLOUD COMMUNICATION                                                      2971– 3153
+//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3154– 3389
+//   §22 mDNS                                                                     3390– 3427
+//   §23 SCALE                                                                    3428– 3519
+//   §24 RFID                                                                     3520– 3849
+//   §25 OTA — Over-the-air firmware + filesystem update                          3850– 4218
+//   §26 SETUP & LOOP                                                             4219– 4595
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -2132,10 +2132,14 @@ static String buildWsFrame(float weight) {
     else if (sendPhase == "error")   stcWs = "error";
 
     int cwt = (gLastContainer > 0.0f) ? (int)roundf(gLastContainer) : 0;
-    int nwt = (cwt > 0 && roundWeight(weight) > cwt) ? roundWeight(weight) - cwt : 0;
+    // Clamp displayed weight to 0 when below MIN_WEIGHT_TO_SEND_G — avoids showing
+    // "-1g / -2g" on the web UI due to tare dead zone or HX711 drift.
+    // Raw value is kept internally for tare and slope calculations.
+    int displayW = (weight < MIN_WEIGHT_TO_SEND_G) ? 0 : roundWeight(weight);
+    int nwt = (cwt > 0 && displayW > cwt) ? displayW - cwt : 0;
 
     StaticJsonDocument<768> doc;
-    doc["weight"]            = roundWeight(weight);
+    doc["weight"]            = displayW;
     doc["netWeight"]         = nwt;
     doc["containerWeight"]   = cwt;
     doc["uid"]               = lastUID;
@@ -2383,8 +2387,8 @@ void setupWebServer() {
     // Status - uses ArduinoJson
     server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request){
         StaticJsonDocument<640> doc;
-        doc["weight"]            = roundWeight(currentWeight);
-        doc["rawWeight"]         = (float)((int)(currentWeight * 100)) / 100.0f;
+        doc["weight"]            = (currentWeight < MIN_WEIGHT_TO_SEND_G) ? 0 : roundWeight(currentWeight);
+        doc["rawWeight"]         = (float)((int)(currentWeight * 100)) / 100.0f;  // unfiltered, for debug
         doc["uid"]               = lastUID;
         doc["uid_hex"]           = lastUIDHex;
         doc["uid2"]              = lastUID2;
