@@ -12,27 +12,27 @@
 //   §3  FORWARD DECLARATIONS                                                      147–  226
 //   §4  WEIGHT ROUNDING                                                           227–  246
 //   §5  GLOBAL OBJECTS                                                            247–  260
-//   §6  CONFIGURATION VARIABLES                                                   261–  449
-//   §7  OLED DISPLAY                                                              450–  567
-//   §8  CLOUD PARSING                                                             568–  582
-//   §9  WIFI SETUP                                                                583–  855
-//   §10 LITTLEFS                                                                  856–  900
-//   §11 FIREBASE AUTHENTICATION                                                   901– 1094
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1095– 2059
-//   §13 WEBSOCKET                                                                2060– 2086
-//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2087– 2121
-//   §15 5 — UNIFIED WS FRAME BUILDER                                             2122– 2161
-//   §16 WEIGHT FILTER HELPERS                                                    2162– 2176
-//   §17 POST-SEND STATE RESET (shared by all send paths)                         2177– 2195
-//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2196– 2268
-//   §19 WEB SERVER                                                               2269– 2969
-//   §20 CLOUD COMMUNICATION                                                      2970– 3152
-//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3153– 3374
-//   §22 mDNS                                                                     3375– 3412
-//   §23 SCALE                                                                    3413– 3504
-//   §24 RFID                                                                     3505– 3834
-//   §25 OTA — Over-the-air firmware + filesystem update                          3835– 4203
-//   §26 SETUP & LOOP                                                             4204– 4576
+//   §6  CONFIGURATION VARIABLES                                                   261–  454
+//   §7  OLED DISPLAY                                                              455–  572
+//   §8  CLOUD PARSING                                                             573–  587
+//   §9  WIFI SETUP                                                                588–  860
+//   §10 LITTLEFS                                                                  861–  905
+//   §11 FIREBASE AUTHENTICATION                                                   906– 1099
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1100– 2030
+//   §13 WEBSOCKET                                                                2031– 2057
+//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2058– 2098
+//   §15 5 — UNIFIED WS FRAME BUILDER                                             2099– 2138
+//   §16 WEIGHT FILTER HELPERS                                                    2139– 2153
+//   §17 POST-SEND STATE RESET (shared by all send paths)                         2154– 2172
+//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2173– 2245
+//   §19 WEB SERVER                                                               2246– 2946
+//   §20 CLOUD COMMUNICATION                                                      2947– 3129
+//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3130– 3364
+//   §22 mDNS                                                                     3365– 3402
+//   §23 SCALE                                                                    3403– 3494
+//   §24 RFID                                                                     3495– 3824
+//   §25 OTA — Over-the-air firmware + filesystem update                          3825– 4193
+//   §26 SETUP & LOOP                                                             4194– 4566
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -427,6 +427,11 @@ static String         gContainerFetchUID     = "";
 static String         gTwinFetchUID          = "";
 static String         gTwinFetchResult       = "";
 static volatile bool  gTwinFetchDone         = false;
+// uid_b (2nd physical tag) container prefetch — used when motor scans both tags
+// and uid_a happens to be the filament tag (no container_weight).
+static String         gContainerBFetchUID    = "";
+static float          gContainerBFetchResult = 0.0f;
+static volatile bool  gContainerBFetchDone   = false;
 
 static volatile bool  gCloudSendPending      = false;
 static volatile bool  gCloudSendDone         = false;
@@ -1593,9 +1598,15 @@ float computeWeightAvailable(float raw_grams, const String& uid_a) {
     float measure_gr = 0.0f;
     float container;
     if (wfContainerFetched && wfContainerWeight > 0.0f) {
-        // Use the value prefetched during SCANNING — avoids a duplicate HTTP call
+        // Use the value prefetched during SCANNING (uid_a) — avoids a duplicate HTTP call
         container = wfContainerWeight;
         netLog("CONTAINER cache hit=" + String(container,1) + "g uid=" + uid_a);
+    } else if (wfContainerFetched && wfContainerWeight == 0.0f
+               && gContainerBFetchDone && gContainerBFetchResult > 0.0f) {
+        // uid_a has no container_weight — fall back to uid_b's prefetched container.
+        // Happens when motor scans both tags and uid_a is the filament tag.
+        container = gContainerBFetchResult;
+        netLog("CONTAINER_B fallback=" + String(container,1) + "g uid_b=" + gContainerBFetchUID);
     } else {
         container = readInventoryContainerWeight(uid_a, &measure_gr);
     }
@@ -1937,55 +1948,20 @@ bool updateScaleLastSpool(const String& uid_a, const String& uid_b = "", float w
             }
         }
     } else {
-        // Case 2: Two different tags detected — implement decision matrix from §6.1
-        String twin_a = "", twin_b = "";
-        readInventoryDocTwinTag(uidAHex, twin_a);
-        readInventoryDocTwinTag(uidBHex, twin_b);
-
-        Serial.printf("[WEIGHT] 2 tags detected: uid_a=%s (twin=%s) uid_b=%s (twin=%s)\n",
-                      uidAHex.c_str(), twin_a.length() > 0 ? twin_a.c_str() : "none",
-                      uidBHex.c_str(), twin_b.length() > 0 ? twin_b.c_str() : "none");
-
-        // Decision matrix (§6.1):
-        // [A=B, B=A] OK Paired correctly -> update both
-        // [A=B, B=null] WARNING Asymmetric -> update both, fix B.twin_tag_uid=A
-        // [A=null, B=A] WARNING Asymmetric -> update both, fix A.twin_tag_uid=B
-        // [A=null, B=null] NEW New pair -> update both, set A.twin_tag_uid=B, B.twin_tag_uid=A
-        // [A=C, B=*] CONFLICT Conflict -> only update A, log warning
-        // [A=*, B=C] CONFLICT Conflict -> only update B, log warning
-        // [A!=B AND A not in {B,null} AND B not in {A,null}] -> different spools -> skip
-
-        bool twin_a_is_b = (twin_a == uidBHex);
-        bool twin_b_is_a = (twin_b == uidAHex);
-        bool twin_a_is_other = (twin_a.length() > 0 && twin_a != uidBHex);
-        bool twin_b_is_other = (twin_b.length() > 0 && twin_b != uidAHex);
-
-        if (twin_a_is_other) {
-            // A is already paired to someone else (conflict)
-            Serial.printf("[WEIGHT] CONFLICT: A already paired to %s, skipping weight write\n", twin_a.c_str());
-            return false;
-        }
-        if (twin_b_is_other) {
-            // B is already paired to someone else (conflict)
-            Serial.printf("[WEIGHT] CONFLICT: B already paired to %s, skipping weight write\n", twin_b.c_str());
-            return false;
-        }
-        if (!twin_a_is_b && !twin_b_is_a && twin_a.length() > 0 && twin_b.length() > 0) {
-            // Both have different twin_tag_uids (different spools on platform)
-            Serial.printf("[WEIGHT] multi-spool: uid_a links to %s, uid_b links to %s, skipping\n", twin_a.c_str(), twin_b.c_str());
-            return false;
-        }
-
-        // All other cases are valid twin-pair scenarios — update with repair
-        Serial.printf("[WEIGHT] twin-pair: updating uid_a=%s uid_b=%s (non-atomic)\n", uidAHex.c_str(), uidBHex.c_str());
+        // Case 2: Two different tags physically detected simultaneously.
+        // Both are on the scale together — they ARE a valid pair by definition.
+        // No conflict check, no sync twin fetches needed.
+        // Always update both docs and auto-link them as twins (idempotent repair).
+        Serial.printf("[WEIGHT] 2-tag pair: uid_a=%s uid_b=%s weight=%.1f\n",
+                      uidAHex.c_str(), uidBHex.c_str(), weight_available);
+        netLog("2UID uid_a=" + uidAHex + " uid_b=" + uidBHex + " w=" + String(weight_available,1) + "g");
 
         HTTPClient http;
         bool success = true;
 
-        // Update A (weight + possibly twin_tag_uid repair)
+        // Update A — weight + twin_tag_uid link (always written so mis-linked pairs self-repair)
         String docPath_a = "users/" + firebaseUid + "/inventory/" + uidAHex;
-        String maskStr_a = "?updateMask.fieldPaths=weight_available&updateMask.fieldPaths=last_update";
-        if (!twin_a_is_b) maskStr_a += "&updateMask.fieldPaths=twin_tag_uid";
+        String maskStr_a = "?updateMask.fieldPaths=weight_available&updateMask.fieldPaths=last_update&updateMask.fieldPaths=twin_tag_uid";
         String url_a = "https://firestore.googleapis.com/v1/projects/tigertag-connect/databases/(default)/documents/" + docPath_a + maskStr_a;
 
         if (http.begin(url_a)) {
@@ -1995,9 +1971,7 @@ bool updateScaleLastSpool(const String& uid_a, const String& uid_b = "", float w
             StaticJsonDocument<256> doc_a;
             doc_a["fields"]["weight_available"]["integerValue"] = String((int)roundf(weight_available));
             doc_a["fields"]["last_update"]["timestampValue"] = tsStr;
-            if (!twin_a_is_b) {
-                doc_a["fields"]["twin_tag_uid"]["stringValue"] = uidBHex;
-            }
+            doc_a["fields"]["twin_tag_uid"]["stringValue"] = uidBHex;
 
             String payload_a;
             serializeJson(doc_a, payload_a);
@@ -2013,10 +1987,9 @@ bool updateScaleLastSpool(const String& uid_a, const String& uid_b = "", float w
             }
         }
 
-        // Update B (weight + possibly twin_tag_uid repair)
+        // Update B — weight + twin_tag_uid link (always written)
         String docPath_b = "users/" + firebaseUid + "/inventory/" + uidBHex;
-        String maskStr_b = "?updateMask.fieldPaths=weight_available&updateMask.fieldPaths=last_update";
-        if (!twin_b_is_a) maskStr_b += "&updateMask.fieldPaths=twin_tag_uid";
+        String maskStr_b = "?updateMask.fieldPaths=weight_available&updateMask.fieldPaths=last_update&updateMask.fieldPaths=twin_tag_uid";
         String url_b = "https://firestore.googleapis.com/v1/projects/tigertag-connect/databases/(default)/documents/" + docPath_b + maskStr_b;
 
         if (http.begin(url_b)) {
@@ -2026,9 +1999,7 @@ bool updateScaleLastSpool(const String& uid_a, const String& uid_b = "", float w
             StaticJsonDocument<256> doc_b;
             doc_b["fields"]["weight_available"]["integerValue"] = String((int)roundf(weight_available));
             doc_b["fields"]["last_update"]["timestampValue"] = tsStr;
-            if (!twin_b_is_a) {
-                doc_b["fields"]["twin_tag_uid"]["stringValue"] = uidAHex;
-            }
+            doc_b["fields"]["twin_tag_uid"]["stringValue"] = uidAHex;
 
             String payload_b;
             serializeJson(doc_b, payload_b);
@@ -2096,15 +2067,21 @@ static void cloudWorkerTask(void* /*param*/) {
     for (;;) {
         // ── Container fetch ──────────────────────────────────────────────────
         if (gContainerFetchPending) {
-            String uid = gContainerFetchUID;          // local copy (thread-safe read)
-            float  cw  = readInventoryContainerWeight(uid);
-            gContainerFetchResult  = cw;
-            // Prefetch twin tag for the same UID right now — same HTTP round-trip budget,
-            // so pushWeightToCloud won't need a separate TWIN_GET during SENDING.
-            gTwinFetchUID    = uid;
+            String uid_a = gContainerFetchUID;        // local copy (thread-safe read)
+            float  cw_a  = readInventoryContainerWeight(uid_a);
+            gContainerFetchResult  = cw_a;
+            // Prefetch twin tag for uid_a — avoids a TWIN_GET during SENDING (Case 1).
+            gTwinFetchUID    = uid_a;
             gTwinFetchResult = "";
-            readInventoryDocTwinTag(uid, gTwinFetchResult);
-            gTwinFetchDone         = true;
+            readInventoryDocTwinTag(uid_a, gTwinFetchResult);
+            gTwinFetchDone   = true;
+            // If a 2nd physical tag was already detected, also prefetch its container.
+            // This covers Case 2 where uid_a may be the filament tag (no container_weight).
+            if (gContainerBFetchUID.length() > 0) {
+                gContainerBFetchResult = readInventoryContainerWeight(gContainerBFetchUID);
+                gContainerBFetchDone   = true;
+                netLog("CONTAINER_B prefetch=" + String(gContainerBFetchResult,1) + "g uid=" + gContainerBFetchUID);
+            }
             gContainerFetchPending = false;           // clear before Done for coherent state
             gContainerFetchDone    = true;
         }
@@ -3209,6 +3186,7 @@ void handleWeighWorkflow(float w) {
             sendCountdown      = (int)((SPOOL_SCAN_DURATION_MS + 999) / 1000);
             // Reset async worker flags for fresh session
             gContainerFetchPending = false; gContainerFetchDone = false;
+            gContainerBFetchUID = ""; gContainerBFetchResult = 0.0f; gContainerBFetchDone = false;
             gCloudSendPending      = false; gCloudSendDone      = false;
             netLog("WF IDLE→SCANNING slope=" + String(wfCurrentSlope,1));
         }
@@ -3227,6 +3205,7 @@ void handleWeighWorkflow(float w) {
             resetSlopeBuffer();
             // Abandon any in-flight async requests
             gContainerFetchPending = false; gContainerFetchDone = false;
+            gContainerBFetchUID = ""; gContainerBFetchResult = 0.0f; gContainerBFetchDone = false;
             gCloudSendPending      = false; gCloudSendDone      = false;
             netLog("WF →IDLE (retrait: slope=" + String(wfCurrentSlope,1) + " w=" + String(w,1) + ")");
             return;
@@ -3238,11 +3217,21 @@ void handleWeighWorkflow(float w) {
         uint32_t scanDuration = (servoEnabled && hwMotorConnected)
                                ? SPOOL_SCAN_DURATION_MS : NO_MOTOR_UID_WAIT_MS;
 
-        // Trigger async container fetch as soon as we have the first UID
+        // Trigger async container fetch as soon as we have the first UID.
+        // Also record uid_b at that moment — cloudWorkerTask will prefetch its
+        // container too so Case 2 can use the right tare weight.
         if (!wfContainerFetched && !gContainerFetchPending && !gContainerFetchDone
                 && lastUID.length() > 0) {
             gContainerFetchUID     = lastUID;
+            gContainerBFetchUID    = lastUID2;  // may be empty — that's fine
+            gContainerBFetchDone   = false;
+            gContainerBFetchResult = 0.0f;
             gContainerFetchPending = true;   // hand off to cloudWorkerTask
+        }
+        // If uid_b arrives after the prefetch was already kicked off, update the slot
+        // so the worker can still fetch it (only if it hasn't started the B fetch yet).
+        if (gContainerFetchPending && gContainerBFetchUID.length() == 0 && lastUID2.length() > 0) {
+            gContainerBFetchUID = lastUID2;
         }
         // Pick up result when the worker task is done (non-blocking)
         if (gContainerFetchDone) {
@@ -3364,6 +3353,7 @@ void handleWeighWorkflow(float w) {
             rfidLockedForCurrentLoad = false;
             resetSlopeBuffer();
             gContainerFetchPending = false; gContainerFetchDone = false;
+            gContainerBFetchUID = ""; gContainerBFetchResult = 0.0f; gContainerBFetchDone = false;
             gCloudSendPending      = false; gCloudSendDone      = false;
             sendPhase = ""; sendCountdown = -1;
             netLog("WF DONE→IDLE (spool retiré, prêt)");
