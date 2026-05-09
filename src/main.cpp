@@ -21,18 +21,18 @@
 //   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1110– 2040
 //   §13 WEBSOCKET                                                                2041– 2067
 //   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2068– 2138
-//   §15 5 — UNIFIED WS FRAME BUILDER                                             2139– 2183
-//   §16 WEIGHT FILTER HELPERS                                                    2184– 2198
-//   §17 POST-SEND STATE RESET (shared by all send paths)                         2199– 2217
-//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2218– 2290
-//   §19 WEB SERVER                                                               2291– 2992
-//   §20 CLOUD COMMUNICATION                                                      2993– 3175
-//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3176– 3426
-//   §22 mDNS                                                                     3427– 3464
-//   §23 SCALE                                                                    3465– 3556
-//   §24 RFID                                                                     3557– 3886
-//   §25 OTA — Over-the-air firmware + filesystem update                          3887– 4255
-//   §26 SETUP & LOOP                                                             4256– 4657
+//   §15 5 — UNIFIED WS FRAME BUILDER                                             2139– 2184
+//   §16 WEIGHT FILTER HELPERS                                                    2185– 2199
+//   §17 POST-SEND STATE RESET (shared by all send paths)                         2200– 2218
+//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2219– 2291
+//   §19 WEB SERVER                                                               2292– 2994
+//   §20 CLOUD COMMUNICATION                                                      2995– 3177
+//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3178– 3437
+//   §22 mDNS                                                                     3438– 3475
+//   §23 SCALE                                                                    3476– 3567
+//   §24 RFID                                                                     3568– 3897
+//   §25 OTA — Over-the-air firmware + filesystem update                          3898– 4266
+//   §26 SETUP & LOOP                                                             4267– 4668
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -2146,8 +2146,9 @@ static void twinWorkerTask(void* /*param*/) {
 
 static String buildWsFrame(float weight) {
     String stcWs;
-    if      (sendPhase == "scanning"  && sendCountdown >= 0) stcWs = "scanning:" + String(sendCountdown);
-    else if (sendPhase == "countdown" && sendCountdown >= 0) stcWs = String(sendCountdown);
+    if      (sendPhase == "scanning"    && sendCountdown >= 0) stcWs = "scanning:" + String(sendCountdown);
+    else if (sendPhase == "stabilizing" && sendCountdown >= 0) stcWs = "stable:" + String(sendCountdown);
+    else if (sendPhase == "countdown"   && sendCountdown >= 0) stcWs = String(sendCountdown);
     else if (sendPhase == "send")    stcWs = "send";
     else if (sendPhase == "success") stcWs = "success";
     else if (sendPhase == "error")   stcWs = "error";
@@ -2437,8 +2438,9 @@ void setupWebServer() {
         if (gOtaMessage.length())     doc["ota_message"]      = gOtaMessage;
         if (gOtaLatestVer.length())   doc["ota_latest"]       = gOtaLatestVer;
         String stc;
-        if      (sendPhase == "scanning"  && sendCountdown >= 0) stc = "scanning:" + String(sendCountdown);
-        else if (sendPhase == "countdown" && sendCountdown >= 0) stc = String(sendCountdown);
+        if      (sendPhase == "scanning"    && sendCountdown >= 0) stc = "scanning:" + String(sendCountdown);
+        else if (sendPhase == "stabilizing" && sendCountdown >= 0) stc = "stable:" + String(sendCountdown);
+        else if (sendPhase == "countdown"   && sendCountdown >= 0) stc = String(sendCountdown);
         else if (sendPhase == "send")    stc = "send";
         else if (sendPhase == "success") stc = "success";
         else if (sendPhase == "error")   stc = "error";
@@ -3286,11 +3288,11 @@ void handleWeighWorkflow(float w) {
             gContainerFetchDone = false;
             gLastContainer     = wfContainerWeight;   // immediate OLED/WS update
         }
-        // Pick up twin display result independently — twin fetch completes AFTER container.
-        // Check separately so we don't miss it if SCANNING exits before twin is ready.
+        // Pick up twin for display — do NOT clear gTwinFetchDone here.
+        // pushWeightToCloud is the sole consumer of gTwinFetchDone.
+        // Clearing it here would cause a duplicate sync fetch during SENDING.
         if (gTwinFetchDone && lastUID2.length() == 0 && lastUIDTwin.length() == 0) {
-            lastUIDTwin    = gTwinFetchResult;
-            gTwinFetchDone = false;
+            lastUIDTwin = gTwinFetchResult;
             netLog("TWIN display=" + (lastUIDTwin.length() > 0 ? lastUIDTwin : "none (no twin in DB)"));
         }
 
@@ -3299,9 +3301,17 @@ void handleWeighWorkflow(float w) {
         if (secsLeft < 0) secsLeft = 0;
         if (secsLeft != sendCountdown) sendCountdown = secsLeft;
 
-        // Sortie anticipée si les 2 UIDs sont capturés
-        bool bothUidsReady = (lastUID.length() > 0 && lastUID2.length() > 0);
-        if (bothUidsReady || now - wfScanStartMs >= scanDuration) {
+        // Sortie anticipée :
+        //  A) 2 UIDs physiques capturés
+        //  B) Twin fetché depuis Firestore ET container prêt → inutile d'attendre le 2ème lecteur
+        //  C) Timeout du scan
+        bool bothUidsReady   = (lastUID.length() > 0 && lastUID2.length() > 0);
+        bool twinReadyNoScan = (gTwinFetchDone && gTwinFetchResult.length() > 0
+                                && wfContainerFetched && lastUID2.length() == 0);
+        String exitReason = bothUidsReady   ? "both_uid"
+                          : twinReadyNoScan ? "twin_firestore"
+                          : "timeout";
+        if (bothUidsReady || twinReadyNoScan || now - wfScanStartMs >= scanDuration) {
             stopServoSearch();
             if (lastUID.length() == 0) {
                 wfPhase = WF_IDLE; sendPhase = ""; sendCountdown = -1;
@@ -3310,9 +3320,10 @@ void handleWeighWorkflow(float w) {
                 wfPhase = WF_STABLE_WAIT;
                 stableCandidate    = NAN; stableSinceMs = 0;
                 wfStableWaitStartMs = now;
+                sendPhase     = "stabilizing";
                 sendCountdown = (int)((STABLE_WINDOW_MS + 999) / 1000);
                 netLog("WF SCANNING→STABLE_WAIT uid=" + lastUID + " uid2=" + lastUID2
-                       + " reason=" + (bothUidsReady ? "both" : "timeout"));
+                       + " reason=" + exitReason);
             }
         }
         return;

@@ -103,6 +103,7 @@ const translations = {
         sendError: '✗ Erreur',
         sendIn: 'Envoi dans',
         scanningRfid: '📡 Lecture RFID...',
+        stabilizing: '⚖️ Stabilisation...',
         // Weight breakdown
         containerLabel: 'Bobine',
         filamentLabel:  'Filament',
@@ -202,6 +203,7 @@ const translations = {
         sendError: '✗ Error',
         sendIn: 'Sending in',
         scanningRfid: '📡 Scanning RFID...',
+        stabilizing: '⚖️ Stabilizing...',
         // Weight breakdown
         containerLabel: 'Spool',
         filamentLabel:  'Filament',
@@ -934,10 +936,13 @@ function applyStatusSnapshot(s) {
             setSendState(t('sendError'), 'rgba(245,101,101,0.3)');
             setTimeout(() => setSendState(''), 2000);
         } else if (v.startsWith('scanning:')) {
-            // WF_SCANNING — RFID not yet detected, motor rotating
+            // WF_SCANNING — motor rotating, waiting for RFID tag
             setSendState(t('scanningRfid'), 'rgba(255,255,255,0.12)');
+        } else if (v.startsWith('stable:')) {
+            // WF_STABLE_WAIT — UID found, weight stabilizing
+            setSendState(t('stabilizing'), 'rgba(255,255,255,0.18)');
         } else if (/^\d+$/.test(v)) {
-            // WF_STABLE_WAIT — UID found, weight stabilizing before send
+            // legacy fallback
             setSendState(t('sendIn') + ' ' + v + 's', 'rgba(255,255,255,0.2)');
         }
     }
