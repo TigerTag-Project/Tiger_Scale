@@ -7,32 +7,32 @@
 //
 //   TABLE OF CONTENTS                            line range
 //   ────────────────────────────────────────────  ──────────
-//   §1  HARDWARE CONFIGURATION                                                     61–  135
-//   §2  OTA CONFIGURATION                                                         136–  154
-//   §3  FORWARD DECLARATIONS                                                      155–  234
-//   §4  WEIGHT ROUNDING                                                           235–  254
-//   §5  GLOBAL OBJECTS                                                            255–  268
-//   §6  CONFIGURATION VARIABLES                                                   269–  464
-//   §7  OLED DISPLAY                                                              465–  582
-//   §8  CLOUD PARSING                                                             583–  597
-//   §9  WIFI SETUP                                                                598–  870
-//   §10 LITTLEFS                                                                  871–  915
-//   §11 FIREBASE AUTHENTICATION                                                   916– 1109
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1110– 2040
-//   §13 WEBSOCKET                                                                2041– 2067
-//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2068– 2138
-//   §15 5 — UNIFIED WS FRAME BUILDER                                             2139– 2184
-//   §16 WEIGHT FILTER HELPERS                                                    2185– 2199
-//   §17 POST-SEND STATE RESET (shared by all send paths)                         2200– 2218
-//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2219– 2291
-//   §19 WEB SERVER                                                               2292– 2994
-//   §20 CLOUD COMMUNICATION                                                      2995– 3177
-//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3178– 3437
-//   §22 mDNS                                                                     3438– 3475
-//   §23 SCALE                                                                    3476– 3567
-//   §24 RFID                                                                     3568– 3897
-//   §25 OTA — Over-the-air firmware + filesystem update                          3898– 4266
-//   §26 SETUP & LOOP                                                             4267– 4668
+//   §1  HARDWARE CONFIGURATION                                                     62–  137
+//   §2  OTA CONFIGURATION                                                         138–  156
+//   §3  FORWARD DECLARATIONS                                                      157–  236
+//   §4  WEIGHT ROUNDING                                                           237–  256
+//   §5  GLOBAL OBJECTS                                                            257–  270
+//   §6  CONFIGURATION VARIABLES                                                   271–  483
+//   §7  OLED DISPLAY                                                              484–  601
+//   §8  CLOUD PARSING                                                             602–  616
+//   §9  WIFI SETUP                                                                617–  889
+//   §10 LITTLEFS                                                                  890– 1097
+//   §11 FIREBASE AUTHENTICATION                                                  1098– 1291
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1292– 2218
+//   §13 WEBSOCKET                                                                2219– 2245
+//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2246– 2316
+//   §15 5 — UNIFIED WS FRAME BUILDER                                             2317– 2402
+//   §16 WEIGHT FILTER HELPERS                                                    2403– 2417
+//   §17 POST-SEND STATE RESET (shared by all send paths)                         2418– 2436
+//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2437– 2509
+//   §19 WEB SERVER                                                               2510– 3236
+//   §20 CLOUD COMMUNICATION                                                      3237– 3419
+//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3420– 3729
+//   §22 mDNS                                                                     3730– 3767
+//   §23 SCALE                                                                    3768– 3859
+//   §24 RFID                                                                     3860– 4192
+//   §25 OTA — Over-the-air firmware + filesystem update                          4193– 4561
+//   §26 SETUP & LOOP                                                             4562– 4981
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -57,6 +57,7 @@
 #include <ESP32Servo.h>
 #include <Update.h>
 #include <mbedtls/sha256.h>
+#include <map>
 
 // ============================================================================
 // §1 — HARDWARE CONFIGURATION
@@ -125,8 +126,9 @@ const int      SEND_MAX_ATTEMPTS      = 3;
 #if ENABLE_LEGACY_API_BRIDGE
 const char* TIGERTAG_CLOUD_FN_URL    = "https://us-central1-tigertag-connect.cloudfunctions.net/setSpoolWeightByRfid";
 #endif
-const char* TIGERTAG_DB_BRAND_URL    = "https://raw.githubusercontent.com/TigerTag-Project/TigerTag-RFID-Guide/main/database/id_brand.json";
-const char* TIGERTAG_DB_MATERIAL_URL = "https://raw.githubusercontent.com/TigerTag-Project/TigerTag-RFID-Guide/main/database/id_material.json";
+const char* TIGERTAG_DB_BRAND_URL       = "https://raw.githubusercontent.com/TigerTag-Project/TigerTag-RFID-Guide/main/database/id_brand.json";
+const char* TIGERTAG_DB_MATERIAL_URL    = "https://raw.githubusercontent.com/TigerTag-Project/TigerTag-RFID-Guide/main/database/id_material.json";
+const char* TIGERTAG_DB_LAST_UPDATE_URL = "https://raw.githubusercontent.com/TigerTag-Project/TigerTag-RFID-Guide/main/database/last_update.json";
 
 // Firebase Web API Key for the tigertag-connect project.
 // This is the public client key exposed by Firebase Hosting at /__/firebase/init.json
@@ -202,7 +204,7 @@ String readRackName(const String& rackId);
 static void parseCloudSpoolMeta(const String& resp);
 #endif
 static void   resetAfterSuccessfulSend(int shownWeight);
-static String buildWsFrame(float weight);
+static String buildWsFrame(float weight, bool full = false);
 static String toHex2(uint8_t v);
 static String normalizeUidHex(const String& uid);
 static String mapColorName(uint8_t r, uint8_t g, uint8_t b);
@@ -323,6 +325,8 @@ WorkflowPhase wfPhase            = WF_IDLE;
 uint32_t      wfScanStartMs      = 0;
 float         wfContainerWeight  = 0.0f;
 bool          wfContainerFetched = false;
+float         wfPeakWeight       = 0.0f;   // max weight seen since SCANNING started (removal detection)
+uint32_t      wfBelowThreshMs    = 0;      // timestamp when weight first dropped below SPOOL_REMOVED_WEIGHT_G
 
 // ── Weight slope tracking (detects spool placement / removal) ─────────────
 // Ring buffer of (weight, timestamp) sampled every SLOPE_SAMPLE_MS.
@@ -366,8 +370,11 @@ uint32_t lowWeightSinceMs        = 0;        // Anti-stuck timer when near empty
 // Auto-push configuration
 const float    STABLE_EPSILON_G    =  0.8f;       // was 0.6 — slightly relaxed for faster settle
 const uint32_t STABLE_WINDOW_MS   =  1200;        // was 2000ms — 0.8s saved on every weighing
-const float    MIN_WEIGHT_TO_SEND_G =  5.0f;
-const float    RESEND_DELTA_G      =  3.0f;
+const float    MIN_WEIGHT_TO_SEND_G  =  5.0f;
+const float    SPOOL_REMOVED_WEIGHT_G    = 50.0f;   // weight must drop below this (after peaking) to confirm spool removed
+const uint32_t SPOOL_REMOVAL_DEBOUNCE_MS = 400;    // weight must stay below threshold for 400ms before reset fires
+const uint32_t SPOOL_SETTLING_GUARD_MS   = 1500;   // ignore slope-based removal for 1.5s after SCANNING starts (scale settling)
+const float    RESEND_DELTA_G        =  3.0f;
 const uint32_t RESEND_COOLDOWN_MS  = 15000;
 
 // Weight filter configuration — tuned for 10 Hz HX711, kitchen-scale feel
@@ -379,6 +386,7 @@ const float    HYSTERESIS_THRESHOLD = 0.5f;
 const float    DEAD_ZONE_G         = 1.0f;
 const uint32_t STABLE_DISPLAY_MS   = 1500;
 const float    MIN_WEIGHT_CHANGE_TO_RESET_G = 50.0f;
+const float    SESSION_RESET_WEIGHT_RATIO   = 0.70f;  // weight must fall to 70% of session weight (30% drop) before accepting next session
 
 // Cloud weight cache
 static float    gLastCloudWeight = NAN;
@@ -418,6 +426,12 @@ static bool gFirstHeartbeatDone = false;
 static bool gNtpSynced = false;
 const uint32_t HEARTBEAT_INTERVAL_MS = 30000;
 
+// Periodic TigerTag DB update check — once every 24 h while the device is on.
+// Mirrors the Python script: fetch last_update.json, download only what changed.
+const uint32_t DB_CHECK_INTERVAL_MS  = 24UL * 3600UL * 1000UL;  // 24 h
+static uint32_t gLastDbCheckMs       = 0;    // set after boot check so first periodic fires in 24 h
+static volatile bool gDbUpdateRunning = false; // guard: don't spawn 2 tasks at once
+
 // Auto-send state
 volatile int sendCountdown      = -1;
 String       sendPhase          = "";
@@ -446,6 +460,11 @@ static volatile bool  gCloudSendPending      = false;
 static volatile bool  gCloudSendDone         = false;
 static volatile bool  gCloudSendOk           = false;
 static float          gCloudSendWeight       = 0.0f;
+
+// Local brand/material DB — loaded from LittleFS at boot, instant lookup,
+// no network needed. Keys match the uint16_t IDs embedded in TigerTag pages.
+static std::map<uint16_t, String> gBrandDb;
+static std::map<uint16_t, String> gMaterialDb;
 // ────────────────────────────────────────────────────────────────────────────
 
 // Auto-push stability tracking
@@ -911,6 +930,169 @@ void setupFileSystem() {
         return;
     }
     listDir(LittleFS, "/www", 3);
+}
+
+// Load TigerTag brand and material name databases from LittleFS into RAM.
+// Called once at boot — lookups are then O(log n) from std::map, zero network.
+void loadTagDbs() {
+    // ── Brand DB (/id_brand.json) ─────────────────────────────────────────────
+    {
+        File f = LittleFS.open("/id_brand.json", "r");
+        if (!f) {
+            Serial.println("[DB] /id_brand.json not found — brand names unavailable");
+        } else {
+            // Filter: keep only id + name to minimise heap usage
+            StaticJsonDocument<64> filter;
+            filter[0]["id"]   = true;
+            filter[0]["name"] = true;
+            DynamicJsonDocument doc(10240);
+            DeserializationError err = deserializeJson(doc, f, DeserializationOption::Filter(filter));
+            f.close();
+            if (!err) {
+                for (JsonObject entry : doc.as<JsonArray>()) {
+                    uint16_t id  = entry["id"].as<uint16_t>();
+                    const char* n = entry["name"];
+                    if (n && *n) gBrandDb[id] = n;
+                }
+                Serial.printf("[DB] Brand DB loaded: %u entries\n", (unsigned)gBrandDb.size());
+            } else {
+                Serial.printf("[DB] Brand DB parse error: %s\n", err.c_str());
+            }
+        }
+    }
+    // ── Material DB (/id_material.json) ──────────────────────────────────────
+    {
+        File f = LittleFS.open("/id_material.json", "r");
+        if (!f) {
+            Serial.println("[DB] /id_material.json not found — material names unavailable");
+        } else {
+            // Filter: keep only id + label
+            StaticJsonDocument<64> filter;
+            filter[0]["id"]    = true;
+            filter[0]["label"] = true;
+            DynamicJsonDocument doc(12288);
+            DeserializationError err = deserializeJson(doc, f, DeserializationOption::Filter(filter));
+            f.close();
+            if (!err) {
+                for (JsonObject entry : doc.as<JsonArray>()) {
+                    uint16_t id  = entry["id"].as<uint16_t>();
+                    const char* l = entry["label"];
+                    if (l && *l) gMaterialDb[id] = l;
+                }
+                Serial.printf("[DB] Material DB loaded: %u entries\n", (unsigned)gMaterialDb.size());
+            } else {
+                Serial.printf("[DB] Material DB parse error: %s\n", err.c_str());
+            }
+        }
+    }
+}
+
+// Check GitHub last_update.json and download only the DB files whose timestamp
+// has changed — mirrors the Python script's algorithm exactly.
+// Returns: number of files updated, 0 = already up to date, -1 = network error.
+int checkAndUpdateTagDbs() {
+    if (!WiFi.isConnected()) return -1;
+
+    // ── 1. Fetch remote last_update.json (~120 bytes, very fast) ─────────────
+    HTTPClient http;
+    http.setTimeout(8000);
+    if (!http.begin(TIGERTAG_DB_LAST_UPDATE_URL)) return -1;
+    int code = http.GET();
+    if (code != 200) { http.end(); return -1; }
+    String remoteJson = http.getString();
+    http.end();
+
+    StaticJsonDocument<256> remote;
+    if (deserializeJson(remote, remoteJson)) {
+        Serial.println("[DB] checkUpdate: bad last_update.json"); return -1;
+    }
+
+    // ── 2. Load local timestamps (absent on very first run) ──────────────────
+    StaticJsonDocument<128> localTs;
+    {
+        File lf = LittleFS.open("/db_last_update.json", "r");
+        if (lf) { deserializeJson(localTs, lf); lf.close(); }
+    }
+
+    // ── 3. Decide which files need downloading ────────────────────────────────
+    struct Spec { const char* key; const char* path; const char* url; };
+    static const Spec specs[] = {
+        { "brands",             "/id_brand.json",    TIGERTAG_DB_BRAND_URL    },
+        { "filament_materials", "/id_material.json", TIGERTAG_DB_MATERIAL_URL },
+    };
+
+    int updated = 0;
+    for (const auto& s : specs) {
+        int64_t remoteT = remote[s.key].as<int64_t>();
+        int64_t localT  = localTs[s.key].as<int64_t>();
+        if (remoteT > 0 && remoteT == localT && LittleFS.exists(s.path)) {
+            Serial.printf("[DB] %s up to date (ts=%lld)\n", s.path, remoteT);
+            continue;
+        }
+        Serial.printf("[DB] Downloading %s (local=%lld → remote=%lld)\n",
+                      s.path, localT, remoteT);
+        netLog(String("DB updating ") + (s.path + 1));  // strip leading /
+
+        HTTPClient h2;
+        h2.setTimeout(12000);
+        if (!h2.begin(s.url)) { h2.end(); continue; }
+        int c2 = h2.GET();
+        if (c2 == 200) {
+            WiFiClient* stream = h2.getStreamPtr();
+            File out = LittleFS.open(s.path, "w");
+            if (out) {
+                uint8_t buf[512];
+                int total = h2.getSize(), received = 0;
+                uint32_t t0 = millis();
+                while (h2.connected() && received < total) {
+                    size_t avail = stream->available();
+                    if (avail > 0) {
+                        int n = stream->readBytes(buf, min((size_t)sizeof(buf), avail));
+                        out.write(buf, n);
+                        received += n;
+                    } else if (millis() - t0 > 10000) {
+                        break;          // stall guard
+                    } else {
+                        delay(2);
+                    }
+                }
+                out.close();
+                Serial.printf("[DB] Saved %s (%d bytes)\n", s.path, received);
+                updated++;
+            }
+        } else {
+            Serial.printf("[DB] Download failed: HTTP %d\n", c2);
+        }
+        h2.end();
+    }
+
+    // ── 4. Persist new timestamps ─────────────────────────────────────────────
+    // Always save so a first run (no local file yet) stores the timestamps
+    // even when nothing was downloaded (files were pre-loaded by uploadfs).
+    {
+        StaticJsonDocument<128> save;
+        save["brands"]             = remote["brands"];
+        save["filament_materials"] = remote["filament_materials"];
+        File out = LittleFS.open("/db_last_update.json", "w");
+        if (out) { serializeJson(save, out); out.close(); }
+    }
+
+    // ── 5. Reload in-memory maps if anything changed ──────────────────────────
+    if (updated > 0) {
+        loadTagDbs();
+        netLog("DB updated: " + String(updated) + " file(s) refreshed");
+    } else {
+        netLog("DB up to date");
+    }
+    return updated;
+}
+
+// One-shot FreeRTOS task — used by /api/update-db and the periodic loop check.
+// The HTTP calls must not run inside the AsyncWebServer handler or the main loop.
+static void dbUpdateTaskFn(void* /*param*/) {
+    checkAndUpdateTagDbs();
+    gDbUpdateRunning = false;   // release guard so next scheduled check can run
+    vTaskDelete(nullptr);
 }
 
 // ============================================================================
@@ -1381,13 +1563,9 @@ float readInventoryContainerWeight(const String& uid, float* outMeasureGr) {
     }
 
     netLog("CONTAINER_GET result=" + String(container, 1) + "g uid=" + uidForLookup);
-
-    // Store container weight globally for real-time display calculation
-    if (container > 0) {
-        extern float gLastContainer;  // Global variable for display
-        gLastContainer = container;
-        Serial.printf("[CONTAINER] Stored globally: gLastContainer = %.2f g\n", container);
-    }
+    // NOTE: gLastContainer is NOT set here — this function runs on Core 0 (cloudWorkerTask)
+    // and setting globals from Core 0 races with Core 1 resets. The caller (handleWeighWorkflow)
+    // is the sole owner of gLastContainer and sets it after validating the session UID.
 
     // Extract rack location information from nested rack object
     // Can be in two formats:
@@ -2048,7 +2226,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
         Serial.printf("[WS] client #%u connected\n", client->id());
         // Send the full unified frame immediately so the client has all state
         // without waiting up to 250 ms for the next broadcast tick.
-        client->text(buildWsFrame(currentWeight));
+        client->text(buildWsFrame(currentWeight, true));  // full snapshot on connect
 
     } else if (type == WS_EVT_DATA) {
         AwsFrameInfo *info = (AwsFrameInfo*)arg;
@@ -2144,38 +2322,78 @@ static void twinWorkerTask(void* /*param*/) {
 // The OLED and the web UI consume the same real-time stream — no separate
 // HTTP path needed for any field.
 
-static String buildWsFrame(float weight) {
+static String buildWsFrame(float weight, bool full) {
+    // ── Last-sent state for delta compression ────────────────────────────────
+    // Only "live" fields are tracked. Slow-changing fields (calibration, email,
+    // db_brands, uptime…) are sent only in full snapshots (connect + 30s heartbeat).
+    static struct {
+        int    weight          = INT_MIN;
+        int    netWeight       = INT_MIN;
+        int    containerWeight = INT_MIN;
+        String uid, uid2, uidLeft, uidRight, uidTwin;
+        String sendToCloud     = "\x01";  // sentinel — matches no real value
+        String cloud           = "\x01";
+        bool   firebaseAuth    = false;
+        bool   dbUpdating      = false;
+        bool   init            = false;
+    } last;
+
+    static uint32_t lastFullMs = 0;
+    const uint32_t  now        = millis();
+
+    // First call or 30-second heartbeat → force full snapshot
+    if (!last.init || (!full && now - lastFullMs >= 30000)) {
+        full = true; lastFullMs = now; last.init = true;
+    }
+
+    // ── Compute current values ────────────────────────────────────────────────
     String stcWs;
     if      (sendPhase == "scanning"    && sendCountdown >= 0) stcWs = "scanning:" + String(sendCountdown);
-    else if (sendPhase == "stabilizing" && sendCountdown >= 0) stcWs = "stable:" + String(sendCountdown);
+    else if (sendPhase == "stabilizing" && sendCountdown >= 0) stcWs = "stable:"   + String(sendCountdown);
     else if (sendPhase == "countdown"   && sendCountdown >= 0) stcWs = String(sendCountdown);
-    else if (sendPhase == "send")    stcWs = "send";
-    else if (sendPhase == "success") stcWs = "success";
-    else if (sendPhase == "error")   stcWs = "error";
+    else stcWs = sendPhase;  // "send","success","error","done","ready",""
 
-    int cwt = (gLastContainer > 0.0f) ? (int)roundf(gLastContainer) : 0;
-    // Clamp displayed weight to 0 when below MIN_WEIGHT_TO_SEND_G — avoids showing
-    // "-1g / -2g" on the web UI due to tare dead zone or HX711 drift.
-    // Raw value is kept internally for tare and slope calculations.
-    int displayW = (weight < MIN_WEIGHT_TO_SEND_G) ? 0 : roundWeight(weight);
-    int nwt = (cwt > 0 && displayW > cwt) ? displayW - cwt : 0;
+    int  cwt      = (gLastContainer > 0.0f) ? (int)roundf(gLastContainer) : 0;
+    int  displayW = (weight < MIN_WEIGHT_TO_SEND_G) ? 0 : roundWeight(weight);
+    int  nwt      = (cwt > 0 && displayW > cwt) ? displayW - cwt : 0;
+    String curCloud = WiFi.isConnected() ? "ok" : "down";
+    bool   curFbAuth  = firebaseAuth;
+    bool   curDbUpd   = (bool)gDbUpdateRunning;
 
+    // ── Delta fields — included only when the value changed ──────────────────
     StaticJsonDocument<768> doc;
-    doc["weight"]            = displayW;
-    doc["netWeight"]         = nwt;
-    doc["containerWeight"]   = cwt;
-    doc["uid"]               = lastUID;
-    doc["uid2"]              = lastUID2;
-    doc["uid_left"]          = lastUIDLeft;
-    doc["uid_right"]         = lastUIDRight;
-    doc["uid_twin"]          = lastUIDTwin;
-    doc["sendToCloud"]       = stcWs;
-    doc["cloud"]             = WiFi.isConnected() ? "ok" : "down";
-    doc["firebaseAuth"]      = firebaseAuth;
-    doc["firebaseConfigured"]= isFirebaseConfigured();
-    if (firebaseEmail.length()) doc["firebaseEmail"] = firebaseEmail;
-    doc["calibrationFactor"] = calibrationFactor;
-    doc["uptime_s"]          = (uint32_t)(millis() / 1000);
+#define WS_D_I(k,v,lv) if (full||(v)!=(lv)){doc[k]=(v);(lv)=(v);}
+#define WS_D_S(k,v,lv) if (full||(v)!=(lv)){doc[k]=(v);(lv)=(v);}
+#define WS_D_B(k,v,lv) if (full||(v)!=(lv)){doc[k]=(v);(lv)=(v);}
+    WS_D_I("weight",          displayW,     last.weight)
+    WS_D_I("netWeight",       nwt,          last.netWeight)
+    WS_D_I("containerWeight", cwt,          last.containerWeight)
+    WS_D_S("uid",             lastUID,      last.uid)
+    WS_D_S("uid2",            lastUID2,     last.uid2)
+    WS_D_S("uid_left",        lastUIDLeft,  last.uidLeft)
+    WS_D_S("uid_right",       lastUIDRight, last.uidRight)
+    WS_D_S("uid_twin",        lastUIDTwin,  last.uidTwin)
+    WS_D_S("sendToCloud",     stcWs,        last.sendToCloud)
+    WS_D_S("cloud",           curCloud,     last.cloud)
+    WS_D_B("firebaseAuth",    curFbAuth,    last.firebaseAuth)
+    WS_D_B("db_updating",     curDbUpd,     last.dbUpdating)
+#undef WS_D_I
+#undef WS_D_S
+#undef WS_D_B
+
+    // ── Snapshot-only fields — connect + 30s heartbeat ───────────────────────
+    if (full) {
+        doc["firebaseConfigured"] = isFirebaseConfigured();
+        if (firebaseEmail.length()) doc["firebaseEmail"] = firebaseEmail;
+        doc["calibrationFactor"]  = calibrationFactor;
+        doc["uptime_s"]           = (uint32_t)(now / 1000);
+        doc["db_brands"]          = (int)gBrandDb.size();
+        doc["db_materials"]       = (int)gMaterialDb.size();
+        doc["db_checked_s"]       = (gLastDbCheckMs > 0)
+                                        ? (int32_t)((now - gLastDbCheckMs) / 1000) : -1;
+    }
+
+    if (doc.size() == 0) return "";   // nothing changed — caller skips textAll
 
     String out;
     serializeJson(doc, out);
@@ -2212,7 +2430,7 @@ static void resetAfterSuccessfulSend(int shownWeight) {
     servoLockedUntilAutotare = true;  // Lock servo until auto-tare completes
     stopServoSearch();
     Serial.println("[SERVO] Cycle locked after send, waiting for removal + auto tare");
-    ws.textAll(buildWsFrame((float)shownWeight));
+    ws.textAll(buildWsFrame((float)shownWeight, true));  // force full after state mutation
     displayWeightWithState(currentWeight, lastUID, currentOledState);
 }
 
@@ -2454,6 +2672,12 @@ void setupWebServer() {
         doc["wfPhase"]        = wfPhaseStr;
         doc["wfSlope"]        = (int)wfCurrentSlope;   // g/s (debug)
         doc["containerWeight"] = wfContainerFetched ? (int)wfContainerWeight : -1;
+        // TigerTag DB state — lets the web UI show whether brand/material DB is loaded & fresh
+        doc["db_updating"]   = (bool)gDbUpdateRunning;
+        doc["db_brands"]     = (int)gBrandDb.size();
+        doc["db_materials"]  = (int)gMaterialDb.size();
+        doc["db_checked_s"]  = (gLastDbCheckMs > 0)
+                                   ? (int32_t)((millis() - gLastDbCheckMs) / 1000) : -1;
         String out; serializeJson(doc, out);
         request->send(200, "application/json", out);
     });
@@ -2915,6 +3139,24 @@ void setupWebServer() {
         }
     );
 
+    // POST /api/update-db — check last_update.json and refresh changed DB files.
+    // Returns 202 immediately; update runs in a background task (Core 0).
+    server.on("/api/update-db", HTTP_POST, [](AsyncWebServerRequest *request){
+        if (!WiFi.isConnected()) {
+            request->send(503, "application/json", "{\"error\":\"wifi not connected\"}");
+            return;
+        }
+        if (gDbUpdateRunning) {
+            request->send(409, "application/json", "{\"error\":\"update already in progress\"}");
+            return;
+        }
+        gLastDbCheckMs   = millis();   // reset timer so periodic check waits another 24 h
+        gDbUpdateRunning = true;
+        xTaskCreatePinnedToCore(dbUpdateTaskFn, "dbUpdate", 8192, nullptr, 1, nullptr, 0);
+        request->send(202, "application/json",
+            "{\"status\":\"checking\",\"message\":\"DB update started, check logs\"}");
+    });
+
     // Weight push - shared implementation (ArduinoJson, merged handlers)
     server.on("/api/weight", HTTP_POST, [](AsyncWebServerRequest *r){}, NULL,
         [](AsyncWebServerRequest *r, uint8_t *d, size_t l, size_t i, size_t t){
@@ -3210,11 +3452,14 @@ void handleWeighWorkflow(float w) {
     updateWeightSlope(w);
     bool removingNow = (wfCurrentSlope < SLOPE_REMOVAL_G_PER_S);
 
-    // Dismiss success/error banner after 2 s
+    // Dismiss success/error banner after 2 s → transition to "done" (still in WF_DONE)
     if ((sendPhase == "success" || sendPhase == "error") &&
         (now - sendPhaseLastChangeMs > 2000)) {
-        sendPhase = ""; sendCountdown = -1;
+        sendPhase = (wfPhase == WF_DONE) ? "done" : "";
+        sendCountdown = -1;
     }
+    // "ready" badge stays permanently in WF_IDLE until the next session starts
+    // (sendPhase is overwritten with "scanning" on the IDLE→SCANNING transition)
 
     // ── IDLE ─────────────────────────────────────────────────────────────────
     if (wfPhase == WF_IDLE) {
@@ -3232,6 +3477,9 @@ void handleWeighWorkflow(float w) {
             stableSinceMs      = 0;
             sendPhase          = "scanning";   // distinct from "countdown" — no UID yet
             sendCountdown      = (int)((SPOOL_SCAN_DURATION_MS + 999) / 1000);
+            // Reset removal-detection state for new session
+            wfPeakWeight    = 0.0f;
+            wfBelowThreshMs = 0;
             // Reset async worker flags for fresh session
             gContainerFetchPending = false; gContainerFetchDone = false;
             gContainerBFetchUID = ""; gContainerBFetchResult = 0.0f; gContainerBFetchDone = false;
@@ -3241,22 +3489,75 @@ void handleWeighWorkflow(float w) {
         return;
     }
 
-    // ── Détection retrait spool (toutes phases actives) ──────────────────────
-    // Pente fortement négative OU poids sous seuil → reset immédiat
+    // ── Détection retrait spool (phases SCANNING / STABLE_WAIT / SENDING) ──────
+    // Three-layer detection to avoid false resets during heavy-spool settling:
+    //   1. Near-zero weight  → always reset (scale empty)
+    //   2. Slope-based fast removal → only after settling guard (1.5 s) AND after weight peaked
+    //   3. Threshold (< 50 g) slow removal → debounced 400 ms AND weight must have peaked above 50 g
     if (wfPhase != WF_DONE) {
-        if (removingNow || w < MIN_WEIGHT_TO_SEND_G) {
+        // Track peak weight so we know the spool was truly placed (not just rising)
+        if (w > wfPeakWeight) wfPeakWeight = w;
+        bool spoolPeaked = (wfPeakWeight >= SPOOL_REMOVED_WEIGHT_G);
+
+        // Debounce: weight must stay below threshold continuously for SPOOL_REMOVAL_DEBOUNCE_MS
+        if (spoolPeaked && w < SPOOL_REMOVED_WEIGHT_G) {
+            if (wfBelowThreshMs == 0) wfBelowThreshMs = now;
+        } else {
+            wfBelowThreshMs = 0;
+        }
+
+        // Settling guard: ignore slope for 1.5 s after scan start (heavy spool oscillation)
+        bool settling  = (now - wfScanStartMs < SPOOL_SETTLING_GUARD_MS);
+        bool spoolRemoved =
+            w < MIN_WEIGHT_TO_SEND_G                                                             // 1. near-zero
+            || (!settling && spoolPeaked && removingNow)                                         // 2. fast slope
+            || (wfBelowThreshMs > 0 && now - wfBelowThreshMs >= SPOOL_REMOVAL_DEBOUNCE_MS);     // 3. debounced threshold
+
+        if (spoolRemoved) {
+            float slopeAtReset = wfCurrentSlope;   // capture BEFORE resetSlopeBuffer clears it
+            float peakAtReset  = wfPeakWeight;     // capture BEFORE clearing
             stopServoSearch();
             wfPhase = WF_IDLE; sendPhase = ""; sendCountdown = -1;
+            // Full UID + state reset
+            lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
+            lastUIDLeft = ""; lastUIDRight = ""; lastUIDTwin = "";
+            gTwinFetchDone = false; gTwinFetchPending = false; gTwinFetchUID = ""; gTwinFetchResult = "";
+            rfidLockedForCurrentLoad = false;
+            // Container + stable reset
             wfContainerFetched = false; wfContainerWeight = 0.0f;
-            gLastContainer     = 0.0f;   // clear so web UI hides filament row immediately
+            gLastContainer     = 0.0f;
             stableCandidate = NAN; stableSinceMs = 0;
+            wfPeakWeight = 0.0f; wfBelowThreshMs = 0;
             resetSlopeBuffer();
             // Abandon any in-flight async requests
             gContainerFetchPending = false; gContainerFetchDone = false;
             gContainerBFetchUID = ""; gContainerBFetchResult = 0.0f; gContainerBFetchDone = false;
             gCloudSendPending      = false; gCloudSendDone      = false;
-            netLog("WF →IDLE (retrait: slope=" + String(wfCurrentSlope,1) + " w=" + String(w,1) + ")");
+            netLog("WF →IDLE FULL (slope=" + String(slopeAtReset,1) + " w=" + String(w,1) + "g peak=" + String(peakAtReset,1) + "g)");
             return;
+        }
+    }
+
+    // ── Async result pickup (SCANNING / STABLE_WAIT / SENDING) ──────────────
+    // Runs regardless of phase so that fetches that complete late (after SCANNING
+    // ends) are still picked up rather than silently dropped.
+    if (wfPhase != WF_DONE) {
+        // Container result — validate UID to reject stale completions from old sessions
+        if (gContainerFetchDone && !wfContainerFetched) {
+            if (gContainerFetchUID == lastUID && lastUID.length() > 0) {
+                wfContainerWeight  = gContainerFetchResult;
+                wfContainerFetched = true;
+                gLastContainer     = wfContainerWeight;
+            } else if (lastUID.length() > 0) {
+                netLog("CONTAINER stale uid=" + gContainerFetchUID + " cur=" + lastUID + " ignored");
+            }
+            gContainerFetchDone = false;
+        }
+        // Twin result for display only — do NOT clear gTwinFetchDone here.
+        // pushWeightToCloud is the sole consumer of that flag.
+        if (gTwinFetchDone && lastUID2.length() == 0 && lastUIDTwin.length() == 0) {
+            lastUIDTwin = gTwinFetchResult;
+            netLog("TWIN display=" + (lastUIDTwin.length() > 0 ? lastUIDTwin : "none"));
         }
     }
 
@@ -3280,20 +3581,6 @@ void handleWeighWorkflow(float w) {
         // so the worker can still fetch it (only if it hasn't started the B fetch yet).
         if (gContainerFetchPending && gContainerBFetchUID.length() == 0 && lastUID2.length() > 0) {
             gContainerBFetchUID = lastUID2;
-        }
-        // Pick up container result as soon as it's ready (now signaled BEFORE twin fetch)
-        if (gContainerFetchDone) {
-            wfContainerWeight  = gContainerFetchResult;
-            wfContainerFetched = true;
-            gContainerFetchDone = false;
-            gLastContainer     = wfContainerWeight;   // immediate OLED/WS update
-        }
-        // Pick up twin for display — do NOT clear gTwinFetchDone here.
-        // pushWeightToCloud is the sole consumer of gTwinFetchDone.
-        // Clearing it here would cause a duplicate sync fetch during SENDING.
-        if (gTwinFetchDone && lastUID2.length() == 0 && lastUIDTwin.length() == 0) {
-            lastUIDTwin = gTwinFetchResult;
-            netLog("TWIN display=" + (lastUIDTwin.length() > 0 ? lastUIDTwin : "none (no twin in DB)"));
         }
 
         // Countdown scan
@@ -3408,15 +3695,20 @@ void handleWeighWorkflow(float w) {
         }
         // Succès OU échec → WF_DONE : pas de retry, attendre retrait spool
         wfPhase = WF_DONE;
+        resetSlopeBuffer();   // clear stale slope from weight changes during send
         netLog("WF →DONE (session locked until spool removed)");
         return;
     }
 
     // ── DONE ─────────────────────────────────────────────────────────────────
-    // Session terminée (succès ou échec). On attend que le spool soit retiré
-    // (pente négative OU poids bas) avant d'accepter une nouvelle mesure.
+    // Session terminée. On attend que la balance soit vraiment vide (< SPOOL_REMOVED_WEIGHT_G)
+    // avant d'accepter une nouvelle mesure.
+    // Rationale: the old 70 % ratio triggered mid-removal (e.g. at 600 g), causing WF_IDLE
+    // to immediately re-start scanning on the spool being lifted.  Waiting for the scale to
+    // reach near-zero ensures WF_IDLE sees w < MIN_WEIGHT_TO_SEND_G and does NOT start
+    // scanning → the "ready" badge stays visible until the next spool is placed.
     if (wfPhase == WF_DONE) {
-        if (removingNow || w < MIN_WEIGHT_TO_SEND_G) {
+        if (w < SPOOL_REMOVED_WEIGHT_G) {  // scale is truly empty (< 50 g)
             wfPhase = WF_IDLE;
             lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
             lastUIDLeft = ""; lastUIDRight = ""; lastUIDTwin = ""; gTwinFetchDone = false; gTwinFetchPending = false; gTwinFetchUID = ""; gTwinFetchResult = "";
@@ -3428,8 +3720,8 @@ void handleWeighWorkflow(float w) {
             gContainerFetchPending = false; gContainerFetchDone = false;
             gContainerBFetchUID = ""; gContainerBFetchResult = 0.0f; gContainerBFetchDone = false;
             gCloudSendPending      = false; gCloudSendDone      = false;
-            sendPhase = ""; sendCountdown = -1;
-            netLog("WF DONE→IDLE (spool retiré, prêt)");
+            sendPhase = "ready"; sendPhaseLastChangeMs = now; sendCountdown = -1;
+            netLog("WF DONE→IDLE (scale empty w=" + String(w, 1) + "g)");
         }
         return;
     }
@@ -3836,9 +4128,12 @@ String readRFIDFromReader(MFRC522 &reader, String &uidHexOut) {
         uint16_t idBrand16    = be16(data[10], data[11]);
         uint8_t  r = data[12], g = data[13], b = data[14];
 
-        gLastManufacturer = resolveBrandNameOnlineFirst(idBrand16);
-        gLastMaterial     = resolveMaterialNameOnlineFirst(idMaterial16);
-        gLastColor        = mapColorName(r, g, b) + " #" + toHex2(r) + toHex2(g) + toHex2(b);
+        // All three lookups are now instant (local map, no network).
+        auto itB = gBrandDb.find(idBrand16);
+        gLastManufacturer = (itB != gBrandDb.end()) ? itB->second : String("Brand#") + idBrand16;
+        auto itM = gMaterialDb.find(idMaterial16);
+        gLastMaterial = (itM != gMaterialDb.end()) ? itM->second : String("Mat#") + idMaterial16;
+        gLastColor    = mapColorName(r, g, b) + " #" + toHex2(r) + toHex2(g) + toHex2(b);
 
         Serial.printf("[TAG] uid=%s -> Fab=%s Mat=%s Col=%s\n",
                       hexStr.c_str(), gLastManufacturer.c_str(), gLastMaterial.c_str(), gLastColor.c_str());
@@ -4320,6 +4615,9 @@ void setup() {
     }
 
     setupFileSystem();
+    loadTagDbs();       // Preload brand/material name DBs from LittleFS into RAM
+    if (WiFi.isConnected()) checkAndUpdateTagDbs();  // Sync DB if timestamps changed
+    gLastDbCheckMs = millis();  // next periodic check fires in 24 h, not immediately
     setupWebServer();
     setupScale();
     // setupScale() already handles tare (restores saved tare or runs first-boot tare)
@@ -4396,6 +4694,17 @@ void loop() {
 
     // Firestore heartbeat every 30 seconds
     sendScaleHeartbeat();
+
+    // ── Periodic TigerTag DB update check — every 24 h ───────────────────────
+    // Same logic as the Python script: fetch last_update.json, download only
+    // what changed. Runs in a one-shot Core-0 task so loop() is never blocked.
+    if (WiFi.isConnected()
+            && !gDbUpdateRunning
+            && millis() - gLastDbCheckMs >= DB_CHECK_INTERVAL_MS) {
+        gLastDbCheckMs   = millis();
+        gDbUpdateRunning = true;
+        xTaskCreatePinnedToCore(dbUpdateTaskFn, "dbUpdate", 8192, nullptr, 1, nullptr, 0);
+    }
 
     // OTA — poll the Firestore command queue at the same cadence as heartbeats.
     // Studio writes commands there, the device picks them up and processes them.
@@ -4633,6 +4942,10 @@ void loop() {
         Serial.printf("[SERVO] Spool removal detected - hold active until empty scale\n");
     }
 
+    // Run workflow BEFORE building the WS frame so the frame always reflects
+    // the post-workflow state (cleared UIDs, reset phase, etc.)
+    if (!autoTarePending) handleWeighWorkflow(weight);
+
     if (millis() - lastUpdate > WS_UPDATE_INTERVAL_MS) {
         uint32_t now = millis();
 
@@ -4657,12 +4970,12 @@ void loop() {
 
         // Unified WS frame — same tick as OLED, contains ALL fields the web UI needs.
         // No separate HTTP polling required on the client side.
-        ws.textAll(buildWsFrame(weight));
+        // NOTE: handleWeighWorkflow() runs BEFORE this block so the frame always
+        //       reflects the post-workflow state (cleared UIDs, updated phase, etc.)
+        { String frame = buildWsFrame(weight); if (frame.length()) ws.textAll(frame); }
         ws.cleanupClients();
         lastUpdate = millis();
     }
-
-    if (!autoTarePending) handleWeighWorkflow(weight);
 
     delay(10);
 }

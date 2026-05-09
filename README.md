@@ -32,9 +32,11 @@ It is designed to be **3D-printable, hackable, and cheap** (~30 € BoM). The cl
 - ⚙️ **Continuous servo** that gently rotates the spool to find the second tag
 - ☁️ **Real-time cloud sync** (Firestore) — see your inventory from any device
 - 🔐 **Google Sign-In** via OAuth bridge (no passwords stored on device)
-- 📱 **Modern web UI** served by the ESP32 itself, mobile-friendly
+- 📱 **Modern web UI** served by the ESP32 itself, mobile-friendly — with live **workflow badge** (Scanning / Stabilizing / Sending / Ready)
+- 🗄️ **Local brand & material DB** (LittleFS) — RFID lookups are instant, no internet required per scan; auto-updated from GitHub every 24 h
 - 🌍 **Multilingual Web Installer** (English, French, German, Spanish, Italian, Polish, Portuguese, Brazilian Portuguese, Chinese)
 - 🔄 **Auto-tare**, **EMA + median filtering**, **twin-tag pairing** (§6.1 spec)
+- ⚡ **WebSocket delta compression** — only changed fields broadcast at 10 Hz; full snapshot on connect
 - 🛠️ **No closed binary blobs** — everything compiles from source
 
 ---

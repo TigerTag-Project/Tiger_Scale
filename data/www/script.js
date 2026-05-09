@@ -102,8 +102,10 @@ const translations = {
         sent: '✓ Envoyé',
         sendError: '✗ Erreur',
         sendIn: 'Envoi dans',
-        scanningRfid: '📡 Lecture RFID...',
-        stabilizing: '⚖️ Stabilisation...',
+        scanningRfid:  '📡 Lecture RFID...',
+        stabilizing:   '⚖️ Stabilisation...',
+        removeSpool:   'Retirer la bobine',
+        readyForSpool: 'Prêt pour la prochaine',
         // Weight breakdown
         containerLabel: 'Bobine',
         filamentLabel:  'Filament',
@@ -202,8 +204,10 @@ const translations = {
         sent: '✓ Sent',
         sendError: '✗ Error',
         sendIn: 'Sending in',
-        scanningRfid: '📡 Scanning RFID...',
-        stabilizing: '⚖️ Stabilizing...',
+        scanningRfid:  '📡 Scanning RFID...',
+        stabilizing:   '⚖️ Stabilizing...',
+        removeSpool:   'Remove spool',
+        readyForSpool: 'Ready for next spool',
         // Weight breakdown
         containerLabel: 'Spool',
         filamentLabel:  'Filament',
@@ -325,6 +329,8 @@ const cloudDot = document.getElementById('cloudDot');
 const cloudText = document.getElementById('cloudText');
 const fbDot = document.getElementById('fbDot');
 const fbText = document.getElementById('fbText');
+const dbDot  = document.getElementById('dbDot');
+const dbText = document.getElementById('dbText');
 const weightEl = document.getElementById('weight');
 const uidEl = document.getElementById('uid');
 const calFactorEl = document.getElementById('calFactor');
@@ -365,6 +371,30 @@ function setCloudStatus(state) {
     } else {
         cloudDot.className = 'status-dot error';
     }
+}
+
+function setDbStatus(s) {
+    if (!dbDot || !dbText) return;
+    if (s.db_updating) {
+        dbDot.className = 'status-dot warning';
+        setTextIfChanged(dbText, 'DB ↻');
+        return;
+    }
+    const loaded = (s.db_brands > 0 && s.db_materials > 0);
+    if (!loaded) {
+        dbDot.className = 'status-dot error';
+        setTextIfChanged(dbText, 'DB !');
+        return;
+    }
+    // Show how long ago the last check ran
+    const secs = s.db_checked_s;
+    let age = '';
+    if (secs < 0)          age = '';
+    else if (secs < 120)   age = ' ✓';
+    else if (secs < 3600)  age = ' ' + Math.round(secs / 60) + 'm';
+    else                   age = ' ' + Math.round(secs / 3600) + 'h';
+    dbDot.className = 'status-dot active';
+    setTextIfChanged(dbText, 'DB' + age);
 }
 
 function setFirebaseConfigured(flag) {
@@ -833,19 +863,13 @@ function applyStatusSnapshot(s) {
         setTextIfChanged(weightEl, String(s.weight));
     }
 
-    // Filament row — shown only when container is known (async, arrives later)
+    // Spool / Filament row — always visible, shows — when no value available
     if (typeof s.containerWeight !== 'undefined') {
-        const rowEl = document.getElementById('filamentRow');
-        const cwEl  = document.getElementById('containerWeightDisplay');
-        const nwEl  = document.getElementById('netWeightDisplay');
-        if (s.containerWeight > 0) {
-            if (cwEl) setTextIfChanged(cwEl, String(s.containerWeight));
-            if (nwEl) setTextIfChanged(nwEl, (typeof s.netWeight !== 'undefined' && s.netWeight >= 0)
-                                              ? String(s.netWeight) : '—');
-            if (rowEl) rowEl.style.display = '';
-        } else {
-            if (rowEl) rowEl.style.display = 'none';
-        }
+        const cwEl = document.getElementById('containerWeightDisplay');
+        const nwEl = document.getElementById('netWeightDisplay');
+        if (cwEl) setTextIfChanged(cwEl, s.containerWeight > 0 ? String(s.containerWeight) : '—');
+        if (nwEl) setTextIfChanged(nwEl, (s.containerWeight > 0 && typeof s.netWeight !== 'undefined' && s.netWeight >= 0)
+                                          ? String(s.netWeight) : '—');
     }
 
     // UID Left (rfid2 — physically Left reader)
@@ -886,6 +910,11 @@ function applyStatusSnapshot(s) {
     if (typeof s.cloud !== 'undefined') {
         setCloudStatus(s.cloud);
     }
+
+    // DB status
+    if (typeof s.db_brands !== 'undefined') {
+        setDbStatus(s);
+    }
     
     // API UI removed in Firebase-only mode
     // Modal trigger uses firebaseAuth ("am I signed in right now?") rather than
@@ -922,28 +951,27 @@ function applyStatusSnapshot(s) {
         setTextIfChanged(upEl, formatHMS(secs));
     }
     
-    // Send to cloud status
+    // Workflow state badge (top-left overlay on the weight card)
     if (typeof s.sendToCloud !== 'undefined') {
         const v = String(s.sendToCloud || '').trim();
         if (v === '' || v === '0') {
             setSendState('');
-        } else if (v === 'send') {
-            setSendState(t('sending'), 'rgba(255,255,255,0.2)');
-        } else if (v === 'success') {
-            setSendState(t('sent'), 'rgba(72,187,120,0.3)');
-            setTimeout(() => setSendState(''), 1500);
-        } else if (v === 'error') {
-            setSendState(t('sendError'), 'rgba(245,101,101,0.3)');
-            setTimeout(() => setSendState(''), 2000);
         } else if (v.startsWith('scanning:')) {
-            // WF_SCANNING — motor rotating, waiting for RFID tag
-            setSendState(t('scanningRfid'), 'rgba(255,255,255,0.12)');
+            setSendState('📡 ' + t('scanningRfid'), 'rgba(100,160,255,0.30)');
         } else if (v.startsWith('stable:')) {
-            // WF_STABLE_WAIT — UID found, weight stabilizing
-            setSendState(t('stabilizing'), 'rgba(255,255,255,0.18)');
+            setSendState('⚖️ ' + t('stabilizing'),  'rgba(255,200,80,0.30)');
+        } else if (v === 'send') {
+            setSendState('⏳ ' + t('sending'),         'rgba(255,255,255,0.22)');
+        } else if (v === 'success') {
+            setSendState('✅ ' + t('sent'),             'rgba(72,187,120,0.40)');
+        } else if (v === 'error') {
+            setSendState('❌ ' + t('sendError'),        'rgba(245,101,101,0.40)');
+        } else if (v === 'done') {
+            setSendState('🗑️ ' + t('removeSpool'),     'rgba(255,160,50,0.35)');
+        } else if (v === 'ready') {
+            setSendState('🟢 ' + t('readyForSpool'),   'rgba(72,187,120,0.35)');
         } else if (/^\d+$/.test(v)) {
-            // legacy fallback
-            setSendState(t('sendIn') + ' ' + v + 's', 'rgba(255,255,255,0.2)');
+            setSendState('⏳ ' + t('sendIn') + ' ' + v + 's', 'rgba(255,255,255,0.22)');
         }
     }
 }
@@ -1436,16 +1464,12 @@ let _logActiveTab = 'fb';
 function logPanelOpen(tab) {
     _logPanelOpen = true;
     document.getElementById('logSidePanel').classList.add('open');
-    document.getElementById('logSideOverlay').classList.add('open');
-    document.body.style.overflow = 'hidden';
     logTabSwitch(tab || _logActiveTab);
 }
 
 function logPanelClose() {
     _logPanelOpen = false;
     document.getElementById('logSidePanel').classList.remove('open');
-    document.getElementById('logSideOverlay').classList.remove('open');
-    document.body.style.overflow = '';
     clearInterval(_fbLogPollId); _fbLogPollId = null;
 }
 

@@ -107,6 +107,7 @@ body {
     text-align: center;
     color: #fff;
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    position: relative;    /* needed for the workflow badge overlay */
 }
 
 .user-name {
@@ -218,14 +219,23 @@ body {
     color: #a0f0c0;
 }
 
+/* Workflow state badge — floats top-left over the weight card, never moves content */
 .send-status {
-    margin-top: 12px;
-    padding: 8px 16px;
+    position: absolute;
+    top: 12px;
+    left: 14px;
+    padding: 4px 10px;
     border-radius: 20px;
-    font-size: 0.85em;
-    font-weight: 600;
-    background: rgba(255,255,255,0.15);
-    display: inline-block;
+    font-size: 0.72em;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    background: rgba(255,255,255,0.18);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,0.25);
+    white-space: nowrap;
+    pointer-events: none;
+    transition: opacity 0.25s ease, background 0.25s ease;
 }
 
 /* Card */
@@ -1059,16 +1069,6 @@ input::placeholder {
 .log-open-arrow { font-size: 1.1rem; color: #a0aec0; font-weight: 400; }
 
 /* ── Log Side Panel ─────────────────────────────────────────────────────── */
-.log-side-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.35);
-    z-index: 600;
-    animation: fadeIn .2s;
-}
-.log-side-overlay.open { display: block; }
-
 .log-side-panel {
     position: fixed;
     top: 0; right: 0; bottom: 0;
@@ -1114,18 +1114,24 @@ input::placeholder {
 .log-side-tab:hover:not(.active) { color: #a0aec0; }
 
 .log-side-close {
-    background: none;
+    background: #2d3748;
     border: none;
-    color: #718096;
-    font-size: 1.1rem;
+    color: #a0aec0;
+    font-size: 1rem;
     cursor: pointer;
-    padding: 8px;
-    border-radius: 6px;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
     line-height: 1;
     transition: color .15s, background .15s;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2px;
 }
-.log-side-close:hover { color: #e2e8f0; background: #2d3748; }
+.log-side-close:hover { color: #fff; background: #4a5568; transform: none; box-shadow: none; }
 
 .log-pane {
     display: none;

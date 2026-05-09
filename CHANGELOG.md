@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-05-09 — Local RFID DB, WebSocket delta compression, workflow badge
+
+### Added
+
+#### Firmware
+- **Local TigerTag brand/material DB** — `id_brand.json` and `id_material.json` are stored in
+  LittleFS and loaded into RAM at boot (`std::map<uint16_t,String>`). RFID lookups are now
+  instant (no HTTP) and never block the weight display loop.
+- **Automatic DB version check** — on boot and every 24 h, the firmware fetches
+  `last_update.json` from GitHub and updates only the files whose timestamp changed
+  (same algorithm as the official Python script). Manual trigger via `POST /api/update-db`.
+- **DB status indicator** in the web UI header — coloured dot + text shows whether the DB is
+  loaded, up-to-date, stale, or currently updating.
+- **Workflow state badge** — semi-transparent pill overlaid top-left of the weight card
+  (`position: absolute`) so card height never changes. States:
+  `📡 Scanning RFID` · `⚖️ Stabilizing` · `⏳ Sending` · `✅ Sent` · `🗑️ Remove Spool` · `🟢 Ready for next spool`
+- **"Ready for next spool" permanent badge** — shows after spool removal and stays until the
+  next spool is placed (not dismissed by a timer).
+- **WebSocket delta compression** — `buildWsFrame()` tracks last-sent values; only changed
+  fields are included in each 100 ms broadcast. Full snapshot sent on connect and every 30 s.
+  Broadcast skipped entirely when nothing changed.
+
+### Fixed
+
+- **RFID scan no longer freezes the weight display** — brand/material resolved from local RAM
+  instead of two blocking HTTP GETs (~4.5 s each) on Core 1.
+- **Post-send re-scan bug** — after a successful send, the weight settled slightly during the
+  ~5 s async Firebase call. The residual negative slope triggered `removingNow`, causing
+  `WF_DONE → WF_IDLE` in one tick and immediately re-starting the RFID scan with the spool
+  still on the scale. Fixed by: (1) resetting the slope buffer when entering `WF_DONE`,
+  (2) removing `removingNow` from the `WF_DONE` exit condition.
+- **"Ready for next spool" badge invisible** — the old 70 % weight threshold triggered
+  `WF_DONE → WF_IDLE` mid-removal (e.g. at 600 g), causing `WF_IDLE` to immediately start
+  scanning and overwrite the badge within 100 ms. Changed threshold to `SPOOL_REMOVED_WEIGHT_G`
+  (50 g) so the transition only fires when the scale is truly empty.
+- **Spool / Filament row always visible** — removed `display:none`; shows `—` when no value.
+
 ## [2.0.0] — 2026-05-05 — First public release
 
 This is the first public, open-source release of TigerScale.

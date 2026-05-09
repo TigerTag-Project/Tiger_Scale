@@ -30,6 +30,10 @@
                         <span id="fbDot" class="status-dot"></span>
                         <span id="fbText" style="font-size: 0.7rem;">FB</span>
                     </div>
+                    <div class="status-info" title="TigerTag DB status">
+                        <span id="dbDot" class="status-dot"></span>
+                        <span id="dbText" style="font-size: 0.7rem;">DB</span>
+                    </div>
                 </div>
                 <div class="lang-switcher">
                     <button class="lang-btn active" onclick="setLanguage('en')" data-lang="en">EN</button>
@@ -40,6 +44,9 @@
 
         <!-- Weight Display -->
         <div class="weight-card">
+            <!-- Workflow state badge — absolute overlay, never shifts layout -->
+            <div id="sendState" class="send-status hidden"></div>
+
             <div id="userName" class="user-name hidden"></div>
 
             <!-- Big number: poids brut de la balance (toujours affiché) -->
@@ -48,8 +55,8 @@
                 <span class="weight-unit">g</span>
             </div>
 
-            <!-- Filament row: visible uniquement quand le container est connu -->
-            <div id="filamentRow" class="weight-meta-row" style="display:none">
+            <!-- Filament row: toujours visible, affiche — quand pas de valeur -->
+            <div id="filamentRow" class="weight-meta-row">
                 <div class="weight-meta-item">
                     <span class="weight-meta-label" data-i18n="containerLabel">Bobine</span>
                     <span class="weight-meta-value"><span id="containerWeightDisplay">—</span> g</span>
@@ -78,7 +85,6 @@
                 </div>
             </div>
 
-            <div id="sendState" class="send-status hidden"></div>
         </div>
 
         <!-- Tare Button -->
@@ -547,7 +553,6 @@
     </script>
 
     <!-- ── Log Side Panel ───────────────────────────────────────────────── -->
-    <div id="logSideOverlay" class="log-side-overlay" onclick="logPanelClose()"></div>
     <div id="logSidePanel" class="log-side-panel">
         <div class="log-side-header">
             <div class="log-side-tabs">
