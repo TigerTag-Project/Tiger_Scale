@@ -21,18 +21,18 @@
 //   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1110– 2040
 //   §13 WEBSOCKET                                                                2041– 2067
 //   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2068– 2138
-//   §15 5 — UNIFIED WS FRAME BUILDER                                             2139– 2182
-//   §16 WEIGHT FILTER HELPERS                                                    2183– 2197
-//   §17 POST-SEND STATE RESET (shared by all send paths)                         2198– 2216
-//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2217– 2289
-//   §19 WEB SERVER                                                               2290– 2990
-//   §20 CLOUD COMMUNICATION                                                      2991– 3173
-//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3174– 3424
-//   §22 mDNS                                                                     3425– 3462
-//   §23 SCALE                                                                    3463– 3554
-//   §24 RFID                                                                     3555– 3884
-//   §25 OTA — Over-the-air firmware + filesystem update                          3885– 4253
-//   §26 SETUP & LOOP                                                             4254– 4655
+//   §15 5 — UNIFIED WS FRAME BUILDER                                             2139– 2183
+//   §16 WEIGHT FILTER HELPERS                                                    2184– 2198
+//   §17 POST-SEND STATE RESET (shared by all send paths)                         2199– 2217
+//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2218– 2290
+//   §19 WEB SERVER                                                               2291– 2992
+//   §20 CLOUD COMMUNICATION                                                      2993– 3175
+//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3176– 3426
+//   §22 mDNS                                                                     3427– 3464
+//   §23 SCALE                                                                    3465– 3556
+//   §24 RFID                                                                     3557– 3886
+//   §25 OTA — Over-the-air firmware + filesystem update                          3887– 4255
+//   §26 SETUP & LOOP                                                             4256– 4657
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -2146,7 +2146,8 @@ static void twinWorkerTask(void* /*param*/) {
 
 static String buildWsFrame(float weight) {
     String stcWs;
-    if      (sendPhase == "countdown" && sendCountdown >= 0) stcWs = String(sendCountdown);
+    if      (sendPhase == "scanning"  && sendCountdown >= 0) stcWs = "scanning:" + String(sendCountdown);
+    else if (sendPhase == "countdown" && sendCountdown >= 0) stcWs = String(sendCountdown);
     else if (sendPhase == "send")    stcWs = "send";
     else if (sendPhase == "success") stcWs = "success";
     else if (sendPhase == "error")   stcWs = "error";
@@ -2436,7 +2437,8 @@ void setupWebServer() {
         if (gOtaMessage.length())     doc["ota_message"]      = gOtaMessage;
         if (gOtaLatestVer.length())   doc["ota_latest"]       = gOtaLatestVer;
         String stc;
-        if      (sendPhase == "countdown" && sendCountdown >= 0) stc = String(sendCountdown);
+        if      (sendPhase == "scanning"  && sendCountdown >= 0) stc = "scanning:" + String(sendCountdown);
+        else if (sendPhase == "countdown" && sendCountdown >= 0) stc = String(sendCountdown);
         else if (sendPhase == "send")    stc = "send";
         else if (sendPhase == "success") stc = "success";
         else if (sendPhase == "error")   stc = "error";
@@ -3226,7 +3228,7 @@ void handleWeighWorkflow(float w) {
             wfContainerFetched = false;
             stableCandidate    = NAN;
             stableSinceMs      = 0;
-            sendPhase          = "countdown";
+            sendPhase          = "scanning";   // distinct from "countdown" — no UID yet
             sendCountdown      = (int)((SPOOL_SCAN_DURATION_MS + 999) / 1000);
             // Reset async worker flags for fresh session
             gContainerFetchPending = false; gContainerFetchDone = false;
