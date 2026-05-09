@@ -362,15 +362,10 @@ function updateCloudText() {
 }
 
 function setCloudStatus(state) {
-    const s = String(state || '').toLowerCase();
-    cloudStatus = (s === 'up' || s === 'ok') ? 'up' : 'down';
+    // Accept both legacy string ("ok"/"down") and new boolean true/false
+    cloudStatus = (state === true || state === 'up' || state === 'ok') ? 'up' : 'down';
     updateCloudText();
-    
-    if (cloudStatus === 'up') {
-        cloudDot.className = 'status-dot active';
-    } else {
-        cloudDot.className = 'status-dot error';
-    }
+    cloudDot.className = cloudStatus === 'up' ? 'status-dot active' : 'status-dot error';
 }
 
 function setDbStatus(s) {
@@ -412,17 +407,25 @@ function setFirebaseConfigured(flag) {
     }
 }
 
-// Update the Account card with the user's email + avatar initial.
-// Called from applyStatusSnapshot when /api/status reports a firebaseEmail.
-function setAccountInfo(email) {
-    if (!email) return;
-    const emailEl = document.getElementById('accountEmail');
+// Update the Account card with the user's displayName/email + avatar initial.
+// Called from applyStatusSnapshot when /api/status or WS reports firebase info.
+function setAccountInfo(email, displayName) {
+    if (!email && !displayName) return;
+    const emailEl  = document.getElementById('accountEmail');
     const avatarEl = document.getElementById('accountAvatar');
-    if (emailEl) setTextIfChanged(emailEl, email);
+    if (emailEl) setTextIfChanged(emailEl, email || '');
     if (avatarEl) {
-        // Use first char of the email's local part (before @) as avatar initial
-        const local = email.split('@')[0] || '?';
-        avatarEl.textContent = local.charAt(0).toUpperCase();
+        // Avatar initial: first char of displayName, or email local part
+        const src = (displayName && displayName.length) ? displayName : (email || '?');
+        avatarEl.textContent = src.charAt(0).toUpperCase();
+    }
+    // Show displayName (or email fallback) in the weight card header
+    if (userNameEl) {
+        const label = (displayName && displayName.length) ? displayName : (email || '');
+        if (label) {
+            setTextIfChanged(userNameEl, label);
+            userNameEl.classList.remove('hidden');
+        }
     }
 }
 
@@ -928,12 +931,12 @@ function applyStatusSnapshot(s) {
         firebaseStatusKnown = true;
         setFirebaseConfigured(!!s.firebaseConfigured);
     }
-    if (typeof s.firebaseEmail === 'string') {
+    if (typeof s.firebaseEmail === 'string' || typeof s.firebaseDisplayName === 'string') {
         // Keep the (now hidden) input updated for backward-compat callers
         const emailEl = document.getElementById('firebaseEmail');
-        if (emailEl && !emailEl.value) emailEl.value = s.firebaseEmail;
-        // Also feed the visible Account card avatar + email
-        if (s.firebaseEmail) setAccountInfo(s.firebaseEmail);
+        if (emailEl && s.firebaseEmail && !emailEl.value) emailEl.value = s.firebaseEmail;
+        // Feed Account card + userName label in weight card
+        setAccountInfo(s.firebaseEmail || '', s.firebaseDisplayName || '');
     }
     
     // Calibration factor
@@ -1092,7 +1095,8 @@ function signOut() {
         const loginPass = document.getElementById('loginPassword');
         if (loginEmail) loginEmail.value = '';
         if (loginPass) loginPass.value = '';
-        setAccountInfo('');
+        setAccountInfo('', '');
+        if (userNameEl) { userNameEl.textContent = ''; userNameEl.classList.add('hidden'); }
         const avatarEl = document.getElementById('accountAvatar');
         if (avatarEl) avatarEl.textContent = '?';
         setFirebaseConfigured(false); // this also re-shows the modal via setFirebaseConfigured
@@ -1159,7 +1163,7 @@ function wsConnect() {
             if (data.type === 'firebaseStatus') {
                 firebaseStatusKnown = true;
                 setFirebaseConfigured(!!(data.auth || data.configured));
-                if (data.email) setAccountInfo(data.email);
+                if (data.email || data.displayName) setAccountInfo(data.email || '', data.displayName || '');
                 return;
             }
             applyStatusSnapshot(data);

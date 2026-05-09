@@ -12,27 +12,27 @@
 //   §3  FORWARD DECLARATIONS                                                      157–  236
 //   §4  WEIGHT ROUNDING                                                           237–  256
 //   §5  GLOBAL OBJECTS                                                            257–  270
-//   §6  CONFIGURATION VARIABLES                                                   271–  483
-//   §7  OLED DISPLAY                                                              484–  601
-//   §8  CLOUD PARSING                                                             602–  616
-//   §9  WIFI SETUP                                                                617–  889
-//   §10 LITTLEFS                                                                  890– 1097
-//   §11 FIREBASE AUTHENTICATION                                                  1098– 1291
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1292– 2218
-//   §13 WEBSOCKET                                                                2219– 2245
-//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2246– 2316
-//   §15 5 — UNIFIED WS FRAME BUILDER                                             2317– 2402
-//   §16 WEIGHT FILTER HELPERS                                                    2403– 2417
-//   §17 POST-SEND STATE RESET (shared by all send paths)                         2418– 2436
-//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2437– 2509
-//   §19 WEB SERVER                                                               2510– 3236
-//   §20 CLOUD COMMUNICATION                                                      3237– 3419
-//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3420– 3729
-//   §22 mDNS                                                                     3730– 3767
-//   §23 SCALE                                                                    3768– 3859
-//   §24 RFID                                                                     3860– 4192
-//   §25 OTA — Over-the-air firmware + filesystem update                          4193– 4561
-//   §26 SETUP & LOOP                                                             4562– 4981
+//   §6  CONFIGURATION VARIABLES                                                   271–  484
+//   §7  OLED DISPLAY                                                              485–  602
+//   §8  CLOUD PARSING                                                             603–  617
+//   §9  WIFI SETUP                                                                618–  890
+//   §10 LITTLEFS                                                                  891– 1098
+//   §11 FIREBASE AUTHENTICATION                                                  1099– 1292
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1293– 2219
+//   §13 WEBSOCKET                                                                2220– 2246
+//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2247– 2317
+//   §15 5 — UNIFIED WS FRAME BUILDER                                             2318– 2404
+//   §16 WEIGHT FILTER HELPERS                                                    2405– 2419
+//   §17 POST-SEND STATE RESET (shared by all send paths)                         2420– 2438
+//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2439– 2511
+//   §19 WEB SERVER                                                               2512– 3244
+//   §20 CLOUD COMMUNICATION                                                      3245– 3427
+//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3428– 3737
+//   §22 mDNS                                                                     3738– 3775
+//   §23 SCALE                                                                    3776– 3867
+//   §24 RFID                                                                     3868– 4200
+//   §25 OTA — Over-the-air firmware + filesystem update                          4201– 4569
+//   §26 SETUP & LOOP                                                             4570– 4990
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -273,6 +273,7 @@ WiFiManager wm;
 // ============================================================================
 
 String   firebaseEmail        = "";
+String   firebaseDisplayName  = "";
 String   firebasePassword     = "";
 String   firebaseIdToken      = "";
 String   firebaseRefreshToken = "";
@@ -2332,7 +2333,7 @@ static String buildWsFrame(float weight, bool full) {
         int    containerWeight = INT_MIN;
         String uid, uid2, uidLeft, uidRight, uidTwin;
         String sendToCloud     = "\x01";  // sentinel — matches no real value
-        String cloud           = "\x01";
+        bool   cloud           = false;
         bool   firebaseAuth    = false;
         bool   dbUpdating      = false;
         bool   init            = false;
@@ -2356,7 +2357,7 @@ static String buildWsFrame(float weight, bool full) {
     int  cwt      = (gLastContainer > 0.0f) ? (int)roundf(gLastContainer) : 0;
     int  displayW = (weight < MIN_WEIGHT_TO_SEND_G) ? 0 : roundWeight(weight);
     int  nwt      = (cwt > 0 && displayW > cwt) ? displayW - cwt : 0;
-    String curCloud = WiFi.isConnected() ? "ok" : "down";
+    bool   curCloud   = WiFi.isConnected();
     bool   curFbAuth  = firebaseAuth;
     bool   curDbUpd   = (bool)gDbUpdateRunning;
 
@@ -2374,7 +2375,7 @@ static String buildWsFrame(float weight, bool full) {
     WS_D_S("uid_right",       lastUIDRight, last.uidRight)
     WS_D_S("uid_twin",        lastUIDTwin,  last.uidTwin)
     WS_D_S("sendToCloud",     stcWs,        last.sendToCloud)
-    WS_D_S("cloud",           curCloud,     last.cloud)
+    WS_D_B("cloud",           curCloud,     last.cloud)
     WS_D_B("firebaseAuth",    curFbAuth,    last.firebaseAuth)
     WS_D_B("db_updating",     curDbUpd,     last.dbUpdating)
 #undef WS_D_I
@@ -2384,7 +2385,8 @@ static String buildWsFrame(float weight, bool full) {
     // ── Snapshot-only fields — connect + 30s heartbeat ───────────────────────
     if (full) {
         doc["firebaseConfigured"] = isFirebaseConfigured();
-        if (firebaseEmail.length()) doc["firebaseEmail"] = firebaseEmail;
+        if (firebaseEmail.length())       doc["firebaseEmail"]       = firebaseEmail;
+        if (firebaseDisplayName.length()) doc["firebaseDisplayName"] = firebaseDisplayName;
         doc["calibrationFactor"]  = calibrationFactor;
         doc["uptime_s"]           = (uint32_t)(now / 1000);
         doc["db_brands"]          = (int)gBrandDb.size();
@@ -2639,10 +2641,11 @@ void setupWebServer() {
         doc["wifi"]              = WiFi.SSID();
         doc["ip"]                = WiFi.localIP().toString();
         doc["mdns"]              = gMdnsName + ".local";
-        doc["cloud"]             = cloudOK ? "ok" : "down";
+        doc["cloud"]             = WiFi.isConnected();
         doc["firebaseConfigured"] = isFirebaseConfigured();
         doc["firebaseAuth"]      = firebaseAuth;
         doc["firebaseEmail"]     = firebaseEmail;
+        if (firebaseDisplayName.length()) doc["firebaseDisplayName"] = firebaseDisplayName;
         doc["calibrationFactor"] = calibrationFactor;
         doc["servoEnabled"]      = servoEnabled;
         doc["uptime_ms"]         = millis();
@@ -2824,8 +2827,10 @@ void setupWebServer() {
         firebaseEmail = ""; firebasePassword = "";
         firebaseIdToken = ""; firebaseRefreshToken = "";
         firebaseUid = ""; firebaseTokenMs = 0; firebaseAuth = false;
+        firebaseDisplayName = "";
         prefs.begin("config", false);
         prefs.remove("fbEmail"); prefs.remove("fbPass");
+        prefs.remove("fbDisplayName");
         prefs.remove("fbRefresh"); prefs.remove("fbUid");
         prefs.end();
         Serial.println("[FIREBASE] logout — NVS cleared OK");
@@ -2871,6 +2876,7 @@ void setupWebServer() {
             String refreshToken = String(doc["refreshToken"] | "");
             String uid          = String(doc["uid"]          | "");
             String email        = String(doc["email"]        | "");
+            String dispName     = String(doc["displayName"]  | "");
 
             if (idToken.length() == 0 || refreshToken.length() == 0 || uid.length() == 0) {
                 request->send(400, "application/json", "{\"success\":false,\"error\":\"missing tokens\"}");
@@ -2881,15 +2887,17 @@ void setupWebServer() {
             firebaseRefreshToken = refreshToken;
             firebaseUid          = uid;
             firebaseEmail        = email;
+            firebaseDisplayName  = dispName;
             firebasePassword     = "";   // critical: never persist password for token-based auth
             firebaseTokenMs      = millis();
             firebaseAuth         = true;
 
             prefs.begin("config", false);
-            prefs.putString("fbEmail",   firebaseEmail);
+            prefs.putString("fbEmail",       firebaseEmail);
+            prefs.putString("fbDisplayName", firebaseDisplayName);
             prefs.remove("fbPass");                            // wipe any stale password
-            prefs.putString("fbRefresh", firebaseRefreshToken);
-            prefs.putString("fbUid",     firebaseUid);
+            prefs.putString("fbRefresh",     firebaseRefreshToken);
+            prefs.putString("fbUid",         firebaseUid);
             prefs.end();
 
             initScaleFirestoreSync();
@@ -4577,10 +4585,11 @@ void setup() {
     delay(2000);
 
     prefs.begin("config", true);
-    firebaseEmail        = prefs.getString("fbEmail",   "");
-    firebasePassword     = prefs.getString("fbPass",    "");
-    firebaseRefreshToken = prefs.getString("fbRefresh", "");
-    firebaseUid          = prefs.getString("fbUid",     "");
+    firebaseEmail        = prefs.getString("fbEmail",       "");
+    firebaseDisplayName  = prefs.getString("fbDisplayName", "");
+    firebasePassword     = prefs.getString("fbPass",        "");
+    firebaseRefreshToken = prefs.getString("fbRefresh",     "");
+    firebaseUid          = prefs.getString("fbUid",         "");
     calibrationFactor    = prefs.getFloat("calFactor", calibrationFactor);
     servoEnabled         = prefs.getBool("servoEnabled",   true);
     hwRfidCount          = prefs.getUChar("hwRfidCnt",     2);
