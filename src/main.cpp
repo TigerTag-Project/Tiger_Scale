@@ -7,32 +7,32 @@
 //
 //   TABLE OF CONTENTS                            line range
 //   ────────────────────────────────────────────  ──────────
-//   §1  HARDWARE CONFIGURATION                                                     61–  127
-//   §2  OTA CONFIGURATION                                                         128–  146
-//   §3  FORWARD DECLARATIONS                                                      147–  226
-//   §4  WEIGHT ROUNDING                                                           227–  246
-//   §5  GLOBAL OBJECTS                                                            247–  260
-//   §6  CONFIGURATION VARIABLES                                                   261–  455
-//   §7  OLED DISPLAY                                                              456–  573
-//   §8  CLOUD PARSING                                                             574–  588
-//   §9  WIFI SETUP                                                                589–  861
-//   §10 LITTLEFS                                                                  862–  906
-//   §11 FIREBASE AUTHENTICATION                                                   907– 1100
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1101– 2031
-//   §13 WEBSOCKET                                                                2032– 2058
-//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2059– 2118
-//   §15 5 — UNIFIED WS FRAME BUILDER                                             2119– 2162
-//   §16 WEIGHT FILTER HELPERS                                                    2163– 2177
-//   §17 POST-SEND STATE RESET (shared by all send paths)                         2178– 2196
-//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2197– 2269
-//   §19 WEB SERVER                                                               2270– 2970
-//   §20 CLOUD COMMUNICATION                                                      2971– 3153
-//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3154– 3389
-//   §22 mDNS                                                                     3390– 3427
-//   §23 SCALE                                                                    3428– 3519
-//   §24 RFID                                                                     3520– 3849
-//   §25 OTA — Over-the-air firmware + filesystem update                          3850– 4218
-//   §26 SETUP & LOOP                                                             4219– 4595
+//   §1  HARDWARE CONFIGURATION                                                     61–  130
+//   §2  OTA CONFIGURATION                                                         131–  149
+//   §3  FORWARD DECLARATIONS                                                      150–  229
+//   §4  WEIGHT ROUNDING                                                           230–  249
+//   §5  GLOBAL OBJECTS                                                            250–  263
+//   §6  CONFIGURATION VARIABLES                                                   264–  458
+//   §7  OLED DISPLAY                                                              459–  576
+//   §8  CLOUD PARSING                                                             577–  591
+//   §9  WIFI SETUP                                                                592–  864
+//   §10 LITTLEFS                                                                  865–  909
+//   §11 FIREBASE AUTHENTICATION                                                   910– 1103
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1104– 2034
+//   §13 WEBSOCKET                                                                2035– 2061
+//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2062– 2121
+//   §15 5 — UNIFIED WS FRAME BUILDER                                             2122– 2165
+//   §16 WEIGHT FILTER HELPERS                                                    2166– 2180
+//   §17 POST-SEND STATE RESET (shared by all send paths)                         2181– 2199
+//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2200– 2272
+//   §19 WEB SERVER                                                               2273– 2973
+//   §20 CLOUD COMMUNICATION                                                      2974– 3156
+//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3157– 3392
+//   §22 mDNS                                                                     3393– 3430
+//   §23 SCALE                                                                    3431– 3522
+//   §24 RFID                                                                     3523– 3852
+//   §25 OTA — Over-the-air firmware + filesystem update                          3853– 4221
+//   §26 SETUP & LOOP                                                             4222– 4623
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -111,6 +111,9 @@ const float    RFID_ANTENNA_WAKE_WEIGHT_G  = 50.0f;  // Wake antennas above this
 const float    AUTO_TARE_EMPTY_THRESHOLD_G =  8.0f;
 const uint32_t AUTO_TARE_STABLE_MS         =  1200;
 const uint32_t AUTO_TARE_TIMEOUT_MS        = 10000;  // 10 second safety timeout for auto-tare
+// Negative-drift auto-tare: if weight stays < 0g for this long → immediate tare
+const uint32_t NEG_DRIFT_TARE_DELAY_MS     =  1000;  // 1 second below zero → tare
+const uint32_t NEG_DRIFT_TARE_COOLDOWN_MS  = 10000;  // min. 10s between neg-drift tares
 const uint32_t SPOOL_SCAN_DURATION_MS = 6000;  // 1 full spool turn at SERVO_SEARCH_US
 const uint32_t NO_MOTOR_UID_WAIT_MS   = 2000;  // passive UID wait when motor disabled
 
@@ -4492,6 +4495,31 @@ void loop() {
             idleAutoTareArmed = false;
             lastIdleAutoTareMs = millis();
             Serial.printf("[AUTOTARE] Activated (no RFID, weight=%.2f g)\n", weight);
+        }
+    }
+
+    // ── Negative-drift auto-tare ─────────────────────────────────────────────
+    // If weight stays below 0g for NEG_DRIFT_TARE_DELAY_MS (1s) while idle with
+    // no load/RFID, the tare point has drifted. Correct immediately without
+    // waiting for processAutoTare stability — the weight is already stable.
+    {
+        static uint32_t negWeightSinceMs  = 0;
+        static uint32_t lastNegTareMs     = 0;
+        bool idleAndEmpty = (wfPhase == WF_IDLE && lastUID.length() == 0 && !autoTarePending);
+        if (idleAndEmpty && weight < 0.0f) {
+            if (negWeightSinceMs == 0) negWeightSinceMs = millis();
+            bool cooldownOk = (millis() - lastNegTareMs) > NEG_DRIFT_TARE_COOLDOWN_MS;
+            if (cooldownOk && (millis() - negWeightSinceMs) >= NEG_DRIFT_TARE_DELAY_MS) {
+                scale.tare();
+                currentWeight = 0.0f;
+                resetWeightFilters();
+                lastNegTareMs    = millis();
+                negWeightSinceMs = 0;
+                netLog("AUTOTARE neg-drift=" + String(weight, 1) + "g corrected");
+                Serial.printf("[AUTOTARE] Negative drift %.2fg corrected\n", weight);
+            }
+        } else {
+            negWeightSinceMs = 0;  // reset timer when weight goes back positive
         }
     }
 
