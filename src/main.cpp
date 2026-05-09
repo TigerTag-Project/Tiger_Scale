@@ -7,32 +7,32 @@
 //
 //   TABLE OF CONTENTS                            line range
 //   ────────────────────────────────────────────  ──────────
-//   §1  HARDWARE CONFIGURATION                                                     61–  130
-//   §2  OTA CONFIGURATION                                                         131–  149
-//   §3  FORWARD DECLARATIONS                                                      150–  229
-//   §4  WEIGHT ROUNDING                                                           230–  249
-//   §5  GLOBAL OBJECTS                                                            250–  263
-//   §6  CONFIGURATION VARIABLES                                                   264–  458
-//   §7  OLED DISPLAY                                                              459–  576
-//   §8  CLOUD PARSING                                                             577–  591
-//   §9  WIFI SETUP                                                                592–  864
-//   §10 LITTLEFS                                                                  865–  909
-//   §11 FIREBASE AUTHENTICATION                                                   910– 1103
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1104– 2034
-//   §13 WEBSOCKET                                                                2035– 2061
-//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2062– 2121
-//   §15 5 — UNIFIED WS FRAME BUILDER                                             2122– 2165
-//   §16 WEIGHT FILTER HELPERS                                                    2166– 2180
-//   §17 POST-SEND STATE RESET (shared by all send paths)                         2181– 2199
-//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2200– 2272
-//   §19 WEB SERVER                                                               2273– 2973
-//   §20 CLOUD COMMUNICATION                                                      2974– 3156
-//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3157– 3392
-//   §22 mDNS                                                                     3393– 3430
-//   §23 SCALE                                                                    3431– 3522
-//   §24 RFID                                                                     3523– 3852
-//   §25 OTA — Over-the-air firmware + filesystem update                          3853– 4221
-//   §26 SETUP & LOOP                                                             4222– 4623
+//   §1  HARDWARE CONFIGURATION                                                     61–  135
+//   §2  OTA CONFIGURATION                                                         136–  154
+//   §3  FORWARD DECLARATIONS                                                      155–  234
+//   §4  WEIGHT ROUNDING                                                           235–  254
+//   §5  GLOBAL OBJECTS                                                            255–  268
+//   §6  CONFIGURATION VARIABLES                                                   269–  464
+//   §7  OLED DISPLAY                                                              465–  582
+//   §8  CLOUD PARSING                                                             583–  597
+//   §9  WIFI SETUP                                                                598–  870
+//   §10 LITTLEFS                                                                  871–  915
+//   §11 FIREBASE AUTHENTICATION                                                   916– 1109
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1110– 2040
+//   §13 WEBSOCKET                                                                2041– 2067
+//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2068– 2138
+//   §15 5 — UNIFIED WS FRAME BUILDER                                             2139– 2182
+//   §16 WEIGHT FILTER HELPERS                                                    2183– 2197
+//   §17 POST-SEND STATE RESET (shared by all send paths)                         2198– 2216
+//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2217– 2289
+//   §19 WEB SERVER                                                               2290– 2990
+//   §20 CLOUD COMMUNICATION                                                      2991– 3173
+//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3174– 3424
+//   §22 mDNS                                                                     3425– 3462
+//   §23 SCALE                                                                    3463– 3554
+//   §24 RFID                                                                     3555– 3884
+//   §25 OTA — Over-the-air firmware + filesystem update                          3885– 4253
+//   §26 SETUP & LOOP                                                             4254– 4655
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -116,6 +116,11 @@ const uint32_t NEG_DRIFT_TARE_DELAY_MS     =  1000;  // 1 second below zero → 
 const uint32_t NEG_DRIFT_TARE_COOLDOWN_MS  = 10000;  // min. 10s between neg-drift tares
 const uint32_t SPOOL_SCAN_DURATION_MS = 6000;  // 1 full spool turn at SERVO_SEARCH_US
 const uint32_t NO_MOTOR_UID_WAIT_MS   = 2000;  // passive UID wait when motor disabled
+// STABLE_WAIT timeout — if weight never stabilizes, use best candidate and proceed
+const uint32_t STABLE_WAIT_TIMEOUT_MS = 15000; // 15s max in STABLE_WAIT before forced SENDING
+// Cloud send retry — backoff delays between attempts (ms)
+const uint32_t SEND_RETRY_DELAYS_MS[] = {1000, 2000};  // wait 1s, then 2s between retries
+const int      SEND_MAX_ATTEMPTS      = 3;
 
 #if ENABLE_LEGACY_API_BRIDGE
 const char* TIGERTAG_CLOUD_FN_URL    = "https://us-central1-tigertag-connect.cloudfunctions.net/setSpoolWeightByRfid";
@@ -444,10 +449,11 @@ static float          gCloudSendWeight       = 0.0f;
 // ────────────────────────────────────────────────────────────────────────────
 
 // Auto-push stability tracking
-static float    lastPushedWeight = NAN;
-static uint32_t stableSinceMs   = 0;
-static float    stableCandidate  = NAN;
-static uint32_t lastPushMs       = 0;
+static float    lastPushedWeight    = NAN;
+static uint32_t stableSinceMs      = 0;
+static float    stableCandidate     = NAN;
+static uint32_t lastPushMs          = 0;
+static uint32_t wfStableWaitStartMs = 0;  // timestamp when STABLE_WAIT began (for timeout)
 
 // Name lookup cache to avoid repeated HTTP fetches for the same brand/material IDs
 
@@ -2085,9 +2091,20 @@ static void cloudWorkerTask(void* /*param*/) {
             gContainerFetchPending = false;
             gContainerFetchDone    = true;        // signal immediately, no waiting for twin
         }
-        // ── Cloud send ───────────────────────────────────────────────────────
+        // ── Cloud send — with retry (3 attempts: immediate, +1s, +2s) ──────────
         if (gCloudSendPending) {
-            bool ok           = pushWeightToCloud(gCloudSendWeight);
+            bool ok = false;
+            for (int attempt = 0; attempt < SEND_MAX_ATTEMPTS && !ok; attempt++) {
+                if (attempt > 0) {
+                    netLog("SEND RETRY " + String(attempt) + "/" + String(SEND_MAX_ATTEMPTS - 1)
+                           + " wait=" + String(SEND_RETRY_DELAYS_MS[attempt - 1]) + "ms");
+                    vTaskDelay(pdMS_TO_TICKS(SEND_RETRY_DELAYS_MS[attempt - 1]));
+                }
+                ok = pushWeightToCloud(gCloudSendWeight);
+                if (!ok && attempt < SEND_MAX_ATTEMPTS - 1) {
+                    netLog("SEND attempt " + String(attempt + 1) + " FAIL — retrying");
+                }
+            }
             gCloudSendOk      = ok;
             gCloudSendPending = false;
             gCloudSendDone    = true;
@@ -3289,7 +3306,8 @@ void handleWeighWorkflow(float w) {
                 netLog("WF SCANNING→IDLE (no UID)");
             } else {
                 wfPhase = WF_STABLE_WAIT;
-                stableCandidate = NAN; stableSinceMs = 0;
+                stableCandidate    = NAN; stableSinceMs = 0;
+                wfStableWaitStartMs = now;
                 sendCountdown = (int)((STABLE_WINDOW_MS + 999) / 1000);
                 netLog("WF SCANNING→STABLE_WAIT uid=" + lastUID + " uid2=" + lastUID2
                        + " reason=" + (bothUidsReady ? "both" : "timeout"));
@@ -3312,6 +3330,20 @@ void handleWeighWorkflow(float w) {
         int secsLeft = (int)((int32_t)(STABLE_WINDOW_MS - (now - stableSinceMs) + 999) / 1000);
         if (secsLeft < 0) secsLeft = 0;
         if (secsLeft != sendCountdown) sendCountdown = secsLeft;
+
+        // ── Timeout fallback (Option A) ───────────────────────────────────────
+        // Surface instable ou vibrations : le poids ne se stabilise jamais.
+        // Après STABLE_WAIT_TIMEOUT_MS (15s), on prend la meilleure valeur
+        // disponible et on passe quand même en SENDING plutôt que de bloquer.
+        if (now - wfStableWaitStartMs >= STABLE_WAIT_TIMEOUT_MS) {
+            float fallback = (!isnan(stableCandidate) && stableCandidate >= MIN_WEIGHT_TO_SEND_G)
+                             ? stableCandidate : w;
+            stableCandidate = fallback;
+            wfPhase = WF_SENDING;
+            netLog("WF STABLE_WAIT→SENDING timeout=" + String(STABLE_WAIT_TIMEOUT_MS/1000)
+                   + "s fallback=" + String(fallback,1) + "g (unstable surface)");
+            return;
+        }
 
         if (weightStable && (now - stableSinceMs >= STABLE_WINDOW_MS)) {
             wfPhase = WF_SENDING;
