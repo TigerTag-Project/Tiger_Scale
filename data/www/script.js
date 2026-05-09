@@ -1536,6 +1536,20 @@ async function fbLogClear() {
     } catch (_) {}
 }
 
+async function fbLogCopy() {
+    const container = document.getElementById('fbLogContainer');
+    const btn = document.getElementById('fbLogCopyBtn');
+    if (!container) return;
+    const lines = Array.from(container.querySelectorAll('pre.ws-log-data'))
+        .map(el => el.textContent)
+        .reverse()   // restore chronological order (oldest first)
+        .join('\n');
+    try {
+        await navigator.clipboard.writeText(lines || '(empty)');
+        if (btn) { const t = btn.textContent; btn.textContent = '✓'; setTimeout(() => btn.textContent = t, 1500); }
+    } catch (_) {}
+}
+
 // ========== WEBSOCKET LOG ==========
 const WS_LOG_MAX = 100;
 let _wsLogEntries    = [];
@@ -1615,6 +1629,19 @@ function wsLogTogglePause() {
 
 function wsLogSetOnlyChanges(val) {
     _wsLogOnlyChange = !!val;
+}
+
+async function wsLogCopy() {
+    const btn = document.getElementById('wsLogCopyBtn');
+    // Build plain text: oldest first (entries are stored newest-first)
+    const lines = _wsLogEntries.slice().reverse().map(e => {
+        const dir = e.dir === 'in' ? '↓' : '↑';
+        return `${e.ts} ${dir}  ${e.display}`;
+    }).join('\n');
+    try {
+        await navigator.clipboard.writeText(lines || '(empty)');
+        if (btn) { const t = btn.textContent; btn.textContent = '✓'; setTimeout(() => btn.textContent = t, 1500); }
+    } catch (_) {}
 }
 
 // ========== INITIALIZATION ==========
