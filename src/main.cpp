@@ -12,27 +12,27 @@
 //   §3  FORWARD DECLARATIONS                                                      147–  226
 //   §4  WEIGHT ROUNDING                                                           227–  246
 //   §5  GLOBAL OBJECTS                                                            247–  260
-//   §6  CONFIGURATION VARIABLES                                                   261–  447
-//   §7  OLED DISPLAY                                                              448–  565
-//   §8  CLOUD PARSING                                                             566–  580
-//   §9  WIFI SETUP                                                                581–  853
-//   §10 LITTLEFS                                                                  854–  898
-//   §11 FIREBASE AUTHENTICATION                                                   899– 1092
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1093– 2057
-//   §13 WEBSOCKET                                                                2058– 2084
-//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2085– 2119
-//   §15 5 — UNIFIED WS FRAME BUILDER                                             2120– 2158
-//   §16 WEIGHT FILTER HELPERS                                                    2159– 2173
-//   §17 POST-SEND STATE RESET (shared by all send paths)                         2174– 2192
-//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2193– 2265
-//   §19 WEB SERVER                                                               2266– 2965
-//   §20 CLOUD COMMUNICATION                                                      2966– 3148
-//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3149– 3364
-//   §22 mDNS                                                                     3365– 3402
-//   §23 SCALE                                                                    3403– 3494
-//   §24 RFID                                                                     3495– 3824
-//   §25 OTA — Over-the-air firmware + filesystem update                          3825– 4193
-//   §26 SETUP & LOOP                                                             4194– 4566
+//   §6  CONFIGURATION VARIABLES                                                   261–  448
+//   §7  OLED DISPLAY                                                              449–  566
+//   §8  CLOUD PARSING                                                             567–  581
+//   §9  WIFI SETUP                                                                582–  854
+//   §10 LITTLEFS                                                                  855–  899
+//   §11 FIREBASE AUTHENTICATION                                                   900– 1093
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1094– 2058
+//   §13 WEBSOCKET                                                                2059– 2085
+//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2086– 2120
+//   §15 5 — UNIFIED WS FRAME BUILDER                                             2121– 2159
+//   §16 WEIGHT FILTER HELPERS                                                    2160– 2174
+//   §17 POST-SEND STATE RESET (shared by all send paths)                         2175– 2193
+//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2194– 2266
+//   §19 WEB SERVER                                                               2267– 2966
+//   §20 CLOUD COMMUNICATION                                                      2967– 3149
+//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3150– 3365
+//   §22 mDNS                                                                     3366– 3403
+//   §23 SCALE                                                                    3404– 3495
+//   §24 RFID                                                                     3496– 3825
+//   §25 OTA — Over-the-air firmware + filesystem update                          3826– 4194
+//   §26 SETUP & LOOP                                                             4195– 4567
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -78,7 +78,7 @@
 #define SERVO_PIN   26
 #define LED_PIN     2
 
-#define WS_UPDATE_INTERVAL_MS 250
+#define WS_UPDATE_INTERVAL_MS 100   // was 250ms — 10 Hz display, kitchen-scale feel
 
 // Set to 1 to enable verbose RFID page dumps on Serial
 #define DEBUG_RFID_DUMP 0
@@ -355,16 +355,17 @@ bool     idleAutoTareArmed       = true;     // Rearm only after leaving near-ze
 uint32_t lowWeightSinceMs        = 0;        // Anti-stuck timer when near empty
 
 // Auto-push configuration
-const float    STABLE_EPSILON_G    =  0.6f;
-const uint32_t STABLE_WINDOW_MS   =  2000;
+const float    STABLE_EPSILON_G    =  0.8f;       // was 0.6 — slightly relaxed for faster settle
+const uint32_t STABLE_WINDOW_MS   =  1200;        // was 2000ms — 0.8s saved on every weighing
 const float    MIN_WEIGHT_TO_SEND_G =  5.0f;
 const float    RESEND_DELTA_G      =  3.0f;
 const uint32_t RESEND_COOLDOWN_MS  = 15000;
 
-// Weight filter configuration
-const float    EMA_ALPHA_FINE      = 0.04f;
-const float    EMA_ALPHA_FAST      = 0.10f;
-const int      MEDIAN_WINDOW_LARGE = 15;
+// Weight filter configuration — tuned for 10 Hz HX711, kitchen-scale feel
+// Level 2 (80 Hz RATE pin): keep same alphas, just change delay(10)→delay(2)
+const float    EMA_ALPHA_FINE      = 0.18f;       // was 0.04 — TC: 2.5s→0.56s at 10Hz
+const float    EMA_ALPHA_FAST      = 0.35f;       // was 0.10 — snappy on spool placement
+const int      MEDIAN_WINDOW_LARGE = 5;           // was 15  — buffer: 1.5s→0.5s at 10Hz
 const float    HYSTERESIS_THRESHOLD = 0.5f;
 const float    DEAD_ZONE_G         = 1.0f;
 const uint32_t STABLE_DISPLAY_MS   = 1500;
