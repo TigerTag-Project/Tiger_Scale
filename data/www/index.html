@@ -71,6 +71,11 @@
                     <span class="uid-chip-label" data-i18n="uidRight">Right ▶</span>
                     <span id="uid" class="uid-value" data-i18n-empty="waiting">—</span>
                 </div>
+                <!-- Twin row: visible only when twin was fetched from Firestore (not physically detected) -->
+                <div class="uid-row uid-row--twin" id="uidTwinRow" style="display:none">
+                    <span class="uid-chip-label uid-chip-label--twin" data-i18n="uidTwin">🔗 Twin</span>
+                    <span id="uidTwinDisplay" class="uid-value uid-value--twin">—</span>
+                </div>
             </div>
 
             <div id="sendState" class="send-status hidden"></div>

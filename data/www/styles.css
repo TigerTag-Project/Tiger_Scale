@@ -205,6 +205,18 @@ body {
     opacity: 0.88;
     font-weight: 500;
 }
+/* Twin row — fetched from Firestore (cloud lookup) */
+.uid-row--twin {
+    opacity: 0.85;
+}
+.uid-chip-label--twin {
+    background: rgba(255,255,255,0.12);
+    color: #a0f0c0;
+    border: 1px solid rgba(160,240,192,0.3);
+}
+.uid-value--twin {
+    color: #a0f0c0;
+}
 
 .send-status {
     margin-top: 12px;

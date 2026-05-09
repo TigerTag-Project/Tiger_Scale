@@ -128,7 +128,8 @@ const translations = {
         motorNoiseModerate: 'Modéré',
         motorNoiseLoud: 'Bruyant',
         uidLeft: '◀ Gauche',
-        uidRight: 'Droite ▶'
+        uidRight: 'Droite ▶',
+        uidTwin: '🔗 Jumeau'
     },
     en: {
         waiting: 'Waiting TigerTag...',
@@ -225,7 +226,8 @@ const translations = {
         motorNoiseModerate: 'Moderate',
         motorNoiseLoud: 'Loud',
         uidLeft: '◀ Left',
-        uidRight: 'Right ▶'
+        uidRight: 'Right ▶',
+        uidTwin: '🔗 Twin'
     }
 };
 
@@ -864,9 +866,18 @@ function applyStatusSnapshot(s) {
         }
     }
 
+    // UID Twin — fetched from Firestore (only set when no physical 2nd reader detected)
+    if (typeof s.uid_twin !== 'undefined') {
+        const twin = s.uid_twin || '';
+        const twinRow = document.getElementById('uidTwinRow');
+        const twinEl  = document.getElementById('uidTwinDisplay');
+        if (twinEl) setTextIfChanged(twinEl, twin || '—');
+        if (twinRow) twinRow.style.display = twin.length > 0 ? '' : 'none';
+    }
+
     // Show/hide UID rows based on hardware config
     _updateUidRows();
-    
+
     // Cloud
     if (typeof s.cloud !== 'undefined') {
         setCloudStatus(s.cloud);

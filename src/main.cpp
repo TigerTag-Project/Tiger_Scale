@@ -12,27 +12,27 @@
 //   §3  FORWARD DECLARATIONS                                                      147–  226
 //   §4  WEIGHT ROUNDING                                                           227–  246
 //   §5  GLOBAL OBJECTS                                                            247–  260
-//   §6  CONFIGURATION VARIABLES                                                   261–  448
-//   §7  OLED DISPLAY                                                              449–  566
-//   §8  CLOUD PARSING                                                             567–  581
-//   §9  WIFI SETUP                                                                582–  854
-//   §10 LITTLEFS                                                                  855–  899
-//   §11 FIREBASE AUTHENTICATION                                                   900– 1093
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1094– 2058
-//   §13 WEBSOCKET                                                                2059– 2085
-//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2086– 2120
-//   §15 5 — UNIFIED WS FRAME BUILDER                                             2121– 2159
-//   §16 WEIGHT FILTER HELPERS                                                    2160– 2174
-//   §17 POST-SEND STATE RESET (shared by all send paths)                         2175– 2193
-//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2194– 2266
-//   §19 WEB SERVER                                                               2267– 2966
-//   §20 CLOUD COMMUNICATION                                                      2967– 3149
-//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3150– 3365
-//   §22 mDNS                                                                     3366– 3403
-//   §23 SCALE                                                                    3404– 3495
-//   §24 RFID                                                                     3496– 3825
-//   §25 OTA — Over-the-air firmware + filesystem update                          3826– 4194
-//   §26 SETUP & LOOP                                                             4195– 4567
+//   §6  CONFIGURATION VARIABLES                                                   261–  449
+//   §7  OLED DISPLAY                                                              450–  567
+//   §8  CLOUD PARSING                                                             568–  582
+//   §9  WIFI SETUP                                                                583–  855
+//   §10 LITTLEFS                                                                  856–  900
+//   §11 FIREBASE AUTHENTICATION                                                   901– 1094
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1095– 2059
+//   §13 WEBSOCKET                                                                2060– 2086
+//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2087– 2121
+//   §15 5 — UNIFIED WS FRAME BUILDER                                             2122– 2161
+//   §16 WEIGHT FILTER HELPERS                                                    2162– 2176
+//   §17 POST-SEND STATE RESET (shared by all send paths)                         2177– 2195
+//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2196– 2268
+//   §19 WEB SERVER                                                               2269– 2969
+//   §20 CLOUD COMMUNICATION                                                      2970– 3152
+//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3153– 3374
+//   §22 mDNS                                                                     3375– 3412
+//   §23 SCALE                                                                    3413– 3504
+//   §24 RFID                                                                     3505– 3834
+//   §25 OTA — Over-the-air firmware + filesystem update                          3835– 4203
+//   §26 SETUP & LOOP                                                             4204– 4576
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -278,6 +278,7 @@ String   lastUID2   = "";
 String   lastUID2Hex = "";
 String   lastUIDLeft  = "";   // rfid2 — physically Left reader
 String   lastUIDRight = "";   // rfid1 — physically Right reader
+String   lastUIDTwin  = "";   // twin fetched from Firestore (empty if physically detected)
 
 // ── In-memory network log ring buffer ────────────────────────────────────────
 // Exposed via GET /api/logs — last 80 entries, newest last.
@@ -2144,6 +2145,7 @@ static String buildWsFrame(float weight) {
     doc["uid2"]              = lastUID2;
     doc["uid_left"]          = lastUIDLeft;
     doc["uid_right"]         = lastUIDRight;
+    doc["uid_twin"]          = lastUIDTwin;
     doc["sendToCloud"]       = stcWs;
     doc["cloud"]             = WiFi.isConnected() ? "ok" : "down";
     doc["firebaseAuth"]      = firebaseAuth;
@@ -2179,7 +2181,7 @@ void resetWeightFilters() {
 static void resetAfterSuccessfulSend(int shownWeight) {
     currentOledState = OLED_STATE_IDLE;
     oledStateChangeMs = millis();
-    lastUID = ""; lastUID2 = ""; lastUIDLeft = ""; lastUIDRight = ""; gTwinFetchDone = false; gTwinFetchUID = ""; gTwinFetchResult = "";
+    lastUID = ""; lastUID2 = ""; lastUIDLeft = ""; lastUIDRight = ""; lastUIDTwin = ""; gTwinFetchDone = false; gTwinFetchUID = ""; gTwinFetchResult = "";
     lastUIDHex = ""; lastUID2Hex = "";
     firstUidDetectedMs = 0; firstUidPauseUntilMs = 0;
     stableSinceMs = 0; stableCandidate = NAN;
@@ -2392,6 +2394,7 @@ void setupWebServer() {
         doc["uid2_hex"]          = lastUID2Hex;
         doc["uid_left"]          = lastUIDLeft;
         doc["uid_right"]         = lastUIDRight;
+        doc["uid_twin"]          = lastUIDTwin;
         doc["wifi"]              = WiFi.SSID();
         doc["ip"]                = WiFi.localIP().toString();
         doc["mdns"]              = gMdnsName + ".local";
@@ -2834,7 +2837,7 @@ void setupWebServer() {
         resetSlopeBuffer();
         stopServoSearch();
         lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
-        lastUIDLeft = ""; lastUIDRight = ""; gTwinFetchDone = false; gTwinFetchUID = ""; gTwinFetchResult = "";
+        lastUIDLeft = ""; lastUIDRight = ""; lastUIDTwin = ""; gTwinFetchDone = false; gTwinFetchUID = ""; gTwinFetchResult = "";
         firstUidDetectedMs = 0; firstUidPauseUntilMs = 0;
         stableSinceMs = 0; stableCandidate = NAN;
         wfContainerWeight = 0.0f; wfContainerFetched = false;
@@ -2906,7 +2909,7 @@ void setupWebServer() {
         resetWeightFilters();
         autoTarePending = false;
         autoTareStableSinceMs = 0;
-        lastUID = ""; lastUID2 = ""; lastUIDLeft = ""; lastUIDRight = ""; gTwinFetchDone = false; gTwinFetchUID = ""; gTwinFetchResult = "";
+        lastUID = ""; lastUID2 = ""; lastUIDLeft = ""; lastUIDRight = ""; lastUIDTwin = ""; gTwinFetchDone = false; gTwinFetchUID = ""; gTwinFetchResult = "";
         float offset = scale.get_offset();
         prefs.begin("config", false);
         prefs.putFloat("tareFactor", offset);
@@ -3247,6 +3250,12 @@ void handleWeighWorkflow(float w) {
             wfContainerFetched = true;
             gContainerFetchDone = false;
             gLastContainer     = wfContainerWeight;   // immediate OLED/WS update
+            // Pick up prefetched twin — only display if no physical 2nd reader detected
+            if (gTwinFetchDone && lastUID2.length() == 0) {
+                lastUIDTwin    = gTwinFetchResult;
+                gTwinFetchDone = false;
+                netLog("TWIN display=" + (lastUIDTwin.length() > 0 ? lastUIDTwin : "none (no twin in DB)"));
+            }
         }
 
         // Countdown scan
@@ -3348,7 +3357,7 @@ void handleWeighWorkflow(float w) {
         if (removingNow || w < MIN_WEIGHT_TO_SEND_G) {
             wfPhase = WF_IDLE;
             lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
-            lastUIDLeft = ""; lastUIDRight = ""; gTwinFetchDone = false; gTwinFetchUID = ""; gTwinFetchResult = "";
+            lastUIDLeft = ""; lastUIDRight = ""; lastUIDTwin = ""; gTwinFetchDone = false; gTwinFetchUID = ""; gTwinFetchResult = "";
             wfContainerFetched = false; wfContainerWeight = 0.0f;
             gLastContainer     = 0.0f;   // clear container so web UI hides filament row
             stableCandidate = NAN; stableSinceMs = 0;
@@ -4505,7 +4514,7 @@ void loop() {
             firstUidDetectedMs = 0;
             firstUidPauseUntilMs = 0;
             lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
-            lastUIDLeft = ""; lastUIDRight = ""; gTwinFetchDone = false; gTwinFetchUID = ""; gTwinFetchResult = "";
+            lastUIDLeft = ""; lastUIDRight = ""; lastUIDTwin = ""; gTwinFetchDone = false; gTwinFetchUID = ""; gTwinFetchResult = "";
             wfPhase = WF_IDLE;
             wfContainerWeight = 0.0f; wfContainerFetched = false;
             currentOledState = OLED_STATE_IDLE;
@@ -4520,7 +4529,7 @@ void loop() {
         Serial.printf("[REMOVAL] Sent: %.2f, Now: %.2f\n", gLastSentWeight, weight);
         gLastSentWeight = NAN; gLastCloudWeight = NAN; gCloudWeightSetMs = 0;
         lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
-        lastUIDLeft = ""; lastUIDRight = ""; gTwinFetchDone = false; gTwinFetchUID = ""; gTwinFetchResult = "";
+        lastUIDLeft = ""; lastUIDRight = ""; lastUIDTwin = ""; gTwinFetchDone = false; gTwinFetchUID = ""; gTwinFetchResult = "";
         firstUidDetectedMs = 0; firstUidPauseUntilMs = 0;
         rfidLockedForCurrentLoad = true;   // Keep RFID locked during removal hold
         servoLockedUntilAutotare = false;  // CRITICAL: unlock servo for next measurement
