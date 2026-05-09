@@ -1658,7 +1658,7 @@ void sendScaleHeartbeat() {
     bool scaleDocExists = readScaleDisplayName(gScaleMacAddress, currentDisplayName, &serverTimestamp);
 
     // 1. fw_version (required)
-    doc["fields"]["fw_version"]["stringValue"] = "1.3.0";
+    doc["fields"]["fw_version"]["stringValue"] = TIGERSCALE_FW_VERSION;
 
     // 2. last_heartbeat_at (required) — Use Firestore server timestamp
     // If we got a server timestamp from the doc read, use it
