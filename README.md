@@ -33,8 +33,12 @@ It is designed to be **3D-printable, hackable, and cheap** (~30 € BoM). The cl
 - ☁️ **Real-time cloud sync** (Firestore) — see your inventory from any device
 - 🔐 **Google Sign-In** via OAuth bridge (no passwords stored on device)
 - 📱 **Modern web UI** served by the ESP32 itself, mobile-friendly — with live **workflow badge** (Scanning / Stabilizing / Sending / Ready)
+- 🌍 **9-language UI** (EN / FR / DE / ES / IT / PL / PT-BR / PT / ZH) with flag-based switcher in header and login modal, locale files in `data/www/locales/`
+- 🔐 **Full in-modal auth** — Google Sign-In, email/password sign-in, **account creation** and **password reset** directly in the UI (no redirect)
+- 📟 **Firmware version + uptime** always visible under the TigerScale title, uptime advances client-side between WebSocket frames
+- 👤 **Account avatar** with user initials + display name, collapsible account card
+- 🧰 **Toolbox toggle** — collapse all settings below TARE for a cleaner read-only interface
 - 🗄️ **Local brand & material DB** (LittleFS) — RFID lookups are instant, no internet required per scan; auto-updated from GitHub every 24 h
-- 🌍 **Multilingual Web Installer** (English, French, German, Spanish, Italian, Polish, Portuguese, Brazilian Portuguese, Chinese)
 - 🔄 **Auto-tare**, **EMA + median filtering**, **twin-tag pairing** (§6.1 spec)
 - ⚡ **WebSocket delta compression** — only changed fields broadcast at 10 Hz; full snapshot on connect
 - 🛠️ **No closed binary blobs** — everything compiles from source
@@ -86,6 +90,19 @@ Full Bill of Materials: **[hardware/BOM.md](hardware/BOM.md)** (with affiliate l
 Wiring diagram: **[docs/HARDWARE.md](docs/HARDWARE.md)**
 Print settings: **[hardware/3d-models/README.md](hardware/3d-models/README.md)**
 
+### 🖨️ Ready-to-slice project file
+
+Download **[Tiger_Scale_V2.3mf](hardware/3d-models/Tiger_Scale_V2.3mf)** — a single `.3mf` file pre-configured for your slicer (Bambu Studio / PrusaSlicer / Orca). It contains four build variants, pick the one that matches your hardware:
+
+| Variant | Motor | RFID readers |
+|---|---|---|
+| **TigerScale Light** | ✗ No motor | 1 reader |
+| **TigerScale Light** | ✗ No motor | 2 readers |
+| **TigerScale Plus** | ✓ Motor | 1 reader |
+| **TigerScale Plus** | ✓ Motor | 2 readers |
+
+Open the file, select your variant plate, and hit **Slice**. No manual orientation or support setup needed.
+
 > 💡 **Buy a kit** — the [Web Installer page](https://tigertag-project.github.io/Tiger_Scale/) includes a one-click shopping list of every component with Amazon affiliate links. Buying through them at no extra cost supports the project and keeps the TigerTag cloud free.
 
 ---
@@ -98,7 +115,7 @@ When you boot a fresh TigerScale, it creates a Wi-Fi access point named `Setup-T
 2. **Captive portal** opens automatically → enter your home Wi-Fi credentials
 3. Scale reboots, joins your network, displays its **local IP** + **mDNS name** (`tigerscale-XXXX.local`) on the OLED
 4. Open `http://tigerscale-XXXX.local` (or the IP) in your browser
-5. **Login modal** opens — sign in with **Google** (one click) or email/password
+5. **Login modal** opens — sign in with **Google** (one click), **email/password**, or **create a new account** directly in the UI
 6. ✅ You're done — start placing TigerTagged spools on the scale
 
 Detailed walkthrough: **[docs/INSTALLATION.md](docs/INSTALLATION.md#first-boot)**
@@ -153,7 +170,7 @@ Contributions are welcome! Whether you want to:
 
 - Report a bug or suggest an improvement → [open an issue](../../issues)
 - Submit a code/documentation PR → see [CONTRIBUTING.md](CONTRIBUTING.md)
-- Translate the UI to another language → look for `translations.fr` and `translations.en` in `data/www/script.js`
+- Translate the UI to another language → edit the JSON files in `data/www/locales/` (one file per language)
 - Print and improve the case → fork [hardware/3d-models/](hardware/3d-models/)
 
 Join us on **[Discord](https://discord.gg/3Qv5TSqnJH)** for help, ideas, and community builds.

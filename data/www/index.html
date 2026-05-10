@@ -19,26 +19,30 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1>TigerScale</h1>
+            <div class="header-title">
+                <h1>TigerScale</h1>
+                <div class="header-device-info">
+                    <span id="fwVersion" class="device-info-version">—</span>
+                    <span class="device-info-sep">·</span>
+                    <span id="uptime" class="device-info-uptime">--:--:--</span>
+                </div>
+            </div>
             <div class="header-right">
                 <div class="status-bar">
-                    <div class="status-info">
+                    <div class="status-info" id="cloudInfo" style="display:none">
                         <span id="cloudDot" class="status-dot"></span>
                         <span id="cloudText" style="font-size: 0.7rem;">—</span>
                     </div>
-                    <div class="status-info">
+                    <div class="status-info" id="fbInfo" style="display:none">
                         <span id="fbDot" class="status-dot"></span>
                         <span id="fbText" style="font-size: 0.7rem;">FB</span>
                     </div>
-                    <div class="status-info" title="TigerTag DB status">
+                    <div class="status-info" id="dbInfo" style="display:none" title="TigerTag DB status">
                         <span id="dbDot" class="status-dot"></span>
                         <span id="dbText" style="font-size: 0.7rem;">DB</span>
                     </div>
                 </div>
-                <div class="lang-switcher">
-                    <button class="lang-btn active" onclick="setLanguage('en')" data-lang="en">EN</button>
-                    <button class="lang-btn" onclick="setLanguage('fr')" data-lang="fr">FR</button>
-                </div>
+                <div class="lang-switcher" id="langSwitcher"></div>
             </div>
         </div>
 
@@ -46,6 +50,19 @@
         <div class="weight-card">
             <!-- Workflow state badge — absolute overlay, never shifts layout -->
             <div id="sendState" class="send-status hidden"></div>
+
+            <!-- Filament info panel — absolute overlay on the right, hidden until RFID scanned -->
+            <div id="filamentPanel" class="filament-panel" style="display:none">
+                <div id="filamentColorDot" class="filament-color-dot"></div>
+                <div class="filament-panel-row">
+                    <span class="filament-panel-label" data-i18n="brandLabel">Brand</span>
+                    <span id="filamentBrand" class="filament-panel-value">—</span>
+                </div>
+                <div class="filament-panel-row">
+                    <span class="filament-panel-label" data-i18n="materialLabel">Material</span>
+                    <span id="filamentMaterial" class="filament-panel-value">—</span>
+                </div>
+            </div>
 
             <div id="userName" class="user-name hidden"></div>
 
@@ -58,7 +75,7 @@
             <!-- Filament row: toujours visible, affiche — quand pas de valeur -->
             <div id="filamentRow" class="weight-meta-row">
                 <div class="weight-meta-item">
-                    <span class="weight-meta-label" data-i18n="containerLabel">Bobine</span>
+                    <span class="weight-meta-label" data-i18n="containerLabel">Container</span>
                     <span class="weight-meta-value"><span id="containerWeightDisplay">—</span> g</span>
                 </div>
                 <div class="weight-meta-sep"></div>
@@ -71,16 +88,16 @@
             <!-- UIDs -->
             <div class="uid-rows">
                 <div class="uid-row" id="uidLeftRow">
-                    <span class="uid-chip-label" data-i18n="uidLeft">◀ Left</span>
+                    <span class="uid-chip-label" data-i18n="uidLeft" data-i18n-title="uidLeftFull" data-tooltip="Left" title="Left">◀ Reader</span>
                     <span id="uidLeftDisplay" class="uid-value">—</span>
                 </div>
                 <div class="uid-row" id="uidRightRow">
-                    <span class="uid-chip-label" data-i18n="uidRight">Right ▶</span>
+                    <span class="uid-chip-label" data-i18n="uidRight" data-i18n-title="uidRightFull" data-tooltip="Right" title="Right">Reader ▶</span>
                     <span id="uid" class="uid-value" data-i18n-empty="waiting">—</span>
                 </div>
                 <!-- Twin row: visible only when twin was fetched from Firestore (not physically detected) -->
                 <div class="uid-row uid-row--twin" id="uidTwinRow" style="display:none">
-                    <span class="uid-chip-label uid-chip-label--twin" data-i18n="uidTwin">🔗 Twin</span>
+                    <span class="uid-chip-label uid-chip-label--twin" data-i18n="uidTwin">Online Request</span>
                     <span id="uidTwinDisplay" class="uid-value uid-value--twin">—</span>
                 </div>
             </div>
@@ -93,6 +110,21 @@
             <span class="tare-progress"></span>
         </button>
 
+        <!-- Hidden inputs preserved for backward-compat -->
+        <input type="hidden" id="firebaseEmail">
+        <input type="hidden" id="firebasePassword">
+        <span id="firebaseStatus" style="display:none">—</span>
+
+        <!-- Toolbox toggle -->
+        <button id="toolboxToggle" class="toolbox-toggle open" onclick="toggleToolbox()">
+            <span>🔧</span>
+            <span data-i18n="toolbox">Outils</span>
+            <span class="toolbox-toggle-chev">▾</span>
+        </button>
+
+        <!-- Toolbox panel — tout ce qui est en dessous du TARE -->
+        <div id="toolbox">
+
         <!-- Account card — visible only when authenticated. Replaces the old inline
              email/password Firebase card (now obsolete: login is handled by the modal). -->
         <div id="accountCard" class="card" style="display:none">
@@ -104,6 +136,7 @@
                     <div class="account-avatar" id="accountAvatar">?</div>
                     <div class="account-info">
                         <div class="account-label" data-i18n="connectedAs">Connecté en tant que</div>
+                        <div class="account-name" id="accountName" style="display:none"></div>
                         <div class="account-email" id="accountEmail">—</div>
                     </div>
                 </div>
@@ -113,12 +146,6 @@
                 </button>
             </div>
         </div>
-
-        <!-- Hidden inputs preserved for backward-compat with status snapshots
-             (some code still reads/writes these). Will be removed in a later cleanup. -->
-        <input type="hidden" id="firebaseEmail">
-        <input type="hidden" id="firebasePassword">
-        <span id="firebaseStatus" style="display:none">—</span>
 
         <!-- Calibration -->
         <div class="card">
@@ -315,7 +342,7 @@
                 <!-- Spool detection (read-only, from WS) -->
                 <div class="setting-row">
                     <div class="setting-row-label">
-                        🧵 <span data-i18n="spoolDetected">Spool detected</span>
+                        🧵 <span data-i18n="spoolDetected">Container detected</span>
                     </div>
                     <span class="compact-value" id="spoolDetectedVal">—</span>
                 </div>
@@ -337,46 +364,21 @@
                 <div style="height: 8px;"></div>
                 <button class="danger" onclick="factoryReset()">🗑️ <span data-i18n="factoryReset">Réinitialisation</span></button>
                 <div class="divider"></div>
-                <div class="compact-row">
-                    <span class="compact-label" data-i18n="uptime">Durée de fonctionnement</span>
-                    <span class="compact-value" id="uptime">--:--:--</span>
-                </div>
             </div>
         </div>
         
         <!-- Log buttons -->
         <div style="display:flex;gap:10px;margin-bottom:0">
             <button class="log-open-btn" onclick="logPanelOpen('fb')">
-                🔥 Firebase Log <span class="log-open-arrow">›</span>
+                🔥 Cloud Log <span class="log-open-arrow">›</span>
             </button>
             <button class="log-open-btn" onclick="logPanelOpen('ws')">
                 🔌 WebSocket Log <span class="log-open-arrow">›</span>
             </button>
         </div>
 
-        <!-- Footer -->
-        <div class="footer">
-            <div class="footer-version">
-                <a href="https://tigertag.io" target="_blank" rel="noopener noreferrer" style="color: #a0aec0; text-decoration: none; transition: color 0.2s;">TigerTag.io</a>
-            </div>
-            <div class="footer-links">
-                <a href="https://github.com/TigerTag-Project/TigerTag-RFID-Guide" target="_blank" rel="noopener noreferrer" class="footer-link">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                    </svg>
-                    RFID Guide
-                </a>
-                <a href="https://discord.gg/3Qv5TSqnJH" target="_blank" rel="noopener noreferrer" class="footer-link">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"/>
-                    </svg>
-                    Discord
-                </a>
-            </div>
-        </div>
-
         <!-- ── Debug API panel (advanced users) ─────────────────────────── -->
-        <div id="debugPanel" style="margin-top:28px;padding:0 4px 24px;">
+        <div id="debugPanel" style="margin-top:16px;padding:0 4px 8px;">
             <button onclick="(function(p){p.style.display=p.style.display==='none'?'block':'none'})(document.getElementById('debugContent'))"
                     style="background:none;border:none;color:#c0c0c8;font-size:11px;cursor:pointer;padding:4px 0;letter-spacing:.05em;opacity:.55;transition:opacity .2s"
                     onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='.55'">
@@ -396,17 +398,45 @@
 
                 <div style="color:#667eea;font-weight:600;margin:10px 0 6px;font-size:11px;letter-spacing:.08em">POST — clic = fetch()</div>
 
-                <span id="_dbg_tare"       class="dbg-post" onclick="dbgPost('/api/tare')">/api/tare</span><br>
-                <span id="_dbg_logs_del"   class="dbg-post" onclick="dbgPost('/api/logs','DELETE')">/api/logs  <span style="color:#fd79a8;font-size:10px">DELETE</span></span><br>
-                <span id="_dbg_wf_stop"    class="dbg-post" onclick="dbgPost('/api/workflow/stop')">/api/workflow/stop</span><br>
-                <span id="_dbg_srv_toggle" class="dbg-post" onclick="dbgPost('/api/servo-toggle')">/api/servo-toggle</span><br>
-                <span id="_dbg_reset_wifi" class="dbg-post" onclick="dbgPost('/api/reset-wifi')" style="color:#fd79a8">/api/reset-wifi  ⚠</span><br>
-                <span id="_dbg_factory"    class="dbg-post" onclick="dbgPost('/api/factory-reset')" style="color:#fd79a8">/api/factory-reset  ⚠</span><br>
+                <span id="_dbg_tare"        class="dbg-post" onclick="dbgPost('/api/tare')">/api/tare</span><br>
+                <span id="_dbg_wf_stop"     class="dbg-post" onclick="dbgPost('/api/workflow/stop')">/api/workflow/stop</span><br>
+                <span id="_dbg_push_weight" class="dbg-post" onclick="dbgPost('/api/push-weight')">/api/push-weight</span><br>
+                <span id="_dbg_update_db"   class="dbg-post" onclick="dbgPost('/api/update-db')">/api/update-db</span><br>
+                <span id="_dbg_srv_toggle"  class="dbg-post" onclick="dbgPost('/api/servo-toggle')">/api/servo-toggle</span><br>
+                <span id="_dbg_srv_test"    class="dbg-post" onclick="dbgPost('/api/servo/test')">/api/servo/test</span><br>
+                <span id="_dbg_fb_logout"   class="dbg-post" onclick="dbgPost('/api/firebase/logout')">/api/firebase/logout</span><br>
+                <span id="_dbg_logs_del"    class="dbg-post" onclick="dbgPost('/api/logs','DELETE')">/api/logs  <span style="color:#fd79a8;font-size:10px">DELETE</span></span><br>
+                <span id="_dbg_logs_clear"  class="dbg-post" onclick="dbgPost('/api/logs/clear')">/api/logs/clear</span><br>
+                <span id="_dbg_reset_wifi"  class="dbg-post" onclick="dbgPost('/api/reset-wifi')" style="color:#fd79a8">/api/reset-wifi  ⚠</span><br>
+                <span id="_dbg_factory"     class="dbg-post" onclick="dbgPost('/api/factory-reset')" style="color:#fd79a8">/api/factory-reset  ⚠</span><br>
 
                 <div id="debugLog" style="margin-top:10px;color:#55efc4;min-height:16px;font-size:11px"></div>
             </div>
         </div>
         <!-- ── end debug panel ──────────────────────────────────────────── -->
+
+        </div><!-- /#toolbox -->
+
+        <!-- Footer — toujours visible, hors toolbox -->
+        <div class="footer">
+            <div class="footer-version">
+                <a href="https://tigertag.io" target="_blank" rel="noopener noreferrer" style="color: #a0aec0; text-decoration: none; transition: color 0.2s;">TigerTag.io</a>
+            </div>
+            <div class="footer-links">
+                <a href="https://github.com/TigerTag-Project/TigerTag-RFID-Guide" target="_blank" rel="noopener noreferrer" class="footer-link">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                    </svg>
+                    RFID Guide
+                </a>
+                <a href="https://discord.gg/3Qv5TSqnJH" target="_blank" rel="noopener noreferrer" class="footer-link">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"/>
+                    </svg>
+                    Discord
+                </a>
+            </div>
+        </div>
 
     </div>
 
@@ -430,12 +460,19 @@
         </div>
     </div>
 
-    <!-- Firebase Login Modal — auto-shown when firebaseConfigured=false -->
+    <!-- Login Modal -->
     <div id="firebaseLoginModal" class="modal modal-blocking" style="display:none" aria-hidden="true">
         <div class="modal-content auth-modal" role="dialog" aria-labelledby="authTitle">
-            <div class="auth-logo">🐯</div>
+            <button class="auth-modal-close" onclick="hideAuthModal()" aria-label="Close">✕</button>
+            <div id="authLangFlags" class="auth-lang-flags"></div>
+
+            <div class="auth-logo">
+                <div class="auth-logo-box">
+                    <img src="img/logo-tigertag.svg" class="auth-logo-img" alt="TigerTag">
+                </div>
+            </div>
             <h2 class="auth-title" id="authTitle" data-i18n="authTitle">Bienvenue sur votre TigerScale</h2>
-            <p class="auth-sub" data-i18n="authSub">Connectez-vous pour synchroniser vos bobines avec le cloud TigerTag.</p>
+            <p class="auth-sub" id="authSubText" data-i18n="authSub">Connectez-vous pour synchroniser vos bobines avec le cloud TigerTag.</p>
 
             <button type="button" class="auth-btn auth-btn-google" id="btnAuthGoogle" onclick="signInWithGoogleBridge()">
                 <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -449,27 +486,61 @@
 
             <div class="auth-divider"><span data-i18n="authOr">ou</span></div>
 
-            <input type="email" id="loginEmail" data-i18n-placeholder="firebaseEmail" placeholder="Email" autocomplete="username">
-            <input type="password" id="loginPassword" data-i18n-placeholder="firebasePassword" placeholder="Mot de passe" autocomplete="current-password">
+            <!-- signup only -->
+            <input type="text" id="signupDisplayName" data-i18n-placeholder="authDisplayName" placeholder="Nom affiché (optionnel)" autocomplete="name" data-signup-only style="display:none">
+            <!-- always -->
+            <input type="email" id="loginEmail" data-i18n-placeholder="authEmail" placeholder="Adresse e-mail" autocomplete="username">
+            <input type="password" id="loginPassword" data-i18n-placeholder="authPassword" placeholder="Mot de passe" autocomplete="current-password">
+            <!-- signup only -->
+            <input type="password" id="signupConfirmPassword" data-i18n-placeholder="authConfirmPassword" placeholder="Confirmer le mot de passe" autocomplete="new-password" data-signup-only style="display:none">
 
-            <button type="button" class="auth-btn auth-btn-primary" onclick="signInWithEmail()">
+            <!-- signin only -->
+            <button type="button" class="auth-btn auth-btn-primary" onclick="signInWithEmail()" data-signin-only>
                 <span data-i18n="authSignIn">Se connecter</span>
+            </button>
+            <!-- signup only -->
+            <button type="button" class="auth-btn auth-btn-primary" onclick="signUpWithEmail()" data-signup-only style="display:none">
+                <span data-i18n="authCreateBtn">Créer mon compte</span>
             </button>
 
             <div class="auth-error" id="authError" style="display:none"></div>
 
-            <div class="auth-footer">
-                <span data-i18n="authNoAccount">Pas encore de compte ?</span>
-                <a href="https://tigertag.io" target="_blank" rel="noopener" data-i18n="authSignUp">Créer un compte</a>
+            <!-- signin footer -->
+            <div class="auth-footer" data-signin-only>
+                <div class="auth-footer-row">
+                    <span data-i18n="authNoAccount">Pas encore de compte ?</span>
+                    <a href="#" onclick="switchAuthMode('signup'); return false;" data-i18n="authSignUp">Créer un compte</a>
+                </div>
+                <div class="auth-footer-row">
+                    <a href="#" onclick="forgotPassword(); return false;" data-i18n="authForgot">Mot de passe oublié ?</a>
+                </div>
+            </div>
+            <!-- signup footer -->
+            <div class="auth-footer" data-signup-only style="display:none">
+                <div class="auth-footer-row">
+                    <span data-i18n="authHaveAccount">Déjà un compte ?</span>
+                    <a href="#" onclick="switchAuthMode('signin'); return false;" data-i18n="authSignIn">Se connecter</a>
+                </div>
             </div>
         </div>
     </div>
 
     <style>
-        /* --- Firebase login modal (additions, ne casse pas styles.css) --- */
+        /* --- Login modal --- */
         .modal-blocking { background: rgba(15,23,42,0.72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-        .auth-modal { max-width: 400px; padding: 30px 26px; text-align: center; }
-        .auth-logo { font-size: 56px; line-height: 1; margin-bottom: 6px; }
+        .auth-modal { max-width: 400px; padding: 30px 26px; text-align: center; position: relative; }
+        .auth-modal-close {
+            position: absolute; top: 12px; right: 12px;
+            width: 30px; height: 30px; border-radius: 50%;
+            border: none; background: transparent;
+            color: #a0aec0; font-size: 16px; line-height: 1;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: background 0.15s, color 0.15s;
+        }
+        .auth-modal-close:hover { background: #f0f0f0; color: #4a5568; }
+        .auth-logo { margin-bottom: 14px; display: flex; align-items: center; justify-content: center; }
+        .auth-logo-box { background: #000; border-radius: 20px; width: 92px; height: 92px; display: flex; align-items: center; justify-content: center; }
+        .auth-logo-img { width: 80px; height: auto; display: block; filter: brightness(0) invert(1); }
         .auth-title { font-size: 22px; font-weight: 600; margin: 0 0 8px; color: #2c3e50; }
         .auth-sub { color: #7f8c8d; font-size: 14px; line-height: 1.5; margin: 0 0 24px; }
         .auth-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; box-sizing: border-box; border: none; border-radius: 10px; padding: 13px 18px; font-size: 15px; font-weight: 500; cursor: pointer; font-family: inherit; transition: transform .05s, box-shadow .15s, background .15s; }
@@ -492,8 +563,35 @@
         .auth-error { background: #fdeaea; color: #c0392b; padding: 10px 12px; border-radius: 8px;
                       font-size: 13px; margin-top: 12px; text-align: left; line-height: 1.4; }
         .auth-footer { margin-top: 18px; font-size: 13px; color: #7f8c8d; }
+        .auth-footer-row { margin-bottom: 6px; }
         .auth-footer a { color: #e67e22; text-decoration: none; margin-left: 4px; }
         .auth-footer a:hover { text-decoration: underline; }
+        /* --- Language selector in modal --- */
+        .auth-lang-flags { position: absolute; top: 12px; left: 12px; }
+        .auth-lang-trigger {
+            display: flex; align-items: center; gap: 4px;
+            padding: 4px 8px; border: none; border-radius: 8px;
+            background: transparent; cursor: pointer;
+            font-size: 18px; line-height: 1; transition: background .15s;
+        }
+        .auth-lang-trigger:hover { background: #f0f0f0; }
+        .auth-lang-trigger-chev { font-size: 10px; color: #a0aec0; }
+        .auth-lang-list {
+            display: none; position: absolute; top: calc(100% + 4px); left: 0;
+            background: #1a202c; border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px; padding: 6px; list-style: none; margin: 0;
+            min-width: 200px; z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+        .auth-lang-flags.open .auth-lang-list { display: block; }
+        .auth-lang-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 10px; border-radius: 7px; cursor: pointer;
+            font-size: 13px; color: #cbd5e0; transition: background .15s, color .15s;
+        }
+        .auth-lang-item:hover { background: rgba(255,255,255,0.08); color: #fff; }
+        .auth-lang-item.active { background: rgba(102,126,234,0.25); color: #a3bffa; font-weight: 600; }
+        .auth-lang-item-flag { font-size: 16px; line-height: 1; }
+        .auth-lang-item-name { flex: 1; }
         @media (max-width: 420px) {
             .auth-modal { padding: 24px 20px; }
             .auth-title { font-size: 20px; }
@@ -505,13 +603,18 @@
             width: 44px; height: 44px; border-radius: 50%;
             background: linear-gradient(135deg, #e67e22, #d35400);
             color: #fff; display: flex; align-items: center; justify-content: center;
-            font-weight: 600; font-size: 18px; flex-shrink: 0;
-            text-transform: uppercase;
+            font-weight: 700; font-size: 14px; flex-shrink: 0;
+            text-transform: uppercase; letter-spacing: 0.05em;
         }
         .account-info { flex: 1; min-width: 0; overflow: hidden; }
-        .account-label { font-size: 12px; color: #95a5a6; }
+        .account-label { font-size: 12px; color: #95a5a6; margin-bottom: 2px; }
+        .account-name {
+            font-size: 15px; color: #1a202c; font-weight: 600;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            margin-bottom: 1px;
+        }
         .account-email {
-            font-size: 14px; color: #2c3e50; font-weight: 500;
+            font-size: 12px; color: #718096; font-weight: 400;
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         /* --- Debug API panel --- */
@@ -524,6 +627,7 @@
         .dbg-post.err  { color: #fd79a8 !important; }
     </style>
 
+    <script src="i18n.js"></script>
     <script src="script.js"></script>
     <script>
     function dbgPost(url, method) {
@@ -556,7 +660,7 @@
     <div id="logSidePanel" class="log-side-panel">
         <div class="log-side-header">
             <div class="log-side-tabs">
-                <button class="log-side-tab active" id="logTabFb" onclick="logTabSwitch('fb')">🔥 Firebase</button>
+                <button class="log-side-tab active" id="logTabFb" onclick="logTabSwitch('fb')">🔥 Cloud</button>
                 <button class="log-side-tab" id="logTabWs" onclick="logTabSwitch('ws')">🔌 WebSocket</button>
             </div>
             <button class="log-side-close" onclick="logPanelClose()">✕</button>

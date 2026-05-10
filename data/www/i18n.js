@@ -84,9 +84,9 @@
         applyTranslations();
         // Update legacy global currentLang for any code that reads it directly
         global.currentLang = lang;
-        // Sync the dropdown trigger label (if present)
-        const lbl = document.querySelector('#langTrigger .lang-trigger-label');
-        if (lbl) lbl.textContent = (LANGS[state.lang] || LANGS[DEFAULT_LANG]).short;
+        // Sync the dropdown trigger flag (if present)
+        const lbl = document.querySelector('#langTrigger .lang-trigger-flag');
+        if (lbl) lbl.textContent = (LANGS[state.lang] || LANGS[DEFAULT_LANG]).flag;
         document.querySelectorAll('.lang-item').forEach(li => {
             li.classList.toggle('active', li.dataset.lang === state.lang);
         });
@@ -131,14 +131,14 @@
         trigger.setAttribute('aria-expanded', 'false');
         trigger.setAttribute('aria-label', 'Language');
 
-        const label = document.createElement('span');
-        label.className = 'lang-trigger-label';
-        label.textContent = (LANGS[state.lang] || LANGS[DEFAULT_LANG]).short;
+        const flagSpan = document.createElement('span');
+        flagSpan.className = 'lang-trigger-flag';
+        flagSpan.textContent = (LANGS[state.lang] || LANGS[DEFAULT_LANG]).flag;
         const chev = document.createElement('span');
         chev.className = 'lang-trigger-chevron';
         chev.setAttribute('aria-hidden', 'true');
         chev.textContent = '▾';
-        trigger.appendChild(label);
+        trigger.appendChild(flagSpan);
         trigger.appendChild(chev);
 
         const menu = document.createElement('ul');
@@ -153,7 +153,7 @@
             li.setAttribute('role', 'option');
             li.tabIndex = 0;
             li.innerHTML =
-                '<span class="lang-item-code">' + info.short + '</span>' +
+                '<span class="lang-item-flag">' + info.flag + '</span>' +
                 '<span class="lang-item-name">' + info.name + '</span>';
             li.addEventListener('click', () => { setLang(code); close(); });
             li.addEventListener('keydown', e => {

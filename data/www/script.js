@@ -27,302 +27,17 @@ const masterspools = [
     }
 ];
 
-// ========== TRANSLATIONS ==========
-const translations = {
-    fr: {
-        waiting: 'Attente du TigerTag...',
-        quickActions: 'Actions rapides',
-        tare: 'TARE',
-        firebase: 'Firebase',
-        firebaseStatus: 'Statut Firebase',
-        firebaseEmail: 'Email Firebase',
-        firebasePassword: 'Mot de passe Firebase',
-        apiKey: 'Clé API',
-        user: 'Utilisateur',
-        newApiKey: 'Nouvelle clé API',
-        update: 'Mettre à jour',
-        delete: 'Supprimer',
-        calibration: 'Calibration Magique',
-        currentFactor: 'Facteur actuel',
-        autoCalc: 'Calcul automatique',
-        knownWeight: 'Poids connu (g)',
-        compute: 'Calculer',
-        manual: 'Manuel',
-        newFactor: 'Nouveau facteur',
-        apply: 'Appliquer',
-        advanced: 'Avancé',
-        reconfigWifi: 'Reconfigurer Wi‑Fi',
-        factoryReset: 'Réinitialisation',
-        uptime: 'Durée de fonctionnement',
-        // Calibration wizard
-        step1Title: 'Step 1',
-        step1Instruction: 'Laissez la balance vide puis appuyez sur le bouton',
-        step1Button: 'GO →',
-        step2Title: 'Step 2',
-        step2Instruction: 'Sélectionnez votre Masterspool vide et placez-la sur la balance',
-        selectMasterspool: 'Sélectionnez votre Masterspool',
-        step2Button: 'Calibrer ✓',
-        step3Title: 'Calibré !',
-        step3Instruction: 'La balance est maintenant calibrée',
-        currentReading: 'Lecture actuelle',
-        calibKnownWeight: 'Poids réel (g)',
-        newFactor: 'Nouveau facteur',
-        back: '← Retour',
-        calibAgain: 'Restart',
-        manualCalib: 'Calibration manuelle',
-        // Status
-        cloud: 'Cloud',
-        offline: 'Hors ligne',
-        validated: 'Validé',
-        invalid: 'Invalide',
-        notConfigured: 'Non configuré',
-        configureApiKey: 'Configurer la clé API',
-        apiKeyInvalid: 'Clé API invalide',
-        // Alerts
-        alertEnterKey: 'Veuillez saisir une clé API',
-        alertUpdateError: 'Erreur lors de la mise à jour',
-        alertDeleteConfirm: 'Supprimer la clé API ?',
-        alertDeleteError: 'Erreur lors de la suppression',
-        alertInvalidFactor: 'Facteur invalide',
-        alertNegativeFactor: '⚠️ Le coefficient doit être positif',
-        alertError: 'Erreur',
-        alertInvalidWeight: 'Poids connu invalide',
-        alertDataUnavailable: 'Données non disponibles',
-        alertWeightTooLight: '⚠️ Poids trop léger (min. 200g)\nVérifiez que le filament est bien sur la balance.',
-        errorWeightRequired: '⚠️ Veuillez entrer un poids valide (min. 200g)',
-        modalWeightTooLightTitle: 'Poids insuffisant',
-        modalWeightTooLightMessage: 'Le poids est trop léger pour une calibration. Utilisez une Masterspool ou un filament d\'au moins 200g.',
-        modalWeightInvalidTitle: 'Poids invalide',
-        modalWeightInvalidMessage: 'Veuillez entrer un poids valide',
-        modalOk: 'OK',
-        alertReconfigConfirm: 'Reconfigurer le Wi‑Fi ? L\'appareil redémarrera.',
-        alertResetConfirm: '⚠️ ATTENTION : Cette action effacera toutes les données. Continuer ?',
-        // Send status
-        sending: '⏳ Envoi...',
-        sent: '✓ Envoyé',
-        sendError: '✗ Erreur',
-        sendIn: 'Envoi dans',
-        scanningRfid:  '📡 Lecture RFID...',
-        stabilizing:   '⚖️ Stabilisation...',
-        removeSpool:   'Retirer la bobine',
-        readyForSpool: 'Prêt pour la prochaine',
-        // Weight breakdown
-        containerLabel: 'Bobine',
-        filamentLabel:  'Filament',
-        // Hardware
-        hardware: 'Hardware',
-        rfidReaders: 'Lecteurs RFID',
-        rfidTest: 'Test RFID',
-        rfidReaderLeft: 'Gauche',
-        rfidReaderRight: 'Droite',
-        rfidClear: 'Effacer',
-        rfidTestScan: 'Scanner',
-        motorConnected: 'Moteur connecté',
-        motorEnabled: 'Rotation activée',
-        motorTest: 'Test moteur',
-        motorTestRun: 'Démarrer',
-        motorTestStop: 'Arrêter',
-        spoolDetected: 'Bobine détectée',
-        spoolPosition: 'Position',
-        yes: 'Oui',
-        no: 'Non',
-        rfidSide: 'Position',
-        motorSpeedLabel: 'Vitesse de rotation',
-        motorNoiseQuiet: 'Silencieux',
-        motorNoiseModerate: 'Modéré',
-        motorNoiseLoud: 'Bruyant',
-        uidLeft: '◀ Gauche',
-        uidRight: 'Droite ▶',
-        uidTwin: '🔗 Jumeau'
-    },
-    en: {
-        waiting: 'Waiting TigerTag...',
-        quickActions: 'Quick Actions',
-        tare: 'TARE',
-        apiKey: 'API Key',
-        user: 'User',
-        newApiKey: 'New API Key',
-        update: 'Update',
-        delete: 'Delete',
-        calibration: 'Wizard Calibration',
-        currentFactor: 'Current factor',
-        autoCalc: 'Auto calculation',
-        knownWeight: 'Known weight (g)',
-        compute: 'Compute',
-        manual: 'Manual',
-        newFactor: 'New factor',
-        apply: 'Apply',
-        advanced: 'Advanced',
-        reconfigWifi: 'Reconfigure Wi‑Fi',
-        factoryReset: 'Factory Reset',
-        uptime: 'Uptime',
-        // Calibration wizard
-        step1Title: 'Step 1',
-        step1Instruction: 'Leave the scale empty then press the button',
-        step1Button: 'GO →',
-        step2Title: 'Step 2',
-        step2Instruction: 'Select your empty Masterspool and place it on the scale',
-        selectMasterspool: 'Select your Masterspool',
-        step2Button: 'Calibrate ✓',
-        step3Title: 'Calibrated!',
-        step3Instruction: 'The scale is now calibrated',
-        currentReading: 'Current reading',
-        calibKnownWeight: 'Real weight (g)',
-        newFactor: 'New factor',
-        back: '← Back',
-        calibAgain: 'Restart',
-        manualCalib: 'Manual calibration',
-        // Status
-        cloud: 'Cloud',
-        offline: 'Offline',
-        validated: 'Validated',
-        invalid: 'Invalid',
-        notConfigured: 'Not configured',
-        configureApiKey: 'Setup API Key',
-        apiKeyInvalid: 'Invalid API Key',
-        // Alerts
-        alertEnterKey: 'Please enter an API key',
-        alertUpdateError: 'Update error',
-        alertDeleteConfirm: 'Delete API key?',
-        alertDeleteError: 'Delete error',
-        alertInvalidFactor: 'Invalid factor',
-        alertNegativeFactor: '⚠️ Coefficient must be positive',
-        alertError: 'Error',
-        alertInvalidWeight: 'Invalid known weight',
-        alertDataUnavailable: 'Data unavailable',
-        alertWeightTooLight: '⚠️ Weight too light (min. 200g)\nCheck that the filament is on the scale.',
-        errorWeightRequired: '⚠️ Please enter a valid weight (min. 200g)',
-        modalWeightTooLightTitle: 'Insufficient weight',
-        modalWeightTooLightMessage: 'The weight is too light for calibration. Use a Masterspool or filament of at least 200g.',
-        modalWeightInvalidTitle: 'Invalid weight',
-        modalWeightInvalidMessage: 'Please enter a valid weight',
-        modalOk: 'OK',
-        alertReconfigConfirm: 'Reconfigure Wi‑Fi? Device will restart.',
-        alertResetConfirm: '⚠️ WARNING: This will erase all data. Continue?',
-        // Send status
-        sending: '⏳ Sending...',
-        sent: '✓ Sent',
-        sendError: '✗ Error',
-        sendIn: 'Sending in',
-        scanningRfid:  '📡 Scanning RFID...',
-        stabilizing:   '⚖️ Stabilizing...',
-        removeSpool:   'Remove spool',
-        readyForSpool: 'Ready for next spool',
-        // Weight breakdown
-        containerLabel: 'Spool',
-        filamentLabel:  'Filament',
-        // Hardware
-        hardware: 'Hardware',
-        rfidReaders: 'RFID Readers',
-        rfidTest: 'RFID test',
-        rfidReaderLeft: 'Left',
-        rfidReaderRight: 'Right',
-        rfidClear: 'Clear',
-        rfidTestScan: 'Scan',
-        motorConnected: 'Motor connected',
-        motorEnabled: 'Rotation enabled',
-        motorTest: 'Motor test',
-        motorTestRun: 'Run',
-        motorTestStop: 'Stop',
-        spoolDetected: 'Spool detected',
-        spoolPosition: 'Position',
-        yes: 'Yes',
-        no: 'No',
-        rfidSide: 'Position',
-        motorSpeedLabel: 'Scan speed',
-        motorNoiseQuiet: 'Quiet',
-        motorNoiseModerate: 'Moderate',
-        motorNoiseLoud: 'Loud',
-        uidLeft: '◀ Left',
-        uidRight: 'Right ▶',
-        uidTwin: '🔗 Twin'
-    }
-};
-
-translations.fr.save = 'Enregistrer';
-translations.en.save = 'Save';
-translations.fr.firebase = 'Firebase';
-translations.fr.firebaseStatus = 'Statut Firebase';
-translations.fr.firebaseEmail = 'Email Firebase';
-translations.fr.firebasePassword = 'Mot de passe Firebase';
-translations.en.firebase = 'Firebase';
-translations.en.firebaseStatus = 'Firebase status';
-translations.en.firebaseEmail = 'Firebase email';
-translations.en.firebasePassword = 'Firebase password';
-translations.fr.alertFirebaseSaved = 'Identifiants Firebase enregistres';
-translations.fr.alertFirebaseDeleted = 'Identifiants Firebase supprimes';
-translations.fr.alertFirebaseError = 'Erreur Firebase';
-translations.en.alertFirebaseSaved = 'Firebase credentials saved';
-translations.en.alertFirebaseDeleted = 'Firebase credentials deleted';
-translations.en.alertFirebaseError = 'Firebase error';
-
-// ── Auth modal (NEW) ──
-translations.fr.authTitle = 'Bienvenue sur votre TigerScale';
-translations.fr.authSub = 'Connectez-vous pour synchroniser vos bobines avec le cloud TigerTag.';
-translations.fr.authGoogleBtn = 'Continuer avec Google';
-translations.fr.authOr = 'ou';
-translations.fr.authSignIn = 'Se connecter';
-translations.fr.authNoAccount = 'Pas encore de compte ?';
-translations.fr.authSignUp = 'Créer un compte';
-translations.fr.authPopupBlocked = 'Le popup a été bloqué. Autorisez les popups pour ce site.';
-translations.fr.authPopupClosed = 'Connexion annulée.';
-translations.fr.authNetworkError = 'Erreur réseau. Vérifiez votre connexion.';
-translations.fr.authInvalidCreds = 'Email ou mot de passe incorrect.';
-translations.fr.authSuccess = 'Connecté !';
-translations.en.authTitle = 'Welcome to your TigerScale';
-translations.en.authSub = 'Sign in to sync your spools with the TigerTag cloud.';
-translations.en.authGoogleBtn = 'Continue with Google';
-translations.en.authOr = 'or';
-translations.en.authSignIn = 'Sign in';
-translations.en.authNoAccount = 'No account yet?';
-translations.en.authSignUp = 'Create account';
-translations.en.authPopupBlocked = 'Popup blocked. Please allow popups for this site.';
-translations.en.authPopupClosed = 'Sign-in cancelled.';
-translations.en.authNetworkError = 'Network error. Check your connection.';
-translations.en.authInvalidCreds = 'Wrong email or password.';
-translations.en.authSuccess = 'Signed in!';
-
-// ── Account / logout (NEW) ──
-translations.fr.account = 'Compte';
-translations.fr.connectedAs = 'Connecté en tant que';
-translations.fr.signOut = 'Se déconnecter';
-translations.fr.confirmSignOut = 'Vous voulez vraiment vous déconnecter ? Vous devrez vous reconnecter pour synchroniser vos bobines.';
-translations.en.account = 'Account';
-translations.en.connectedAs = 'Signed in as';
-translations.en.signOut = 'Sign out';
-translations.en.confirmSignOut = 'Sign out for real? You will need to sign back in to sync your spools.';
-
-let currentLang = localStorage.getItem('tigertag_lang') || 'en';
-
-function t(key) {
-    return translations[currentLang][key] || key;
-}
-
-function setLanguage(lang) {
-    currentLang = lang;
-    localStorage.setItem('tigertag_lang', lang);
-    document.documentElement.lang = lang;
-    
-    // Update lang buttons
-    document.querySelectorAll('.lang-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.lang === lang);
+// ========== I18N HOOK ==========
+// Translations are handled by i18n.js + locales/*.json (9 languages).
+// window.t() and window.setLanguage() are provided by i18n.js as compat shims.
+// We hook in only for data-tooltip sync and updateCloudText() refresh.
+document.addEventListener('i18n:applied', () => {
+    // Sync CSS ::after tooltips (i18n.js sets title + aria-label; we also need data-tooltip)
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        el.setAttribute('data-tooltip', el.title || el.getAttribute('aria-label') || '');
     });
-    
-    // Update all translated elements
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-        const key = el.dataset.i18n;
-        el.textContent = t(key);
-    });
-    
-    // Update placeholders
-    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-        const key = el.dataset.i18nPlaceholder;
-        el.placeholder = t(key);
-    });
-    
-    // Update dynamic content
     updateCloudText();
-}
+});
 
 // ========== DOM ELEMENTS ==========
 const cloudDot = document.getElementById('cloudDot');
@@ -344,6 +59,34 @@ let calFactor = null;
 let cloudStatus = 'unknown';
 let firebaseConfigured = false;
 
+// UID state — kept in sync from WS / snapshot
+let _uidLeft  = '';   // physically scanned (rfid2, left reader)
+let _uidRight = '';   // physically scanned (rfid1, right reader)
+let _uidTwin  = '';   // fetched from Firestore when one physical slot is empty
+
+// Uptime live counter — resync from firmware, advance locally every second
+let _uptimeBase   = null;  // uptime_s received from firmware
+let _uptimeBaseAt = null;  // Date.now() when it was received
+let _uptimeTicker = null;  // setInterval handle
+
+function _startUptimeTicker() {
+    if (_uptimeTicker) return;
+    _uptimeTicker = setInterval(() => {
+        if (_uptimeBase === null) return;
+        const elapsed = (Date.now() - _uptimeBaseAt) / 1000;
+        const upEl = document.getElementById('uptime');
+        if (upEl) upEl.textContent = formatHMS(_uptimeBase + elapsed);
+    }, 1000);
+}
+
+function _syncUptime(secs) {
+    _uptimeBase   = secs;
+    _uptimeBaseAt = Date.now();
+    const upEl = document.getElementById('uptime');
+    if (upEl) upEl.textContent = formatHMS(secs);
+    _startUptimeTicker();
+}
+
 // ========== UTILITIES ==========
 function setTextIfChanged(el, txt) {
     if (!el || el.textContent === txt) return;
@@ -364,40 +107,50 @@ function updateCloudText() {
 function setCloudStatus(state) {
     // Accept both legacy string ("ok"/"down") and new boolean true/false
     cloudStatus = (state === true || state === 'up' || state === 'ok') ? 'up' : 'down';
-    updateCloudText();
-    cloudDot.className = cloudStatus === 'up' ? 'status-dot active' : 'status-dot error';
+    const ok = cloudStatus === 'up';
+    const info = document.getElementById('cloudInfo');
+    if (info) info.style.display = ok ? 'none' : '';
+    if (!ok) {
+        updateCloudText();
+        if (cloudDot) cloudDot.className = 'status-dot error';
+    }
 }
 
 function setDbStatus(s) {
     if (!dbDot || !dbText) return;
+    const info = document.getElementById('dbInfo');
     if (s.db_updating) {
+        if (info) info.style.display = '';
         dbDot.className = 'status-dot warning';
         setTextIfChanged(dbText, 'DB ↻');
         return;
     }
-    const loaded = (s.db_brands > 0 && s.db_materials > 0);
+    // WS sends db_ok (bool); /api/status sends db_brands + db_materials (counts)
+    const loaded = (typeof s.db_ok !== 'undefined')
+        ? !!s.db_ok
+        : (s.db_brands > 0 && s.db_materials > 0);
     if (!loaded) {
+        if (info) info.style.display = '';
         dbDot.className = 'status-dot error';
         setTextIfChanged(dbText, 'DB !');
         return;
     }
-    // Show how long ago the last check ran
-    const secs = s.db_checked_s;
-    let age = '';
-    if (secs < 0)          age = '';
-    else if (secs < 120)   age = ' ✓';
-    else if (secs < 3600)  age = ' ' + Math.round(secs / 60) + 'm';
-    else                   age = ' ' + Math.round(secs / 3600) + 'h';
-    dbDot.className = 'status-dot active';
-    setTextIfChanged(dbText, 'DB' + age);
+    // DB is healthy — hide the indicator
+    if (info) info.style.display = 'none';
 }
 
 function setFirebaseConfigured(flag) {
     firebaseConfigured = !!flag;
     const el = document.getElementById('firebaseStatus');
     if (el) setTextIfChanged(el, firebaseConfigured ? t('validated') : t('notConfigured'));
-    if (fbDot) fbDot.className = firebaseConfigured ? 'status-dot active' : 'status-dot warning';
-    if (fbText) setTextIfChanged(fbText, firebaseConfigured ? 'FB OK' : 'FB OFF');
+    const fbInfo = document.getElementById('fbInfo');
+    if (firebaseConfigured) {
+        if (fbInfo) fbInfo.style.display = 'none';
+    } else {
+        if (fbInfo) fbInfo.style.display = '';
+        if (fbDot)  fbDot.className = 'status-dot warning';
+        if (fbText) setTextIfChanged(fbText, 'FB OFF');
+    }
     // Toggle the Account card (visible only when authenticated)
     const accountCard = document.getElementById('accountCard');
     if (accountCard) accountCard.style.display = firebaseConfigured ? '' : 'none';
@@ -407,18 +160,36 @@ function setFirebaseConfigured(flag) {
     }
 }
 
-// Update the Account card with the user's displayName/email + avatar initial.
+// Update the Account card with the user's displayName/email + avatar initials.
 // Called from applyStatusSnapshot when /api/status or WS reports firebase info.
+function _getInitials(displayName, email) {
+    if (displayName && displayName.trim()) {
+        const words = displayName.trim().split(/\s+/).filter(w => w.length > 0);
+        if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+        return words[0][0].toUpperCase();
+    }
+    return email ? email.charAt(0).toUpperCase() : '?';
+}
+
 function setAccountInfo(email, displayName) {
     if (!email && !displayName) return;
     const emailEl  = document.getElementById('accountEmail');
+    const nameEl   = document.getElementById('accountName');
     const avatarEl = document.getElementById('accountAvatar');
+
     if (emailEl) setTextIfChanged(emailEl, email || '');
-    if (avatarEl) {
-        // Avatar initial: first char of displayName, or email local part
-        const src = (displayName && displayName.length) ? displayName : (email || '?');
-        avatarEl.textContent = src.charAt(0).toUpperCase();
+
+    if (nameEl) {
+        if (displayName && displayName.trim()) {
+            setTextIfChanged(nameEl, displayName.trim());
+            nameEl.style.display = '';
+        } else {
+            nameEl.style.display = 'none';
+        }
     }
+
+    if (avatarEl) avatarEl.textContent = _getInitials(displayName, email);
+
     // Show displayName (or email fallback) in the weight card header
     if (userNameEl) {
         const label = (displayName && displayName.length) ? displayName : (email || '');
@@ -875,47 +646,32 @@ function applyStatusSnapshot(s) {
                                           ? String(s.netWeight) : '—');
     }
 
-    // UID Left (rfid2 — physically Left reader)
-    if (typeof s.uid_left !== 'undefined') {
-        const el = document.getElementById('uidLeftDisplay');
-        if (el) setTextIfChanged(el, s.uid_left || '—');
-    }
-
-    // UID Right (rfid1 — physically Right reader)
-    if (typeof s.uid_right !== 'undefined') {
-        const u = s.uid_right || '';
-        if (currentUid !== u) {
-            currentUid = u;
-            setTextIfChanged(uidEl, u || '—');
-        }
-    } else if (typeof s.uid !== 'undefined') {
+    // UID state — update tracked values then refresh display
+    let uidChanged = false;
+    if (typeof s.uid_left  !== 'undefined') { _uidLeft  = s.uid_left  || ''; uidChanged = true; }
+    if (typeof s.uid_right !== 'undefined') { _uidRight = s.uid_right || ''; uidChanged = true; currentUid = _uidRight; }
+    if (typeof s.uid       !== 'undefined' && typeof s.uid_right === 'undefined') {
         // fallback for older firmware frames
-        const u = s.uid || '';
-        if (currentUid !== u) {
-            currentUid = u;
-            setTextIfChanged(uidEl, u || '—');
-        }
+        _uidRight = s.uid || ''; uidChanged = true; currentUid = _uidRight;
     }
-
-    // UID Twin — fetched from Firestore (only set when no physical 2nd reader detected)
-    if (typeof s.uid_twin !== 'undefined') {
-        const twin = s.uid_twin || '';
-        const twinRow = document.getElementById('uidTwinRow');
-        const twinEl  = document.getElementById('uidTwinDisplay');
-        if (twinEl) setTextIfChanged(twinEl, twin || '—');
-        if (twinRow) twinRow.style.display = twin.length > 0 ? '' : 'none';
-    }
+    if (typeof s.uid_twin  !== 'undefined') { _uidTwin  = s.uid_twin  || ''; uidChanged = true; }
+    if (uidChanged) _refreshUidDisplays();
 
     // Show/hide UID rows based on hardware config
     _updateUidRows();
+
+    // Filament info panel (brand / material / color from RFID scan)
+    if (typeof s.brand !== 'undefined' || typeof s.material !== 'undefined' || typeof s.color !== 'undefined') {
+        _updateFilamentPanel(s);
+    }
 
     // Cloud
     if (typeof s.cloud !== 'undefined') {
         setCloudStatus(s.cloud);
     }
 
-    // DB status
-    if (typeof s.db_brands !== 'undefined') {
+    // DB status (WS sends db_ok bool; /api/status sends db_brands/db_materials counts)
+    if (typeof s.db_ok !== 'undefined' || typeof s.db_brands !== 'undefined') {
         setDbStatus(s);
     }
     
@@ -947,34 +703,40 @@ function applyStatusSnapshot(s) {
         calFactor = n;
     }
     
-    // Uptime
+    // Uptime — sync anchor from firmware, local ticker advances between frames
     if (typeof s.uptime_s !== 'undefined' || typeof s.uptime_ms !== 'undefined') {
-        let secs = (typeof s.uptime_s !== 'undefined') ? Number(s.uptime_s) : Number(s.uptime_ms) / 1000;
-        const upEl = document.getElementById('uptime');
-        setTextIfChanged(upEl, formatHMS(secs));
+        const secs = (typeof s.uptime_s !== 'undefined') ? Number(s.uptime_s) : Number(s.uptime_ms) / 1000;
+        _syncUptime(secs);
     }
-    
+
+    // Firmware version
+    if (typeof s.fw_version === 'string' && s.fw_version) {
+        const fwEl = document.getElementById('fwVersion');
+        if (fwEl) setTextIfChanged(fwEl, 'v' + s.fw_version);
+    }
+
     // Workflow state badge (top-left overlay on the weight card)
-    if (typeof s.sendToCloud !== 'undefined') {
-        const v = String(s.sendToCloud || '').trim();
-        if (v === '' || v === '0') {
-            setSendState('');
+    if (typeof s.scaleStatus !== 'undefined') {
+        const v = String(s.scaleStatus || '').trim();
+        if (v === 'idle') {
+            setSendState(t('placeASpool'),  'rgba(72,187,120,0.35)');
         } else if (v.startsWith('scanning:')) {
-            setSendState('📡 ' + t('scanningRfid'), 'rgba(100,160,255,0.30)');
+            setSendState(t('scanningRfid'), 'rgba(100,160,255,0.30)');
         } else if (v.startsWith('stable:')) {
-            setSendState('⚖️ ' + t('stabilizing'),  'rgba(255,200,80,0.30)');
+            setSendState(t('stabilizing'),  'rgba(255,200,80,0.30)');
         } else if (v === 'send') {
-            setSendState('⏳ ' + t('sending'),         'rgba(255,255,255,0.22)');
+            setSendState(t('sending'),      'rgba(255,255,255,0.22)');
         } else if (v === 'success') {
-            setSendState('✅ ' + t('sent'),             'rgba(72,187,120,0.40)');
+            setSendState(t('sent'),         'rgba(72,187,120,0.40)');
         } else if (v === 'error') {
-            setSendState('❌ ' + t('sendError'),        'rgba(245,101,101,0.40)');
+            setSendState(t('sendError'),    'rgba(245,101,101,0.40)');
         } else if (v === 'done') {
-            setSendState('🗑️ ' + t('removeSpool'),     'rgba(255,160,50,0.35)');
+            setSendState(t('removeSpool'),  'rgba(255,160,50,0.35)');
         } else if (v === 'ready') {
-            setSendState('🟢 ' + t('readyForSpool'),   'rgba(72,187,120,0.35)');
+            setSendState(t('readyForSpool'),'rgba(72,187,120,0.35)');
+            _clearFilamentPanel();
         } else if (/^\d+$/.test(v)) {
-            setSendState('⏳ ' + t('sendIn') + ' ' + v + 's', 'rgba(255,255,255,0.22)');
+            setSendState(t('sendIn') + ' ' + v + 's', 'rgba(255,255,255,0.22)');
         }
     }
 }
@@ -1011,12 +773,120 @@ function hideAuthModal() {
     m.setAttribute('aria-hidden', 'true');
     setAuthError('');
 }
-function setAuthError(msg) {
+function setAuthError(msg, isSuccess = false) {
     const el = document.getElementById('authError');
     if (!el) return;
     if (!msg) { el.style.display = 'none'; el.textContent = ''; return; }
     el.textContent = msg;
     el.style.display = 'block';
+    el.style.background = isSuccess ? '#eafaf1' : '#fdeaea';
+    el.style.color       = isSuccess ? '#1e8449' : '#c0392b';
+}
+
+function forgotPassword() {
+    const email = (document.getElementById('loginEmail')?.value || '').trim();
+    if (!email) { setAuthError(t('authEnterEmailFirst')); return; }
+    setAuthError('');
+    const FIREBASE_API_KEY = 'AIzaSyCkxPTs_Cv0KVLqsZj-UKWWqIY0OtfVpnw';
+    fetch(`https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${FIREBASE_API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestType: 'PASSWORD_RESET', email })
+    })
+    .then(r => r.json().then(j => ({ ok: r.ok, body: j })))
+    .then(({ ok, body }) => {
+        if (!ok) {
+            const code = body?.error?.message || '';
+            setAuthError(t(code === 'EMAIL_NOT_FOUND' ? 'authEmailNotFound' : 'authNetworkError'));
+            return;
+        }
+        setAuthError(t('authResetSent'), true);
+    })
+    .catch(() => setAuthError(t('authNetworkError')));
+}
+
+// ── Auth mode toggle (signin ↔ signup) ──
+const FIREBASE_API_KEY = 'AIzaSyCkxPTs_Cv0KVLqsZj-UKWWqIY0OtfVpnw';
+
+function switchAuthMode(mode) {
+    setAuthError('');
+    const isSignup = mode === 'signup';
+    document.querySelectorAll('[data-signup-only]').forEach(el => el.style.display = isSignup ? '' : 'none');
+    document.querySelectorAll('[data-signin-only]').forEach(el => el.style.display = isSignup ? 'none' : '');
+    const titleEl = document.getElementById('authTitle');
+    const subEl   = document.getElementById('authSubText');
+    if (titleEl) titleEl.textContent = t(isSignup ? 'authSignUpTitle' : 'authTitle');
+    if (subEl)   subEl.textContent   = t(isSignup ? 'authSignUpSub'   : 'authSub');
+    const passEl = document.getElementById('loginPassword');
+    if (passEl) passEl.setAttribute('autocomplete', isSignup ? 'new-password' : 'current-password');
+    // Reset confirm/name fields when switching
+    if (!isSignup) {
+        const cp = document.getElementById('signupConfirmPassword');
+        const dn = document.getElementById('signupDisplayName');
+        if (cp) cp.value = '';
+        if (dn) dn.value = '';
+    }
+}
+
+// ── Email / Password sign-up (Firebase REST API → /api/firebase/token) ──
+async function signUpWithEmail() {
+    const email       = (document.getElementById('loginEmail')?.value || '').trim();
+    const password    = (document.getElementById('loginPassword')?.value || '').trim();
+    const confirm     = (document.getElementById('signupConfirmPassword')?.value || '').trim();
+    const displayName = (document.getElementById('signupDisplayName')?.value || '').trim();
+
+    if (!email || !password) { setAuthError(t('alertError')); return; }
+    if (password !== confirm) { setAuthError(t('authPasswordMismatch')); return; }
+    if (password.length < 6)  { setAuthError(t('authWeakPassword')); return; }
+
+    setAuthError('');
+
+    try {
+        // 1. Create account
+        const r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password, returnSecureToken: true })
+        });
+        const data = await r.json();
+        if (!r.ok) {
+            const code = data?.error?.message || '';
+            if (code === 'EMAIL_EXISTS')        { setAuthError(t('authEmailInUse'));     return; }
+            if (code.startsWith('WEAK_PASSWORD')){ setAuthError(t('authWeakPassword')); return; }
+            setAuthError(t('alertError'));
+            return;
+        }
+
+        // 2. Set display name if provided
+        if (displayName) {
+            await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:update?key=${FIREBASE_API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idToken: data.idToken, displayName, returnSecureToken: false })
+            }).catch(() => {});
+        }
+
+        // 3. Store tokens on device
+        const tr = await fetch('/api/firebase/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                idToken:      data.idToken,
+                refreshToken: data.refreshToken,
+                uid:          data.localId,
+                email:        data.email || email,
+                displayName:  displayName,
+                provider:     'password'
+            })
+        });
+        if (!tr.ok) throw new Error('token store failed');
+
+        setFirebaseConfigured(true);
+        hideAuthModal();
+
+    } catch (_) {
+        setAuthError(t('authNetworkError'));
+    }
 }
 
 // ── Email / Password sign-in (uses existing /api/firebase/auth endpoint) ──
@@ -1025,7 +895,7 @@ function signInWithEmail() {
     const email = (document.getElementById('loginEmail')?.value || '').trim();
     const password = (document.getElementById('loginPassword')?.value || '').trim();
     if (!email || !password) {
-        setAuthError(t('alertFirebaseError'));
+        setAuthError(t('alertError'));
         return;
     }
     fetch('/api/firebase/auth', {
@@ -1562,6 +1432,79 @@ let _wsLogOnlyChange = true;
 let _wsLogLastRaw    = null;
 let _wsLogRenderTimer = null;
 
+// ========== FILAMENT PANEL ==========
+// Tracked values (so partial WS deltas can update only the changed field)
+let _fpBrand    = '';
+let _fpMaterial = '';
+let _fpColor    = '';  // raw string from firmware e.g. "Red #FF0000"
+
+function _clearFilamentPanel() {
+    _fpBrand = ''; _fpMaterial = ''; _fpColor = '';
+    const panel = document.getElementById('filamentPanel');
+    if (panel) panel.style.display = 'none';
+}
+
+function _updateFilamentPanel(s) {
+    if (typeof s.brand    !== 'undefined') _fpBrand    = s.brand    || '';
+    if (typeof s.material !== 'undefined') _fpMaterial = s.material || '';
+    if (typeof s.color    !== 'undefined') _fpColor    = s.color    || '';
+
+    const panel  = document.getElementById('filamentPanel');
+    const dotEl  = document.getElementById('filamentColorDot');
+    const brandEl = document.getElementById('filamentBrand');
+    const matEl   = document.getElementById('filamentMaterial');
+    if (!panel) return;
+
+    // Treat "--" (firmware sentinel for "no data") as empty
+    const brand = (_fpBrand    === '--') ? '' : _fpBrand;
+    const mat   = (_fpMaterial === '--') ? '' : _fpMaterial;
+    const col   = (_fpColor    === '--') ? '' : _fpColor;
+
+    const hasInfo = brand.length > 0 || mat.length > 0;
+    panel.style.display = hasInfo ? '' : 'none';
+    if (!hasInfo) return;
+
+    if (brandEl) setTextIfChanged(brandEl, brand || '—');
+    if (matEl)   setTextIfChanged(matEl,   mat   || '—');
+    if (dotEl) {
+        // Extract "#RRGGBB" from the color string (e.g. "Red #FF0000")
+        const hex = col.match(/#[0-9A-Fa-f]{6}/)?.[0];
+        dotEl.style.background = hex || 'rgba(255,255,255,0.25)';
+    }
+}
+
+// Refresh what is shown in each UID slot.
+// Physical UID → shown as-is.
+// Slot empty + other slot has UID → show uid_twin (real UID) if available, else "🔗 Twin" placeholder.
+// Both slots empty → show "—".
+function _refreshUidDisplays() {
+    const leftEl  = document.getElementById('uidLeftDisplay');
+    const rightEl = document.getElementById('uid');
+    const twinRow = document.getElementById('uidTwinRow');
+    if (twinRow) twinRow.style.display = 'none';  // always hidden — folded into left/right slots
+
+    const TWIN_PH = t('uidTwin');  // "🔗 Twin" / "🔗 Jumeau"
+
+    function resolve(physical, otherPhysical) {
+        if (physical)                     return { text: physical,  twin: false };
+        if (otherPhysical && _uidTwin)    return { text: _uidTwin,  twin: true  };
+        if (otherPhysical)                return { text: TWIN_PH,   twin: true  };
+        return                                   { text: '—',       twin: false };
+    }
+
+    const L = resolve(_uidLeft,  _uidRight);
+    const R = resolve(_uidRight, _uidLeft);
+
+    if (leftEl) {
+        setTextIfChanged(leftEl, L.text);
+        leftEl.classList.toggle('uid-value--twin', L.twin);
+    }
+    if (rightEl) {
+        setTextIfChanged(rightEl, R.text);
+        rightEl.classList.toggle('uid-value--twin', R.twin);
+    }
+}
+
 function _updateUidRows() {
     const leftRow  = document.getElementById('uidLeftRow');
     const rightRow = document.getElementById('uidRightRow');
@@ -1648,11 +1591,34 @@ async function wsLogCopy() {
     } catch (_) {}
 }
 
+// ========== TOOLBOX TOGGLE ==========
+function toggleToolbox() {
+    const panel = document.getElementById('toolbox');
+    const btn   = document.getElementById('toolboxToggle');
+    if (!panel) return;
+    const isOpen = !panel.classList.contains('collapsed');
+    panel.classList.toggle('collapsed', isOpen);
+    btn.classList.toggle('open', !isOpen);
+    try { localStorage.setItem('tigerscale_toolbox', isOpen ? '0' : '1'); } catch (_) {}
+}
+
+function _restoreToolbox() {
+    try {
+        const saved = localStorage.getItem('tigerscale_toolbox');
+        if (saved === '0') {
+            const panel = document.getElementById('toolbox');
+            const btn   = document.getElementById('toolboxToggle');
+            if (panel) panel.classList.add('collapsed');
+            if (btn)   btn.classList.remove('open');
+        }
+    } catch (_) {}
+}
+
 // ========== INITIALIZATION ==========
 window.onload = () => {
-    // Set language
-    setLanguage(currentLang);
+    // Language is applied by i18n.js on DOMContentLoaded — no call needed here
     setFirebaseConfigured(false);
+    _restoreToolbox();
 
     // Initial weight display
     setTextIfChanged(weightEl, '…');

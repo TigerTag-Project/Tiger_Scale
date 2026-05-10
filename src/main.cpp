@@ -12,27 +12,27 @@
 //   §3  FORWARD DECLARATIONS                                                      157–  236
 //   §4  WEIGHT ROUNDING                                                           237–  256
 //   §5  GLOBAL OBJECTS                                                            257–  270
-//   §6  CONFIGURATION VARIABLES                                                   271–  484
-//   §7  OLED DISPLAY                                                              485–  602
-//   §8  CLOUD PARSING                                                             603–  617
-//   §9  WIFI SETUP                                                                618–  890
-//   §10 LITTLEFS                                                                  891– 1098
-//   §11 FIREBASE AUTHENTICATION                                                  1099– 1292
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1293– 2219
-//   §13 WEBSOCKET                                                                2220– 2246
-//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2247– 2317
-//   §15 5 — UNIFIED WS FRAME BUILDER                                             2318– 2404
-//   §16 WEIGHT FILTER HELPERS                                                    2405– 2419
-//   §17 POST-SEND STATE RESET (shared by all send paths)                         2420– 2438
-//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2439– 2511
-//   §19 WEB SERVER                                                               2512– 3244
-//   §20 CLOUD COMMUNICATION                                                      3245– 3427
-//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3428– 3737
-//   §22 mDNS                                                                     3738– 3775
-//   §23 SCALE                                                                    3776– 3867
-//   §24 RFID                                                                     3868– 4200
-//   §25 OTA — Over-the-air firmware + filesystem update                          4201– 4569
-//   §26 SETUP & LOOP                                                             4570– 4990
+//   §6  CONFIGURATION VARIABLES                                                   271–  485
+//   §7  OLED DISPLAY                                                              486–  603
+//   §8  CLOUD PARSING                                                             604–  618
+//   §9  WIFI SETUP                                                                619–  891
+//   §10 LITTLEFS                                                                  892– 1099
+//   §11 FIREBASE AUTHENTICATION                                                  1100– 1293
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1294– 2249
+//   §13 WEBSOCKET                                                                2250– 2276
+//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2277– 2347
+//   §15 5 — UNIFIED WS FRAME BUILDER                                             2348– 2438
+//   §16 WEIGHT FILTER HELPERS                                                    2439– 2453
+//   §17 POST-SEND STATE RESET (shared by all send paths)                         2454– 2472
+//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2473– 2545
+//   §19 WEB SERVER                                                               2546– 3276
+//   §20 CLOUD COMMUNICATION                                                      3277– 3459
+//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3460– 3780
+//   §22 mDNS                                                                     3781– 3818
+//   §23 SCALE                                                                    3819– 3910
+//   §24 RFID                                                                     3911– 4243
+//   §25 OTA — Over-the-air firmware + filesystem update                          4244– 4612
+//   §26 SETUP & LOOP                                                             4613– 5033
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -346,6 +346,7 @@ static const float SLOPE_STABLE_G_PER_S   =   5.0f; // |pente| < 5g/s → consid
 bool     autoTarePending         = false;
 bool     loadPresent             = false;
 bool     rfidLockedForCurrentLoad = false;
+bool     gReadyWasZero           = false;  // true once scale seen empty after "ready" — gates next scan
 bool     servoLockedUntilAutotare = false;  // Servo locked after weight sent until auto-tare completes
 bool     servoHoldAfterRemoval    = false;  // Keep servo stopped while load is being removed
 bool     servoEnabled             = true;   // User-controlled ON/OFF (persisted in NVS)
@@ -435,7 +436,7 @@ static volatile bool gDbUpdateRunning = false; // guard: don't spawn 2 tasks at 
 
 // Auto-send state
 volatile int sendCountdown      = -1;
-String       sendPhase          = "";
+String       sendPhase          = "idle";
 uint32_t     sendPhaseLastChangeMs = 0;
 
 // ── Async cloud worker ───────────────────────────────────────────────────────
@@ -1303,11 +1304,40 @@ String getScaleMacAddress() {
     return String(macStr);
 }
 
+// Fetch displayName from the user's Firestore profile (users/{uid}).
+// Updates firebaseDisplayName global. Lightweight — uses a field mask.
+static void fetchUserDisplayName() {
+    if (firebaseIdToken.length() == 0 || firebaseUid.length() == 0) return;
+    HTTPClient http;
+    String url = "https://firestore.googleapis.com/v1/projects/tigertag-connect/databases/(default)/documents/users/"
+                 + firebaseUid + "?mask.fieldPaths=displayName";
+    if (!http.begin(url)) return;
+    http.addHeader("Authorization", "Bearer " + firebaseIdToken);
+    int code = http.GET();
+    String resp = http.getString();
+    http.end();
+    if (code != 200) return;
+    DynamicJsonDocument doc(512);
+    if (deserializeJson(doc, resp)) return;
+    JsonObject fields = doc["fields"];
+    if (fields.containsKey("displayName") && fields["displayName"].containsKey("stringValue")) {
+        String dn = fields["displayName"]["stringValue"].as<String>();
+        if (dn.length() > 0 && dn != firebaseDisplayName) {
+            firebaseDisplayName = dn;
+            prefs.begin("config", false);
+            prefs.putString("fbDisplayName", firebaseDisplayName);
+            prefs.end();
+            Serial.printf("[FIREBASE] displayName fetched: %s\n", firebaseDisplayName.c_str());
+        }
+    }
+}
+
 void initScaleFirestoreSync() {
     if (firebaseUid.length() == 0) return;
     gScaleMacAddress = getScaleMacAddress();
     gScaleDocPath = "users/" + firebaseUid + "/scales/" + gScaleMacAddress;
     Serial.printf("[SCALE] Firestore doc path: %s\n", gScaleDocPath.c_str());
+    fetchUserDisplayName();  // pull displayName from users/{uid}
 }
 
 // Get current timestamp in milliseconds for Firestore
@@ -2332,7 +2362,8 @@ static String buildWsFrame(float weight, bool full) {
         int    netWeight       = INT_MIN;
         int    containerWeight = INT_MIN;
         String uid, uid2, uidLeft, uidRight, uidTwin;
-        String sendToCloud     = "\x01";  // sentinel — matches no real value
+        String scaleStatus     = "\x01";  // sentinel — matches no real value
+        String brand, material, color;
         bool   cloud           = false;
         bool   firebaseAuth    = false;
         bool   dbUpdating      = false;
@@ -2362,7 +2393,7 @@ static String buildWsFrame(float weight, bool full) {
     bool   curDbUpd   = (bool)gDbUpdateRunning;
 
     // ── Delta fields — included only when the value changed ──────────────────
-    StaticJsonDocument<768> doc;
+    StaticJsonDocument<1024> doc;
 #define WS_D_I(k,v,lv) if (full||(v)!=(lv)){doc[k]=(v);(lv)=(v);}
 #define WS_D_S(k,v,lv) if (full||(v)!=(lv)){doc[k]=(v);(lv)=(v);}
 #define WS_D_B(k,v,lv) if (full||(v)!=(lv)){doc[k]=(v);(lv)=(v);}
@@ -2374,7 +2405,10 @@ static String buildWsFrame(float weight, bool full) {
     WS_D_S("uid_left",        lastUIDLeft,  last.uidLeft)
     WS_D_S("uid_right",       lastUIDRight, last.uidRight)
     WS_D_S("uid_twin",        lastUIDTwin,  last.uidTwin)
-    WS_D_S("sendToCloud",     stcWs,        last.sendToCloud)
+    WS_D_S("scaleStatus",    stcWs,           last.scaleStatus)
+    WS_D_S("brand",          gLastManufacturer, last.brand)
+    WS_D_S("material",       gLastMaterial,     last.material)
+    WS_D_S("color",          gLastColor,        last.color)
     WS_D_B("cloud",           curCloud,     last.cloud)
     WS_D_B("firebaseAuth",    curFbAuth,    last.firebaseAuth)
     WS_D_B("db_updating",     curDbUpd,     last.dbUpdating)
@@ -2389,10 +2423,10 @@ static String buildWsFrame(float weight, bool full) {
         if (firebaseDisplayName.length()) doc["firebaseDisplayName"] = firebaseDisplayName;
         doc["calibrationFactor"]  = calibrationFactor;
         doc["uptime_s"]           = (uint32_t)(now / 1000);
-        doc["db_brands"]          = (int)gBrandDb.size();
-        doc["db_materials"]       = (int)gMaterialDb.size();
-        doc["db_checked_s"]       = (gLastDbCheckMs > 0)
-                                        ? (int32_t)((now - gLastDbCheckMs) / 1000) : -1;
+        doc["fw_version"]         = TIGERSCALE_FW_VERSION;
+        doc["db_ok"]        = (!gBrandDb.empty() && !gMaterialDb.empty());
+        doc["db_checked_s"] = (gLastDbCheckMs > 0)
+                                  ? (int32_t)((now - gLastDbCheckMs) / 1000) : -1;
     }
 
     if (doc.size() == 0) return "";   // nothing changed — caller skips textAll
@@ -2662,10 +2696,8 @@ void setupWebServer() {
         if      (sendPhase == "scanning"    && sendCountdown >= 0) stc = "scanning:" + String(sendCountdown);
         else if (sendPhase == "stabilizing" && sendCountdown >= 0) stc = "stable:" + String(sendCountdown);
         else if (sendPhase == "countdown"   && sendCountdown >= 0) stc = String(sendCountdown);
-        else if (sendPhase == "send")    stc = "send";
-        else if (sendPhase == "success") stc = "success";
-        else if (sendPhase == "error")   stc = "error";
-        doc["sendToCloud"] = stc;
+        else stc = sendPhase;  // "idle","send","success","error","done","ready"
+        doc["scaleStatus"] = stc;
         // Workflow phase for web UI stop button
         const char* wfPhaseStr = (wfPhase == WF_SCANNING)    ? "scanning"
                                 : (wfPhase == WF_STABLE_WAIT) ? "stable_wait"
@@ -3098,7 +3130,7 @@ void setupWebServer() {
         firstUidDetectedMs = 0; firstUidPauseUntilMs = 0;
         stableSinceMs = 0; stableCandidate = NAN;
         wfContainerWeight = 0.0f; wfContainerFetched = false;
-        sendPhase = ""; sendCountdown = -1;
+        sendPhase = "idle"; sendCountdown = -1;
         Serial.println("[WF] Stopped via API");
         request->send(200, "application/json", "{\"status\":\"stopped\"}");
     });
@@ -3463,7 +3495,7 @@ void handleWeighWorkflow(float w) {
     // Dismiss success/error banner after 2 s → transition to "done" (still in WF_DONE)
     if ((sendPhase == "success" || sendPhase == "error") &&
         (now - sendPhaseLastChangeMs > 2000)) {
-        sendPhase = (wfPhase == WF_DONE) ? "done" : "";
+        sendPhase = (wfPhase == WF_DONE) ? "done" : "idle";
         sendCountdown = -1;
     }
     // "ready" badge stays permanently in WF_IDLE until the next session starts
@@ -3471,12 +3503,20 @@ void handleWeighWorkflow(float w) {
 
     // ── IDLE ─────────────────────────────────────────────────────────────────
     if (wfPhase == WF_IDLE) {
+        // After a successful send the badge is "ready". Don't start scanning until the
+        // scale has actually been seen empty (< MIN_WEIGHT_TO_SEND_G) — this prevents
+        // scanning being triggered by the spool mid-removal (e.g. 46 g on the way to 0).
+        if (sendPhase == "ready" && w < MIN_WEIGHT_TO_SEND_G) {
+            gReadyWasZero = true;   // scale is now truly empty — next weight rise = new spool
+        }
+
         if (w >= MIN_WEIGHT_TO_SEND_G
             && firebaseAuth
             && WiFi.isConnected()
             && !rfidLockedForCurrentLoad
             && !autoTarePending
-            && !removingNow) {          // ne pas démarrer si poids en descente
+            && !removingNow
+            && (sendPhase != "ready" || gReadyWasZero)) {  // gate: wait for empty scale after "ready"
             wfPhase            = WF_SCANNING;
             wfScanStartMs      = now;
             wfContainerWeight  = 0.0f;
@@ -3485,6 +3525,7 @@ void handleWeighWorkflow(float w) {
             stableSinceMs      = 0;
             sendPhase          = "scanning";   // distinct from "countdown" — no UID yet
             sendCountdown      = (int)((SPOOL_SCAN_DURATION_MS + 999) / 1000);
+            gReadyWasZero      = false;        // reset for next session
             // Reset removal-detection state for new session
             wfPeakWeight    = 0.0f;
             wfBelowThreshMs = 0;
@@ -3502,7 +3543,8 @@ void handleWeighWorkflow(float w) {
     //   1. Near-zero weight  → always reset (scale empty)
     //   2. Slope-based fast removal → only after settling guard (1.5 s) AND after weight peaked
     //   3. Threshold (< 50 g) slow removal → debounced 400 ms AND weight must have peaked above 50 g
-    if (wfPhase != WF_DONE) {
+    // WF_IDLE is excluded: in idle the "ready" badge must survive to near-zero weight.
+    if (wfPhase != WF_DONE && wfPhase != WF_IDLE) {
         // Track peak weight so we know the spool was truly placed (not just rising)
         if (w > wfPeakWeight) wfPeakWeight = w;
         bool spoolPeaked = (wfPeakWeight >= SPOOL_REMOVED_WEIGHT_G);
@@ -3525,7 +3567,7 @@ void handleWeighWorkflow(float w) {
             float slopeAtReset = wfCurrentSlope;   // capture BEFORE resetSlopeBuffer clears it
             float peakAtReset  = wfPeakWeight;     // capture BEFORE clearing
             stopServoSearch();
-            wfPhase = WF_IDLE; sendPhase = ""; sendCountdown = -1;
+            wfPhase = WF_IDLE; sendPhase = "idle"; sendCountdown = -1;
             // Full UID + state reset
             lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
             lastUIDLeft = ""; lastUIDRight = ""; lastUIDTwin = "";
@@ -3609,7 +3651,7 @@ void handleWeighWorkflow(float w) {
         if (bothUidsReady || twinReadyNoScan || now - wfScanStartMs >= scanDuration) {
             stopServoSearch();
             if (lastUID.length() == 0) {
-                wfPhase = WF_IDLE; sendPhase = ""; sendCountdown = -1;
+                wfPhase = WF_IDLE; sendPhase = "idle"; sendCountdown = -1;
                 netLog("WF SCANNING→IDLE (no UID)");
             } else {
                 wfPhase = WF_STABLE_WAIT;
@@ -3728,6 +3770,7 @@ void handleWeighWorkflow(float w) {
             gContainerFetchPending = false; gContainerFetchDone = false;
             gContainerBFetchUID = ""; gContainerBFetchResult = 0.0f; gContainerBFetchDone = false;
             gCloudSendPending      = false; gCloudSendDone      = false;
+            gReadyWasZero = false;  // require empty scale before next scan
             sendPhase = "ready"; sendPhaseLastChangeMs = now; sendCountdown = -1;
             netLog("WF DONE→IDLE (scale empty w=" + String(w, 1) + "g)");
         }
@@ -3952,7 +3995,7 @@ bool processAutoTare(float weight) {
     // This prevents the servo from running if updateServoWorkflow() was skipped
     stopServoSearch();
 
-    sendPhase = ""; sendCountdown = -1;
+    sendPhase = "idle"; sendCountdown = -1;
     stableSinceMs = 0; stableCandidate = NAN;
 
     if (fabs(weight) <= AUTO_TARE_EMPTY_THRESHOLD_G) {
