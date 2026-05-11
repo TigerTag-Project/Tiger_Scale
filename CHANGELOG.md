@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.2.0] — 2026-05-11 — Firestore server timestamp, heartbeat delta mode, NTP sync
+
+### Added
+
+#### Firmware
+- **Firestore server timestamp** — `last_heartbeat_at` is now written by the Firestore server
+  via `setToServerValue: "REQUEST_TIME"` (commit API). The ESP32 no longer needs to know the
+  current time to produce accurate heartbeat timestamps.
+- **NTP sync** — `configTime("pool.ntp.org")` called after WiFi connect; used by the inventory
+  update timestamp (`updateScaleLastSpool`) when Firestore server time is unavailable.
+- **Heartbeat delta mode** — `sendScaleHeartbeat()` now sends a **FULL** snapshot only on boot
+  or after a new account login (14 fields), and a lightweight **delta** PATCH every 30 s
+  thereafter (only `wifi_signal_dbm` + fields that changed: UID, IP, calibration factor).
+  Reduces Firestore write volume and SSL round-trips.
+- **Force full heartbeat on account login** — when a new Firebase token is stored via
+  `/api/firebase/token`, the next heartbeat tick immediately sends a full snapshot.
+- **`refresh_heartbeat` command** — OTA command queue supports `type: "refresh_heartbeat"`,
+  which triggers a full Firestore snapshot on the next tick (useful for Studio to force a sync).
+
+### Changed
+
+#### Firmware
+- `sendScaleHeartbeat()` switched from `PATCH documents/{path}?updateMask=…` to
+  `POST documents:commit` with an `updateTransforms` entry for `last_heartbeat_at`.
+- Heartbeat now sends `calibration_factor`, `ip_address`, and `mdns_hostname` in addition to
+  the previous fields.
+- `StaticJsonDocument<512>` in heartbeat replaced with `DynamicJsonDocument(2048)` to
+  accommodate the commit payload structure.
+
+### Removed
+
+#### Firmware
+- Dead code `getTimestampMs()` — superseded by server timestamp; removed.
+
+---
+
 ## [2.1.0] — 2026-05-09 — Local RFID DB, WebSocket delta compression, workflow badge
 
 ### Added

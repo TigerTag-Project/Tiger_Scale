@@ -161,6 +161,21 @@ Architectural details: **[docs/FIRMWARE.md](docs/FIRMWARE.md)**
 | [hardware/BOM.md](hardware/BOM.md) | Parts list with vendor links |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
+| [CLAUDE.md](CLAUDE.md) | Full API reference (HTTP, WebSocket, Firestore) — used by AI agents |
+
+---
+
+## 🤖 AI Integration
+
+TigerScale ships with a **Claude Code skill** that makes any AI agent a TigerScale integration expert — generating connection code, sending remote commands, and keeping documentation in sync with the firmware.
+
+Install it in [Claude Code](https://claude.ai/claude-code):
+
+> Drag [`agents/tigerscale-integration.skill`](agents/tigerscale-integration.skill) into Claude Code, or go to **Settings → Skills → Install from file**.
+
+Once installed, just ask Claude to integrate your app with the scale, debug a connection, or add a new command — it reads [`CLAUDE.md`](CLAUDE.md) automatically and knows the full API.
+
+→ Details in [`agents/README.md`](agents/README.md)
 
 ---
 
@@ -177,11 +192,32 @@ Join us on **[Discord](https://discord.gg/3Qv5TSqnJH)** for help, ideas, and com
 
 ---
 
+## 🏭 Make & Sell
+
+**Anyone can manufacture and sell TigerScale hardware — no license fee, no registration.**
+
+1. Follow the BOM and wiring in [`hardware/BOM.md`](hardware/BOM.md)
+2. Flash the latest official firmware via the [Web Installer](https://tigertag-project.github.io/Tiger_Scale/) (always up to date)
+3. Ship it — you're done
+
+The only condition to call your product **"TigerScale"** is running the official firmware
+unmodified, so every unit works consistently with the TigerTag ecosystem.
+Forks are welcome — just use a different name. Full details: **[TRADEMARK.md](TRADEMARK.md)**
+
+---
+
 ## 📜 License
 
 This project is licensed under the **MIT License** — see [LICENSE](LICENSE) for details.
 
-You can use TigerScale commercially, modify it, redistribute it. Attribution is appreciated.
+The **"TigerTag"** name (RFID protocol + cloud service) and **"TigerScale"** product name
+are trademarks of the TigerTag Project. The code is free; the names have conditions.
+See **[TRADEMARK.md](TRADEMARK.md)** for the full policy (short version: build and sell freely,
+use official firmware, keep the name).
+
+Third-party firmware dependencies retain their own licenses — three are LGPL
+(ESPAsyncWebServer, AsyncTCP, ESP32Servo), satisfied by the fully open build system.
+Full details: **[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)**
 
 ---
 

@@ -12,27 +12,27 @@
 //   §3  FORWARD DECLARATIONS                                                      157–  236
 //   §4  WEIGHT ROUNDING                                                           237–  256
 //   §5  GLOBAL OBJECTS                                                            257–  270
-//   §6  CONFIGURATION VARIABLES                                                   271–  485
-//   §7  OLED DISPLAY                                                              486–  603
-//   §8  CLOUD PARSING                                                             604–  618
-//   §9  WIFI SETUP                                                                619–  891
-//   §10 LITTLEFS                                                                  892– 1099
-//   §11 FIREBASE AUTHENTICATION                                                  1100– 1293
-//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1294– 2249
-//   §13 WEBSOCKET                                                                2250– 2276
-//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2277– 2347
-//   §15 5 — UNIFIED WS FRAME BUILDER                                             2348– 2438
-//   §16 WEIGHT FILTER HELPERS                                                    2439– 2453
-//   §17 POST-SEND STATE RESET (shared by all send paths)                         2454– 2472
-//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2473– 2545
-//   §19 WEB SERVER                                                               2546– 3276
-//   §20 CLOUD COMMUNICATION                                                      3277– 3459
-//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3460– 3780
-//   §22 mDNS                                                                     3781– 3818
-//   §23 SCALE                                                                    3819– 3910
-//   §24 RFID                                                                     3911– 4243
-//   §25 OTA — Over-the-air firmware + filesystem update                          4244– 4612
-//   §26 SETUP & LOOP                                                             4613– 5033
+//   §6  CONFIGURATION VARIABLES                                                   271–  494
+//   §7  OLED DISPLAY                                                              495–  612
+//   §8  CLOUD PARSING                                                             613–  627
+//   §9  WIFI SETUP                                                                628–  905
+//   §10 LITTLEFS                                                                  906– 1113
+//   §11 FIREBASE AUTHENTICATION                                                  1114– 1307
+//   §12 FIRESTORE SCALE HEARTBEAT & SYNC                                         1308– 2256
+//   §13 WEBSOCKET                                                                2257– 2283
+//   §14 5 — CLOUD WORKER TASK  (non-blocking Firestore on core 0)                2284– 2354
+//   §15 5 — UNIFIED WS FRAME BUILDER                                             2355– 2445
+//   §16 WEIGHT FILTER HELPERS                                                    2446– 2460
+//   §17 POST-SEND STATE RESET (shared by all send paths)                         2461– 2479
+//   §18 SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight)    2480– 2552
+//   §19 WEB SERVER                                                               2553– 3287
+//   §20 CLOUD COMMUNICATION                                                      3288– 3470
+//   §21 WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING)                3471– 3791
+//   §22 mDNS                                                                     3792– 3829
+//   §23 SCALE                                                                    3830– 3921
+//   §24 RFID                                                                     3922– 4254
+//   §25 OTA — Over-the-air firmware + filesystem update                          4255– 4623
+//   §26 SETUP & LOOP                                                             4624– 5044
 //
 //   To regenerate this block:  ./scripts/update_toc.sh
 // ─── TOC END ───────────────────────────────────────────────
@@ -423,10 +423,19 @@ static String gLastColor      = "--";
 // Firestore scale sync
 static String gScaleMacAddress = "";
 static String gScaleDocPath    = "";
-static uint32_t gLastHeartbeatMs = 0;
-static bool gFirstHeartbeatDone = false;
-static bool gNtpSynced = false;
-const uint32_t HEARTBEAT_INTERVAL_MS = 30000;
+static uint32_t gLastHeartbeatMs    = 0;
+static bool     gFirstHeartbeatDone = false;  // legacy compat
+static bool     gNtpSynced          = false;
+const uint32_t  HEARTBEAT_INTERVAL_MS = 30000;
+
+// Heartbeat delta tracking
+// gNeedFullHeartbeat = true  → envoie tous les champs (boot ou nouveau compte)
+// gNeedFullHeartbeat = false → envoie seulement last_heartbeat_at + champs changés
+static bool   gNeedFullHeartbeat = true;
+static String gLastSentUID1      = "";
+static String gLastSentUID2      = "";
+static float  gLastSentCalFactor = -1.0f;
+static String gLastSentIp        = "";
 
 // Periodic TigerTag DB update check — once every 24 h while the device is on.
 // Mirrors the Python script: fetch last_update.json, download only what changed.
@@ -880,7 +889,12 @@ void setupWiFi() {
     }
 
     wifiConnected = WiFi.isConnected();
-    if (wifiConnected) startMDNS();
+    if (wifiConnected) {
+        startMDNS();
+        // Synchronise l'horloge NTP — indispensable pour les timestamps Firestore.
+        configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+        Serial.println("[NTP] configTime set — waiting for sync…");
+    }
 
     cloudOK = true;
 
@@ -1341,25 +1355,6 @@ void initScaleFirestoreSync() {
 }
 
 // Get current timestamp in milliseconds for Firestore
-// Uses millis() + offset for 2026-05-02 since NTP may not be available immediately
-// The exact Unix time doesn't matter as much as having a consistent number in ms
-// that will update as the device runs
-long long getTimestampMs() {
-    // Offset for 2026-05-03 00:00:00 UTC in milliseconds
-    // Unix timestamp: 1746316800 seconds = 1746316800000 milliseconds
-    const long long EPOCH_2026_05_03_MS = 1746316800000LL;
-    time_t t = time(nullptr);
-
-    // If we have a reasonable Unix time (> Sep 2001), use it
-    if (t > 1000000000L) {
-        return (long long)t * 1000LL;
-    }
-
-    // Otherwise, use millis() + fixed offset for current date
-    // This gives us approximate timestamp based on device uptime
-    return EPOCH_2026_05_03_MS + (long long)millis();
-}
-
 // Dummy function for backward compatibility (no longer needed, but kept for now)
 bool waitForNtpSync(uint32_t timeoutMs, time_t minUnixTime) {
     return true;  // Always succeed
@@ -1876,108 +1871,112 @@ void sendScaleHeartbeat() {
     if ((now - gLastHeartbeatMs) < HEARTBEAT_INTERVAL_MS) return;
     gLastHeartbeatMs = now;
 
+    const bool isFull = gNeedFullHeartbeat;
+
     HTTPClient http;
     String docPath = "users/" + firebaseUid + "/scales/" + gScaleMacAddress;
 
-    StaticJsonDocument<512> doc;
-
-    // === SCHEMA v2: Always update these fields ===
-
-    // === First: Read scale document to get Firestore server timestamp ===
+    // ── Lecture Firestore (seulement sur heartbeat FULL, pour le display_name) ─
     String currentDisplayName = "";
-    String serverTimestamp = "";
-    bool scaleDocExists = readScaleDisplayName(gScaleMacAddress, currentDisplayName, &serverTimestamp);
-
-    // 1. fw_version (required)
-    doc["fields"]["fw_version"]["stringValue"] = TIGERSCALE_FW_VERSION;
-
-    // 2. last_heartbeat_at (required) — Use Firestore server timestamp
-    // If we got a server timestamp from the doc read, use it
-    // Otherwise, fall back to local time (NTP if synced, or approximation)
-    if (serverTimestamp.length() > 0) {
-        // Use the timestamp from Firestore server
-        doc["fields"]["last_heartbeat_at"]["timestampValue"] = serverTimestamp;
-    } else {
-        // Fallback: use local time (NTP if available, or approximation)
-        char iso8601_str[30];
-        time_t now_sec = time(nullptr);
-        if (now_sec > 1000000000L) {
-            // NTP synced — use current server time
-            struct tm* timeinfo = gmtime(&now_sec);
-            strftime(iso8601_str, sizeof(iso8601_str), "%Y-%m-%dT%H:%M:%SZ", timeinfo);
-        } else {
-            // Fallback: approximation based on May 3, 2026 + uptime
-            time_t fallback_sec = 1746316800L + (millis() / 1000);
-            struct tm* timeinfo = gmtime(&fallback_sec);
-            strftime(iso8601_str, sizeof(iso8601_str), "%Y-%m-%dT%H:%M:%SZ", timeinfo);
-        }
-        doc["fields"]["last_heartbeat_at"]["timestampValue"] = iso8601_str;
+    bool   scaleDocExists     = false;
+    if (isFull) {
+        scaleDocExists = readScaleDisplayName(gScaleMacAddress, currentDisplayName, nullptr);
     }
 
-    // 3. current_spool_uid_1 (required) — RFID UID in uppercase, no separators, or null
-    if (lastUID.length() > 0) {
-        doc["fields"]["current_spool_uid_1"]["stringValue"] = lastUID;
-    } else {
-        doc["fields"]["current_spool_uid_1"]["nullValue"] = "NULL_VALUE";
-    }
+    // ── Construction du payload documents:commit ─────────────────────────────
+    // Structure : { writes: [{ update: { name, fields }, updateMask: { fieldPaths },
+    //                          updateTransforms: [{ fieldPath, setToServerValue }] }] }
+    DynamicJsonDocument doc(2048);
+    JsonArray  writes    = doc.createNestedArray("writes");
+    JsonObject writeObj  = writes.createNestedObject();
 
-    // 4. current_spool_uid_2 (required) — second tag or null
-    if (lastUID2.length() > 0) {
-        doc["fields"]["current_spool_uid_2"]["stringValue"] = lastUID2;
-    } else {
-        doc["fields"]["current_spool_uid_2"]["nullValue"] = "NULL_VALUE";
-    }
+    String fullName = "projects/tigertag-connect/databases/(default)/documents/" + docPath;
+    JsonObject update    = writeObj.createNestedObject("update");
+    update["name"]       = fullName;
+    JsonObject fields    = update.createNestedObject("fields");
 
-    // 5. power_source (required) — enum: "ac", "battery", "usb", "poe"
-    doc["fields"]["power_source"]["stringValue"] = "usb";  // Default: USB powered (no battery)
+    JsonObject updateMask = writeObj.createNestedObject("updateMask");
+    JsonArray  fieldPaths = updateMask.createNestedArray("fieldPaths");
+    auto addMask = [&](const char* field) { fieldPaths.add(field); };
 
-    // 6. battery_percent (required) — 0–100 integer or null
-    doc["fields"]["battery_percent"]["nullValue"] = "NULL_VALUE";  // null because no battery
-
-    // 7. is_charging (required) — boolean or null
-    doc["fields"]["is_charging"]["nullValue"] = "NULL_VALUE";  // null because no battery
-
-    String updateMaskStr = "?updateMask.fieldPaths=fw_version&updateMask.fieldPaths=last_heartbeat_at&updateMask.fieldPaths=current_spool_uid_1&updateMask.fieldPaths=current_spool_uid_2&updateMask.fieldPaths=power_source&updateMask.fieldPaths=battery_percent&updateMask.fieldPaths=is_charging";
-
-    // === Generate default display name (in case needed) ===
-    String lastFourDigits = gScaleMacAddress.substring(8);  // last 4 chars of MAC
-    lastFourDigits.toUpperCase();
-    String defaultName = "TigerScale-" + lastFourDigits;
-
-    // === Handle display_name: preserve user customizations ===
-    // (We already read the display_name above when getting server timestamp)
-    if (scaleDocExists && currentDisplayName.length() > 0 && currentDisplayName != defaultName) {
-        // Document exists with a custom name — preserve it
-        doc["fields"]["display_name"]["stringValue"] = currentDisplayName;
-    } else {
-        // Document doesn't exist or display_name is empty/default — use default name
-        doc["fields"]["display_name"]["stringValue"] = defaultName;
-    }
-    updateMaskStr += "&updateMask.fieldPaths=display_name";
-
-    // === On first heartbeat: set mac and hardware_revision ===
-    if (!gFirstHeartbeatDone) {
-        // mac (required) — lowercase hex, no separators
-        doc["fields"]["mac"]["stringValue"] = gScaleMacAddress;
-
-        // hardware_revision (optional)
-        doc["fields"]["hardware_revision"]["nullValue"] = "NULL_VALUE";  // Not set by firmware (optional)
-
-        updateMaskStr += "&updateMask.fieldPaths=mac&updateMask.fieldPaths=hardware_revision";
-        gFirstHeartbeatDone = true;
-    }
-
-    // === Optional fields (sent if available) ===
-    // wifi_signal_dbm (optional) — WiFi RSSI in dBm (negative value, e.g., -52)
+    // ── 1. wifi_signal_dbm — toujours envoyé ────────────────────────────────
     int wifiRssi = getWiFiSignalDbm();
-    if (wifiRssi != 0) {
-        doc["fields"]["wifi_signal_dbm"]["integerValue"] = String(wifiRssi);
-    } else {
-        doc["fields"]["wifi_signal_dbm"]["nullValue"] = "NULL_VALUE";
-    }
-    updateMaskStr += "&updateMask.fieldPaths=wifi_signal_dbm";
+    if (wifiRssi != 0) fields["wifi_signal_dbm"]["integerValue"] = String(wifiRssi);
+    else               fields["wifi_signal_dbm"]["nullValue"]    = "NULL_VALUE";
+    addMask("wifi_signal_dbm");
 
-    String url = "https://firestore.googleapis.com/v1/projects/tigertag-connect/databases/(default)/documents/" + docPath + updateMaskStr;
+    // ── 2. current_spool_uid_1 — delta ──────────────────────────────────────
+    if (isFull || lastUID != gLastSentUID1) {
+        if (lastUID.length() > 0) fields["current_spool_uid_1"]["stringValue"] = lastUID;
+        else                       fields["current_spool_uid_1"]["nullValue"]   = "NULL_VALUE";
+        addMask("current_spool_uid_1");
+    }
+
+    // ── 3. current_spool_uid_2 — delta ──────────────────────────────────────
+    if (isFull || lastUID2 != gLastSentUID2) {
+        if (lastUID2.length() > 0) fields["current_spool_uid_2"]["stringValue"] = lastUID2;
+        else                        fields["current_spool_uid_2"]["nullValue"]   = "NULL_VALUE";
+        addMask("current_spool_uid_2");
+    }
+
+    // ── 4. calibration_factor — delta ───────────────────────────────────────
+    if (isFull || calibrationFactor != gLastSentCalFactor) {
+        fields["calibration_factor"]["doubleValue"] = calibrationFactor;
+        addMask("calibration_factor");
+    }
+
+    // ── 5. ip_address — delta ───────────────────────────────────────────────
+    String currentIp = WiFi.localIP().toString();
+    if (isFull || currentIp != gLastSentIp) {
+        fields["ip_address"]["stringValue"] = currentIp;
+        addMask("ip_address");
+    }
+
+    // ── Champs snapshot uniquement (boot + nouveau compte) ───────────────────
+    if (isFull) {
+        fields["fw_version"]["stringValue"]    = TIGERSCALE_FW_VERSION;
+        addMask("fw_version");
+
+        fields["power_source"]["stringValue"]  = "usb";
+        addMask("power_source");
+
+        fields["battery_percent"]["nullValue"] = "NULL_VALUE";
+        addMask("battery_percent");
+
+        fields["is_charging"]["nullValue"]     = "NULL_VALUE";
+        addMask("is_charging");
+
+        fields["mdns_hostname"]["stringValue"] = gMdnsName + ".local";
+        addMask("mdns_hostname");
+
+        fields["mac"]["stringValue"] = gScaleMacAddress;
+        addMask("mac");
+
+        fields["hardware_revision"]["nullValue"] = "NULL_VALUE";
+        addMask("hardware_revision");
+
+        // display_name — préserve la personnalisation si elle existe
+        String lastFour = gScaleMacAddress.substring(8);
+        lastFour.toUpperCase();
+        String defaultName = "TigerScale-" + lastFour;
+        if (scaleDocExists && currentDisplayName.length() > 0 && currentDisplayName != defaultName)
+            fields["display_name"]["stringValue"] = currentDisplayName;
+        else
+            fields["display_name"]["stringValue"] = defaultName;
+        addMask("display_name");
+
+        gFirstHeartbeatDone = true;  // legacy compat
+    }
+
+    // ── Server timestamp — Firestore écrit l'heure exacte à la réception ─────
+    // Aucun NTP requis côté ESP32 : on délègue l'horodatage au serveur.
+    JsonArray  transforms   = writeObj.createNestedArray("updateTransforms");
+    JsonObject tsTransform  = transforms.createNestedObject();
+    tsTransform["fieldPath"]        = "last_heartbeat_at";
+    tsTransform["setToServerValue"] = "REQUEST_TIME";
+
+    // ── Envoi POST /documents:commit ─────────────────────────────────────────
+    String url = "https://firestore.googleapis.com/v1/projects/tigertag-connect/databases/(default)/documents:commit";
 
     if (!http.begin(url)) return;
     http.addHeader("Content-Type", "application/json");
@@ -1986,21 +1985,29 @@ void sendScaleHeartbeat() {
     String payload;
     serializeJson(doc, payload);
 
-    Serial.printf("[HEARTBEAT] PATCH %s\n", docPath.c_str());
+    Serial.printf("[HEARTBEAT] commit %s (%s, %d fields + server ts)\n",
+                  docPath.c_str(), isFull ? "FULL" : "delta", (int)fieldPaths.size());
     #if DEBUG_VERBOSE_LOGS
-    Serial.printf("[HEARTBEAT] Payload (%d bytes): %.120s\n", payload.length(), payload.c_str());
+    Serial.printf("[HEARTBEAT] Payload (%d bytes): %.200s\n", payload.length(), payload.c_str());
     #endif
 
-    int code = http.PATCH(payload);
+    int code = http.POST(payload);
     String resp = http.getString();
     http.end();
 
     if (code >= 200 && code < 300) {
-        Serial.printf("[HEARTBEAT] OK (%d) uid_1=%s uid_2=%s fw=1.3.0\n", code,
-                     lastUID.length() > 0 ? lastUID.c_str() : "null",
-                     lastUID2.length() > 0 ? lastUID2.c_str() : "null");
+        Serial.printf("[HEARTBEAT] OK (%d) uid_1=%s uid_2=%s\n", code,
+                      lastUID.length() > 0 ? lastUID.c_str() : "null",
+                      lastUID2.length() > 0 ? lastUID2.c_str() : "null");
+        // Met à jour le tracking delta seulement sur succès
+        gLastSentUID1      = lastUID;
+        gLastSentUID2      = lastUID2;
+        gLastSentCalFactor = calibrationFactor;
+        gLastSentIp        = currentIp;
+        gNeedFullHeartbeat = false;
     } else {
         Serial.printf("[HEARTBEAT] FAIL (%d) resp: %.150s\n", code, resp.c_str());
+        // gNeedFullHeartbeat reste true si c'était un full → retry au prochain cycle
     }
 }
 
@@ -2933,6 +2940,10 @@ void setupWebServer() {
             prefs.end();
 
             initScaleFirestoreSync();
+
+            // Nouveau compte connecté → envoie un snapshot complet immédiatement
+            gNeedFullHeartbeat = true;
+            gLastHeartbeatMs   = 0;
 
             Serial.printf("[FIREBASE] Token stored uid=%s email=%s\n",
                           firebaseUid.c_str(), firebaseEmail.c_str());

@@ -1,8 +1,25 @@
 # 3D-printed parts
 
-This directory contains the STL files needed to 3D-print a TigerScale enclosure.
+This directory contains the 3D-print files for the TigerScale enclosure.
 
-## Files
+## 🚀 Quick start — `.3mf` project file
+
+**[⬇️ Download Tiger_Scale_V2.3mf](Tiger_Scale_V2.3mf)** — open directly in Bambu Studio, PrusaSlicer, or Orca Slicer.
+
+The file includes **four ready-to-slice build plates**, one per hardware variant:
+
+| Variant | Motor | RFID readers | Use when… |
+|---|---|---|---|
+| **TigerScale Light** | ✗ | 1 reader | Minimal build, manual spool rotation |
+| **TigerScale Light** | ✗ | 2 readers | Dual-tag detection, no servo |
+| **TigerScale Plus** | ✓ | 1 reader | Servo rotation, single RFID |
+| **TigerScale Plus** | ✓ | 2 readers | Full feature set (recommended) |
+
+Select your variant plate → **Slice** → **Print**. No manual orientation or support setup needed.
+
+---
+
+## Individual STL files
 
 | File | Part | Recommended material | Notes |
 |---|---|---|---|
