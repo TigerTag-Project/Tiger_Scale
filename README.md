@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <a href="https://tigertag-project.github.io/Tiger-Scale/">
+  <a href="https://tigertag-project.github.io/Tiger-Scale/web-installer/">
     <img src="assets/svg/flash_web_installer.svg" width="420" height="68" alt="Open Web Installer — Flash your ESP32 in Chrome or Edge">
   </a>
 </p>
@@ -58,7 +58,7 @@ It is designed to be **3D-printable, hackable, and cheap** (~30 € BoM). The cl
 ### Option A — Web Installer (easiest, no toolchain)
 
 <p align="center">
-  <a href="https://tigertag-project.github.io/Tiger-Scale/">
+  <a href="https://tigertag-project.github.io/Tiger-Scale/web-installer/">
     <img src="assets/svg/flash_web_installer.svg" width="420" height="68" alt="Open Web Installer — Flash your ESP32 in Chrome or Edge">
   </a>
 </p>
@@ -115,7 +115,7 @@ Download **[Tiger_Scale_V2.3mf](hardware/3d-models/Tiger_Scale_V2.3mf)** — a s
 
 Open the file, select your variant plate, and hit **Slice**. No manual orientation or support setup needed.
 
-> 💡 **Buy a kit** — the [Web Installer page](https://tigertag-project.github.io/Tiger-Scale/) includes a one-click shopping list of every component with Amazon affiliate links. Buying through them at no extra cost supports the project and keeps the TigerTag cloud free.
+> 💡 **Buy a kit** — the [Web Installer page](https://tigertag-project.github.io/Tiger-Scale/web-installer/) includes a one-click shopping list of every component with Amazon affiliate links. Buying through them at no extra cost supports the project and keeps the TigerTag cloud free.
 
 ---
 
@@ -209,7 +209,7 @@ Join us on **[Discord](https://discord.gg/3Qv5TSqnJH)** for help, ideas, and com
 **Anyone can manufacture and sell TigerScale hardware — no license fee, no registration.**
 
 1. Follow the BOM and wiring in [`hardware/BOM.md`](hardware/BOM.md)
-2. Flash the latest official firmware via the [Web Installer](https://tigertag-project.github.io/Tiger-Scale/) (always up to date)
+2. Flash the latest official firmware via the [Web Installer](https://tigertag-project.github.io/Tiger-Scale/web-installer/) (always up to date)
 3. Ship it — you're done
 
 The only condition to call your product **"TigerScale"** is running the official firmware
