@@ -172,6 +172,12 @@
             display: block; width: 260px; height: auto; max-width: 75%;
             margin: 0 auto 20px;
             filter: brightness(0) invert(1);
+            transition: filter .35s ease, transform .35s ease;
+            cursor: pointer;
+        }
+        .hero-logo:hover {
+            filter: brightness(0) invert(1) drop-shadow(0 0 18px rgba(255,107,0,0.75));
+            transform: scale(1.04);
         }
         .hero-pill {
             display: inline-flex; align-items: center; gap: 6px;
