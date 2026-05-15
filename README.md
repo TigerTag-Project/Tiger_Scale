@@ -16,6 +16,14 @@
   </picture>
 </p>
 
+<p align="center">
+  <a href="https://tigertag-project.github.io/Tiger-Scale/">
+    <img src="assets/svg/flash_web_installer.svg" width="420" height="68" alt="Open Web Installer — Flash your ESP32 in Chrome or Edge">
+  </a>
+</p>
+
+<p align="center"><sub>Plug in your ESP32 → click Install → done. No toolchain, no command line.</sub></p>
+
 ---
 
 ## ✨ What is it?
@@ -49,7 +57,11 @@ It is designed to be **3D-printable, hackable, and cheap** (~30 € BoM). The cl
 
 ### Option A — Web Installer (easiest, no toolchain)
 
-👉 **[Open the Web Installer](https://tigertag-project.github.io/Tiger-Scale/)** in **Chrome or Edge**.
+<p align="center">
+  <a href="https://tigertag-project.github.io/Tiger-Scale/">
+    <img src="assets/svg/flash_web_installer.svg" width="420" height="68" alt="Open Web Installer — Flash your ESP32 in Chrome or Edge">
+  </a>
+</p>
 
 Plug your ESP32 in via USB and click **Install**. The browser flashes the firmware and the filesystem in 60 seconds. No Arduino IDE, no PlatformIO, no command line.
 
