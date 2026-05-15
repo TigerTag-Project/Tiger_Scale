@@ -68,22 +68,24 @@ jobs:
 
       - name: Generate version manifest
         run: |
-          # Provide a small JSON the firmware can fetch to compare versions for OTA
+          # Extract version from firmware source so it always matches the binary
+          FW_VERSION=$(grep -m1 'TIGERSCALE_FW_VERSION' src/main.cpp | sed 's/.*"\(.*\)".*/\1/')
           GIT_SHA=$(git rev-parse --short HEAD)
           GIT_DATE=$(git show -s --format=%cI HEAD)
           FW_SHA=$(sha256sum web-installer/firmware/firmware.bin | cut -d' ' -f1)
           FS_SHA=$(sha256sum web-installer/firmware/littlefs.bin | cut -d' ' -f1)
           cat > web-installer/version.json <<EOF
           {
-            "version":      "2.0.0",
+            "version":      "$FW_VERSION",
             "git_sha":      "$GIT_SHA",
             "git_date":     "$GIT_DATE",
             "firmware_sha": "$FW_SHA",
             "littlefs_sha": "$FS_SHA",
-            "firmware_url": "https://tigertag-project.github.io/Tiger_Scale/firmware/firmware.bin",
-            "littlefs_url": "https://tigertag-project.github.io/Tiger_Scale/firmware/littlefs.bin"
+            "firmware_url": "https://tigertag-project.github.io/Tiger-Scale/firmware/firmware.bin",
+            "littlefs_url": "https://tigertag-project.github.io/Tiger-Scale/firmware/littlefs.bin"
           }
           EOF
+          echo "── version.json ──"
           cat web-installer/version.json
 
       - name: Setup Pages
