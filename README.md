@@ -94,12 +94,12 @@ Print settings: **[hardware/3d-models/README.md](hardware/3d-models/README.md)**
 
 Download **[Tiger_Scale_V2.3mf](hardware/3d-models/Tiger_Scale_V2.3mf)** — a single `.3mf` file pre-configured for your slicer (Bambu Studio / PrusaSlicer / Orca). It contains four build variants, pick the one that matches your hardware:
 
-| Variant | Motor | RFID readers |
-|---|---|---|
-| **TigerScale Light** | ✗ No motor | 1 reader |
-| **TigerScale Light** | ✗ No motor | 2 readers |
-| **TigerScale Plus** | ✓ Motor | 1 reader |
-| **TigerScale Plus** | ✓ Motor | 2 readers |
+| Variant | Motor | RFID readers | |
+|---|---|---|---|
+| **TigerScale Light** | ✗ No motor | 1 reader | |
+| **TigerScale Light** | ✗ No motor | 2 readers | ⭐ **Recommended** — best value for money |
+| **TigerScale Plus** | ✓ Motor | 1 reader | |
+| **TigerScale Plus** | ✓ Motor | 2 readers | |
 
 Open the file, select your variant plate, and hit **Slice**. No manual orientation or support setup needed.
 
