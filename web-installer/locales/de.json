@@ -2,7 +2,7 @@
   "pageTitle":    "TigerScale — Web-Installer",
   "metaDesc":     "Flashen Sie die TigerScale-Firmware direkt im Browser. Keine Arduino IDE, keine Kommandozeile.",
 
-  "pill":         "v2.0.0 · Open Source",
+  "pill":         "v2.2.0 · Open Source",
   "heroTitle":    "TigerScale Web-Installer",
   "heroTagline":  "Flashen Sie die TigerScale-Firmware direkt aus dem Browser.<br>Keine Arduino IDE, keine Kommandozeile, keine Toolchain.",
 
@@ -30,9 +30,9 @@
   "whatNote":     "Ihre vorhandenen Einstellungen (WLAN, Firebase-Login, Kalibrierung) bleiben bei Firmware-Updates <strong>erhalten</strong>.",
 
   "trustTitle":   "Vertrauen Sie dem Browser zum Flashen nicht?",
-  "trustIntro":   "Die TigerScale-Firmware ist komplett <a href=\"https://github.com/TigerTag-Project/Tiger_Scale\" style=\"color: var(--orange);\">Open Source</a>. Sie können:",
+  "trustIntro":   "Die TigerScale-Firmware ist komplett <a href=\"https://github.com/TigerTag-Project/Tiger-Scale\" style=\"color: var(--orange);\">Open Source</a>. Sie können:",
   "trustItem1":   "Jede Zeile Code auf GitHub lesen",
-  "trustItem2":   "Selbst kompilieren und flashen mit <a href=\"https://github.com/TigerTag-Project/Tiger_Scale/blob/main/docs/INSTALLATION.md#option-b--platformio\" style=\"color: var(--orange);\">PlatformIO</a> oder <a href=\"https://github.com/TigerTag-Project/Tiger_Scale/blob/main/docs/INSTALLATION.md#option-c--arduino-ide\" style=\"color: var(--orange);\">Arduino IDE</a>",
+  "trustItem2":   "Selbst kompilieren und flashen mit <a href=\"https://github.com/TigerTag-Project/Tiger-Scale/blob/main/docs/INSTALLATION.md#option-b--platformio\" style=\"color: var(--orange);\">PlatformIO</a> oder <a href=\"https://github.com/TigerTag-Project/Tiger-Scale/blob/main/docs/INSTALLATION.md#option-c--arduino-ide\" style=\"color: var(--orange);\">Arduino IDE</a>",
   "trustItem3":   "SHA256 der veröffentlichten Binaries gegen Ihre eigene Build prüfen",
   "trustOutro":   "Der Web-Installer ist nur eine Komfort-Schicht — er nutzt die <a href=\"https://web.dev/serial/\" style=\"color: var(--orange);\">Web Serial API</a>, die vom Browser isoliert ist. Die Seite sieht Ihr USB-Gerät nur, wenn Sie es im Popup explizit freigeben.",
 

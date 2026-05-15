@@ -2,7 +2,7 @@
   "pageTitle":    "TigerScale — Instalador Web",
   "metaDesc":     "Faça o flash do firmware da sua TigerScale diretamente do navegador. Sem Arduino IDE, sem linha de comando.",
 
-  "pill":         "v2.0.0 · Código aberto",
+  "pill":         "v2.2.0 · Código aberto",
   "heroTitle":    "Instalador Web TigerScale",
   "heroTagline":  "Flash do firmware da sua TigerScale diretamente do navegador.<br>Sem Arduino IDE, sem linha de comando, sem toolchain.",
 
@@ -30,9 +30,9 @@
   "whatNote":     "As suas configurações atuais (Wi-Fi, login Firebase, calibração) são <strong>preservadas</strong> nas atualizações.",
 
   "trustTitle":   "Não confia no navegador para fazer o flash?",
-  "trustIntro":   "O firmware TigerScale é totalmente <a href=\"https://github.com/TigerTag-Project/Tiger_Scale\" style=\"color: var(--orange);\">open-source</a>. Pode:",
+  "trustIntro":   "O firmware TigerScale é totalmente <a href=\"https://github.com/TigerTag-Project/Tiger-Scale\" style=\"color: var(--orange);\">open-source</a>. Pode:",
   "trustItem1":   "Ler cada linha de código no GitHub",
-  "trustItem2":   "Compilar e fazer flash com <a href=\"https://github.com/TigerTag-Project/Tiger_Scale/blob/main/docs/INSTALLATION.md#option-b--platformio\" style=\"color: var(--orange);\">PlatformIO</a> ou <a href=\"https://github.com/TigerTag-Project/Tiger_Scale/blob/main/docs/INSTALLATION.md#option-c--arduino-ide\" style=\"color: var(--orange);\">Arduino IDE</a>",
+  "trustItem2":   "Compilar e fazer flash com <a href=\"https://github.com/TigerTag-Project/Tiger-Scale/blob/main/docs/INSTALLATION.md#option-b--platformio\" style=\"color: var(--orange);\">PlatformIO</a> ou <a href=\"https://github.com/TigerTag-Project/Tiger-Scale/blob/main/docs/INSTALLATION.md#option-c--arduino-ide\" style=\"color: var(--orange);\">Arduino IDE</a>",
   "trustItem3":   "Verificar o SHA256 dos binários publicados contra o seu próprio build",
   "trustOutro":   "O Instalador Web é apenas uma camada de conveniência — usa a <a href=\"https://web.dev/serial/\" style=\"color: var(--orange);\">Web Serial API</a> isolada pelo seu navegador. A página só vê o seu dispositivo USB quando o autoriza explicitamente.",
 
