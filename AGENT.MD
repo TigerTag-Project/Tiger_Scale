@@ -30,7 +30,7 @@ Cloud: Firebase (project `tigertag-connect`) for inventory sync.
 
 [Web Inst]  web-installer/  (ESP Web Tools, hosted on GitHub Pages)
             Auto-deployed on every push to main via .github/workflows/.
-            Live URL: https://tigertag-project.github.io/Tiger_Scale/
+            Live URL: https://tigertag-project.github.io/Tiger-Scale/
 ```
 
 ## Repo layout

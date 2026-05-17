@@ -30,7 +30,7 @@ cloud service, or product brand without explicit written authorization.
 ## The TigerScale name
 
 **"TigerScale"** identifies the official open-source smart scale design published
-at [github.com/TigerTag-Project/Tiger_Scale](https://github.com/TigerTag-Project/Tiger_Scale).
+at [github.com/TigerTag-Project/Tiger-Scale](https://github.com/TigerTag-Project/Tiger-Scale).
 
 ### You MAY call your product "TigerScale" if
 
@@ -66,7 +66,7 @@ To produce compliant TigerScale units:
    [`hardware/BOM.md`](hardware/BOM.md) and [`docs/HARDWARE.md`](docs/HARDWARE.md).
 2. **Flash the latest official firmware** — always use the most recent release
    from this repository. The Web Installer at
-   [tigertag-project.github.io/Tiger_Scale](https://tigertag-project.github.io/Tiger_Scale/)
+   [tigertag-project.github.io/Tiger-Scale](https://tigertag-project.github.io/Tiger-Scale/)
    always serves the latest official build.
 3. **Do not modify core identification strings** — `TIGERSCALE_FW_VERSION`,
    `TIGERSCALE_GIT_SHA`, and the mDNS hostname pattern `tigerscale-XXXX` must

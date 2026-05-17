@@ -213,6 +213,6 @@ Edit `display.setRotation(...)` in the firmware (defaults to 0 — try 2 for 180
 ## Still stuck?
 
 - Check the Serial monitor logs (`pio device monitor`) for `[ERROR]`, `[FIREBASE]`, `[BOOT]` lines
-- Search [GitHub issues](https://github.com/TigerTag-Project/Tiger_Scale/issues) for similar reports
+- Search [GitHub issues](https://github.com/TigerTag-Project/Tiger-Scale/issues) for similar reports
 - Ask on [Discord](https://discord.gg/3Qv5TSqnJH) — fastest community help
-- [Open a new issue](https://github.com/TigerTag-Project/Tiger_Scale/issues/new) using the bug report template
+- [Open a new issue](https://github.com/TigerTag-Project/Tiger-Scale/issues/new) using the bug report template

@@ -28,7 +28,7 @@ You only need **one** of these. Pick whichever you're comfortable with.
 
 ## Option A — Web Installer
 
-The TigerTag team hosts a browser-based flasher at **<https://tigertag-project.github.io/Tiger_Scale/>**.
+The TigerTag team hosts a browser-based flasher at **<https://tigertag-project.github.io/Tiger-Scale/>**.
 
 ### Requirements
 
@@ -39,7 +39,7 @@ The TigerTag team hosts a browser-based flasher at **<https://tigertag-project.g
 ### Steps
 
 1. Plug your ESP32 into your computer via USB
-2. Open <https://tigertag-project.github.io/Tiger_Scale/>
+2. Open <https://tigertag-project.github.io/Tiger-Scale/>
 3. Click **"Install TigerScale"**
 4. A browser dialog asks which serial port — select your ESP32 (commonly `cu.usbserial-XXXX` on macOS, `COM3+` on Windows, `ttyUSB0` on Linux)
 5. Click **"Install"** and wait ~60 seconds (firmware + filesystem)
@@ -68,8 +68,8 @@ pip install --user platformio
 ### Clone and build
 
 ```bash
-git clone https://github.com/TigerTag-Project/Tiger_Scale.git
-cd Tiger_Scale
+git clone https://github.com/TigerTag-Project/Tiger-Scale.git
+cd Tiger-Scale
 
 # Compile firmware (no upload yet)
 pio run
@@ -115,8 +115,8 @@ Download from <https://www.arduino.cc/en/software>.
 Arduino IDE expects a sketch in a folder of the same name. To make it Arduino-compatible:
 
 ```bash
-git clone https://github.com/TigerTag-Project/Tiger_Scale.git
-cd Tiger_Scale
+git clone https://github.com/TigerTag-Project/Tiger-Scale.git
+cd Tiger-Scale
 mkdir -p arduino/TigerScale
 cp src/main.cpp arduino/TigerScale/TigerScale.ino
 ```
@@ -228,7 +228,7 @@ Place a TigerTagged spool on the platform. The RFID readers detect the tags with
 
 ### Via Web Installer
 
-Re-open <https://tigertag-project.github.io/Tiger_Scale/> and click **Install** again. Your settings (Wi-Fi, Firebase, calibration) are preserved across firmware updates.
+Re-open <https://tigertag-project.github.io/Tiger-Scale/> and click **Install** again. Your settings (Wi-Fi, Firebase, calibration) are preserved across firmware updates.
 
 ### Via PlatformIO
 
@@ -246,6 +246,6 @@ Not yet supported. Planned for v2.1.
 
 ## Need help?
 
-- 🐛 [Open an issue](https://github.com/TigerTag-Project/Tiger_Scale/issues)
+- 🐛 [Open an issue](https://github.com/TigerTag-Project/Tiger-Scale/issues)
 - 💬 [Join the Discord](https://discord.gg/3Qv5TSqnJH)
 - 📚 [TROUBLESHOOTING.md](TROUBLESHOOTING.md)

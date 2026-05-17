@@ -119,4 +119,4 @@ If you prefer not to use the TigerTag cloud (e.g. for an offline/local-only setu
 
 - 📚 [Firebase docs](https://firebase.google.com/docs)
 - 💬 [Discord](https://discord.gg/3Qv5TSqnJH)
-- 🐛 [Open an issue](https://github.com/TigerTag-Project/Tiger_Scale/issues)
+- 🐛 [Open an issue](https://github.com/TigerTag-Project/Tiger-Scale/issues)

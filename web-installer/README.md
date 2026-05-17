@@ -6,7 +6,7 @@ Browser-based ESP32 flasher for TigerScale, powered by [ESP Web Tools](https://e
 
 This folder is published on GitHub Pages at :
 
-👉 **<https://tigertag-project.github.io/Tiger_Scale/>**
+👉 **<https://tigertag-project.github.io/Tiger-Scale/>**
 
 ## How it works
 
@@ -84,8 +84,8 @@ The CI also generates `web-installer/version.json` containing :
   "git_date":     "2026-05-05T22:30:00Z",
   "firmware_sha": "<sha256>",
   "littlefs_sha": "<sha256>",
-  "firmware_url": "https://tigertag-project.github.io/Tiger_Scale/firmware/firmware.bin",
-  "littlefs_url": "https://tigertag-project.github.io/Tiger_Scale/firmware/littlefs.bin"
+  "firmware_url": "https://tigertag-project.github.io/Tiger-Scale/firmware/firmware.bin",
+  "littlefs_url": "https://tigertag-project.github.io/Tiger-Scale/firmware/littlefs.bin"
 }
 ```
 

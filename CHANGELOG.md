@@ -128,7 +128,7 @@ This is the first public, open-source release of TigerScale.
 
 #### Tooling
 - **PlatformIO** project (`platformio.ini`, `partitions.csv`)
-- **Web Installer** at `https://tigertag-project.github.io/Tiger_Scale/` (ESP Web Tools)
+- **Web Installer** at `https://tigertag-project.github.io/Tiger-Scale/` (ESP Web Tools)
 - Cross-platform build scripts (`scripts/build_littlefs.sh`)
 - `.gitattributes` for consistent LF line endings
 
@@ -150,7 +150,7 @@ This is the first public, open-source release of TigerScale.
 ## Pre-2.0.0 history
 
 This repository is a continuation of the original
-[TigerTag-Scale V1](https://github.com/TigerTag-Project/Tiger_Scale/tree/legacy-v1) (v1.x)
+[TigerTag-Scale V1](https://github.com/TigerTag-Project/Tiger-Scale/tree/legacy-v1) (v1.x)
 project. The 1.x series supported a single RFID reader, no servo, and used a
 Cloud Function for weight sync. Major changes from 1.x:
 
@@ -160,5 +160,5 @@ Cloud Function for weight sync. Major changes from 1.x:
 - Added Google Sign-In
 - Refactored web UI
 
-[Unreleased]: https://github.com/TigerTag-Project/Tiger_Scale/compare/v2.0.0...HEAD
-[2.0.0]: https://github.com/TigerTag-Project/Tiger_Scale/releases/tag/v2.0.0
+[Unreleased]: https://github.com/TigerTag-Project/Tiger-Scale/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/TigerTag-Project/Tiger-Scale/releases/tag/v2.0.0

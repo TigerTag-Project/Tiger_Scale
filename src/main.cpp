@@ -147,7 +147,7 @@ const char* TIGERTAG_FIREBASE_WEB_API_KEY = "AIzaSyCkxPTs_Cv0KVLqsZj-UKWWqIY0Otf
 #endif
 
 // Where to look for the latest published binaries (set by GitHub Pages auto-deploy).
-const char* TIGERSCALE_VERSION_URL = "https://tigertag-project.github.io/Tiger_Scale/version.json";
+const char* TIGERSCALE_VERSION_URL = "https://tigertag-project.github.io/Tiger-Scale/version.json";
 
 // How often to poll the Firestore command queue (commands/{id} subcollection).
 // Reuses the heartbeat tick (every 30 s) so we don't add a separate timer.
